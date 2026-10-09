@@ -5,5 +5,10 @@ node_modules
 **/coverage
 .env
 **/.env
+.env*
+**/.env*
+.aws
+.codex
+.agents
 RidePilot_Product
 RidePilot_UI

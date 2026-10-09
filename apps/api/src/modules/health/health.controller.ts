@@ -4,10 +4,10 @@ import {
   ApiOperation,
   ApiServiceUnavailableResponse,
   ApiTags,
-  type SchemaObject,
 } from "@nestjs/swagger";
 import { healthResponseSchema, HealthResponse } from "@ridepilot/contracts";
-import { z } from "zod";
+import { Public } from "../../common/public.decorator";
+import { toOpenApiSchema } from "../../docs/zod-openapi";
 import { HealthService } from "./health.service";
 
 @ApiTags("health")
@@ -16,13 +16,11 @@ export class HealthController {
   constructor(private readonly health: HealthService) {}
 
   @Get()
+  @Public()
   @ApiOperation({ summary: "检查数据库和 Redis 的就绪状态" })
   @ApiOkResponse({
     description: "PostgreSQL 和 Redis 均可用",
-    // Zod's generic JSON Schema type allows arrays in `type`; this schema targets OpenAPI 3.0.
-    schema: z.toJSONSchema(healthResponseSchema, {
-      target: "openapi-3.0",
-    }) as unknown as SchemaObject,
+    schema: toOpenApiSchema(healthResponseSchema),
   })
   @ApiServiceUnavailableResponse({
     description: "PostgreSQL 或 Redis 不可用",

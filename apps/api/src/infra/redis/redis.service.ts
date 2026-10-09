@@ -21,4 +21,14 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   ping(): Promise<string> {
     return this.client.ping();
   }
+
+  async incrementWithExpiry(key: string, ttlSeconds: number): Promise<number> {
+    const count = await this.client.eval(
+      "local n = redis.call('INCR', KEYS[1]); if n == 1 then redis.call('EXPIRE', KEYS[1], ARGV[1]); end; return n",
+      1,
+      key,
+      ttlSeconds,
+    );
+    return Number(count);
+  }
 }

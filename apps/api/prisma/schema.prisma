@@ -7,3 +7,60 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+enum UserStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum AuthIdentifierType {
+  PHONE
+}
+
+enum VerificationStatus {
+  UNVERIFIED
+  VERIFIED
+}
+
+model User {
+  id          String           @id @default(uuid()) @db.Uuid
+  status      UserStatus       @default(ACTIVE)
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+  credentials AuthCredential[]
+  sessions    AuthSession[]
+
+  @@map("users")
+}
+
+model AuthCredential {
+  id                 String             @id @default(uuid()) @db.Uuid
+  userId             String             @map("user_id") @db.Uuid
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  loginIdentifier    String             @map("login_identifier") @db.VarChar(64)
+  identifierType     AuthIdentifierType @map("identifier_type")
+  verificationStatus VerificationStatus @default(UNVERIFIED) @map("verification_status")
+  passwordHash       String             @map("password_hash") @db.VarChar(255)
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @updatedAt @map("updated_at")
+
+  @@unique([identifierType, loginIdentifier])
+  @@index([userId])
+  @@map("auth_credentials")
+}
+
+model AuthSession {
+  id               String    @id @default(uuid()) @db.Uuid
+  userId           String    @map("user_id") @db.Uuid
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshTokenHash String    @map("refresh_token_hash") @db.Char(64)
+  version          Int       @default(1)
+  expiresAt        DateTime  @map("expires_at")
+  revokedAt        DateTime? @map("revoked_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("auth_sessions")
+}

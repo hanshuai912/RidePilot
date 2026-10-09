@@ -6,6 +6,10 @@ export function configureSwagger(app: INestApplication): void {
     .setTitle("RidePilot API")
     .setDescription("RidePilot 服务端 API")
     .setVersion("1.0")
+    .addBearerAuth(
+      { type: "http", scheme: "bearer", bearerFormat: "JWT" },
+      "access-token",
+    )
     .build();
 
   SwaggerModule.setup(
