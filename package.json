@@ -5,8 +5,8 @@
   "scripts": {
     "dev:api": "pnpm --filter @ridepilot/api dev",
     "build": "pnpm --filter @ridepilot/contracts build && pnpm --filter @ridepilot/api build",
-    "typecheck": "pnpm --filter @ridepilot/contracts typecheck && pnpm --filter @ridepilot/api typecheck",
-    "lint": "pnpm exec oxlint apps/api/src apps/api/test packages/contracts/src",
+    "typecheck": "pnpm --filter @ridepilot/contracts typecheck && pnpm --filter @ridepilot/api typecheck && pnpm --filter @ridepilot/mobile typecheck",
+    "lint": "pnpm exec oxlint apps/api/src apps/api/test packages/contracts/src && pnpm --filter @ridepilot/mobile lint",
     "format:check": "pnpm exec prettier --check \"apps/**/*.{ts,json}\" \"packages/**/*.{ts,json}\" \"docs/**/*.md\" \"*.{json,yaml,yml,md}\"",
     "test": "pnpm --filter @ridepilot/api test",
     "db:generate": "pnpm --filter @ridepilot/api db:generate",
