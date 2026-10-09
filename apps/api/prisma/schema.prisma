@@ -22,15 +22,50 @@ enum VerificationStatus {
   VERIFIED
 }
 
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+  PREFER_NOT_TO_SAY
+}
+
+enum ViewPreference {
+  SIMPLE
+  PROFESSIONAL
+}
+
 model User {
   id          String           @id @default(uuid()) @db.Uuid
   status      UserStatus       @default(ACTIVE)
   createdAt   DateTime         @default(now()) @map("created_at")
   updatedAt   DateTime         @updatedAt @map("updated_at")
+  displayName String?          @map("display_name") @db.VarChar(80)
+  timezone    String           @default("UTC") @db.VarChar(64)
+  locale      String           @default("zh-CN") @db.VarChar(16)
+  profileVersion Int            @default(1) @map("profile_version")
   credentials AuthCredential[]
   sessions    AuthSession[]
+  athleteProfile AthleteProfile?
 
   @@map("users")
+}
+
+model AthleteProfile {
+  id               String         @id @default(uuid()) @db.Uuid
+  userId           String         @unique @map("user_id") @db.Uuid
+  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  gender           Gender?
+  ageBand          String?        @map("age_band") @db.VarChar(32)
+  heightCm         Decimal?       @map("height_cm") @db.Decimal(5, 2)
+  weightKg         Decimal?       @map("weight_kg") @db.Decimal(6, 2)
+  experienceLevel  String?        @map("experience_level") @db.VarChar(32)
+  trainingPurpose  String?        @map("training_purpose") @db.VarChar(500)
+  equipmentFlags   Json?          @map("equipment_flags")
+  viewPreference   ViewPreference  @default(SIMPLE) @map("view_preference")
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+
+  @@map("athlete_profiles")
 }
 
 model AuthCredential {

@@ -15,3 +15,5 @@ export type {
   RefreshRequest,
   RegisterRequest,
 } from "./auth";
+export { profilePatchSchema, profileResponseSchema } from "./profile";
+export type { ProfilePatch, ProfileResponse } from "./profile";
