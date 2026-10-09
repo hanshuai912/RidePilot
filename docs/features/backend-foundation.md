@@ -17,6 +17,7 @@ Compose 启动 PostgreSQL、Redis 和可选的 API 容器；也可只启动两�
 - `packages/contracts/src/health.ts`：健康检查响应契约。
 - `apps/api/Dockerfile` 与 `compose.yaml`：容器构建、依赖顺序、数据卷与健康检查。
 - 本地 `pnpm dev:api` 通过 Nest CLI 监视编译，保留依赖注入所需的 TypeScript 装饰器元数据。
+- `apps/api/src/docs/swagger.ts` 与 `apps/api/src/configure-app.ts`：注册 Swagger UI 和 OpenAPI JSON；健康响应从共享 Zod schema 生成文档。
 
 ## API 契约
 
@@ -25,6 +26,8 @@ Compose 启动 PostgreSQL、Redis 和可选的 API 容器；也可只启动两�
 | GET    | `/api/v1/health` | 200，数据库与 Redis 状态均为 `ok` | 503，`DEPENDENCY_UNAVAILABLE` | 公开 |
 
 具体响应见 [健康检查 API](../api/health.md)。公开接口不读取或修改用户数据；后续业务接口必须增加鉴权及归属校验。
+
+Swagger 页面和 JSON 地址及启用规则见 [OpenAPI 文档](../api/openapi.md)。
 
 ## 数据与迁移
 
@@ -43,15 +46,18 @@ Prisma schema 目前只定义 PostgreSQL 数据源与 Client 生成器，未建�
 - `pnpm install --frozen-lockfile`
 - `pnpm db:validate`（使用示例 PostgreSQL URL）
 - `pnpm build`、`pnpm typecheck`、`pnpm lint`、`pnpm format:check`
-- `pnpm test`：3 个集成用例通过
+- `pnpm test`：4 个集成用例通过，包含 Swagger 页面与 OpenAPI 契约
 - `docker compose config --quiet`
 - `docker compose up --build -d api`：API、PostgreSQL、Redis 均达到 healthy
 - `curl http://127.0.0.1:3000/api/v1/health`：返回数据库与 Redis 状态均为 `ok`
 - 容器内 `pnpm db:validate`：Prisma schema 有效
 - `PORT=3001 pnpm dev:api` 后请求 `http://127.0.0.1:3001/api/v1/health`：返回 HTTP 200，数据库与 Redis 均为 `ok`
+- `PORT=3001 pnpm dev:api` 后请求 `/api/docs` 与 `/api/docs-json`：页面返回 200，JSON 为 OpenAPI 3.0，包含健康接口的 200/503 响应
+- `NODE_ENV=production SWAGGER_ENABLED=false PORT=3001 pnpm --filter @ridepilot/api start`：`/api/docs` 返回 404，健康接口仍返回 200
 
 ## 变更记录与未决问题
 
 - 2026-10-08：创建后端与容器化基础设施。
 - 2026-10-09：将本地监视模式改为 Nest CLI 编译，修复依赖注入元数据缺失导致的健康检查 500 错误。
+- 2026-10-09：接入 Swagger，公开健康检查的 OpenAPI 定义。
 - 移动端、账户模型、认证、业务缓存策略和迁移随对应功能实现。

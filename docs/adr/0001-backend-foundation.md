@@ -13,6 +13,7 @@
 - Compose 管理 PostgreSQL、Redis 和可选的 API 容器；API Dockerfile 位于 `apps/api`。
 - API 镜像基于 Node.js 24 Debian slim，并安装 OpenSSL，供 Prisma CLI 使用。
 - Redis 目前只用于连接及就绪检查。缓存键、过期策略和队列在业务需求明确后设计。
+- 使用 `@nestjs/swagger` 提供 OpenAPI 文档，健康响应结构从共享 Zod 契约生成，减少重复定义。
 - 不在容器启动时自动运行数据库迁移，避免多实例并发迁移和隐式结构变更。
 
 ## 后果

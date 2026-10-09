@@ -9,3 +9,5 @@
 ```
 
 PostgreSQL 或 Redis 不可用时返回 HTTP 503，响应含 `code: "DEPENDENCY_UNAVAILABLE"` 和通用中文提示。该接口不暴露连接配置或原始错误。响应结构由 `packages/contracts/src/health.ts` 定义。
+
+Swagger 文档位于 `/api/docs`，OpenAPI JSON 位于 `/api/docs-json`。200 响应 schema 从共享 Zod 契约生成，避免文档与接口返回结构分离。

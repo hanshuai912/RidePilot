@@ -37,6 +37,7 @@ services:
       PORT: 3000
       DATABASE_URL: postgresql://${POSTGRES_USER:-ridepilot}:${POSTGRES_PASSWORD:-ridepilot_dev}@postgres:5432/${POSTGRES_DB:-ridepilot}
       REDIS_URL: redis://redis:6379
+      SWAGGER_ENABLED: ${SWAGGER_ENABLED:-true}
     ports:
       - "127.0.0.1:${API_PORT:-3000}:3000"
     depends_on:

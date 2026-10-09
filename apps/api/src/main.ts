@@ -2,10 +2,11 @@ import "reflect-metadata";
 import { NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module";
 import { env } from "./config/env";
+import { configureApp } from "./configure-app";
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
-  app.setGlobalPrefix("api/v1");
+  configureApp(app);
   app.enableShutdownHooks();
   await app.listen(env.PORT, "0.0.0.0");
 }

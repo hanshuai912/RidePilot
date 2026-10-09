@@ -2,6 +2,7 @@ import { INestApplication } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import request from "supertest";
 import { AppModule } from "../src/app.module";
+import { configureApp } from "../src/configure-app";
 import { PrismaService } from "../src/infra/prisma/prisma.service";
 import { RedisService } from "../src/infra/redis/redis.service";
 
@@ -19,7 +20,7 @@ describe("GET /api/v1/health", () => {
       .compile();
 
     app = module.createNestApplication();
-    app.setGlobalPrefix("api/v1");
+    configureApp(app);
     await app.init();
   });
 
@@ -58,5 +59,30 @@ describe("GET /api/v1/health", () => {
     ping.mockRejectedValue(new Error("connection refused"));
 
     await request(app.getHttpServer()).get("/api/v1/health").expect(503);
+  });
+
+  it("serves Swagger UI and the health OpenAPI contract", async () => {
+    await request(app.getHttpServer()).get("/api/docs").expect(200);
+
+    const response = await request(app.getHttpServer())
+      .get("/api/docs-json")
+      .expect(200);
+    const health = response.body.paths["/api/v1/health"].get;
+
+    expect(response.body.openapi).toMatch(/^3\./);
+    expect(
+      health.responses["200"].content["application/json"].schema,
+    ).toMatchObject({
+      type: "object",
+      required: ["status", "services"],
+      properties: {
+        status: { type: "string", enum: ["ok"] },
+        services: {
+          type: "object",
+          required: ["database", "redis"],
+        },
+      },
+    });
+    expect(health.responses["503"]).toBeDefined();
   });
 });

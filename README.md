@@ -32,6 +32,8 @@ pnpm dev:api
 
 本地 API 地址为 `http://127.0.0.1:3000/api/v1/health`。开发时 PostgreSQL 和 Redis 在 Docker 中运行，API 在宿主机运行。也可使用 `docker compose up --build -d` 将 API 一并放入 Docker。首次启动前若后续已有数据库迁移，执行 `pnpm --filter @ridepilot/api db:deploy`；当前尚无业务数据表或迁移。
 
+Swagger 页面：`http://127.0.0.1:3000/api/docs`；OpenAPI JSON：`http://127.0.0.1:3000/api/docs-json`。本地开发默认开启 Swagger，Compose 开发环境通过 `SWAGGER_ENABLED=true` 开启；生产环境默认关闭，可按部署需求显式配置。
+
 根目录 `.env` 供 Compose 读取，`apps/api/.env` 供本地 API 与 Prisma CLI 读取。示例密码只用于本机开发，部署时应使用环境专属密钥，并通过环境变量注入。PostgreSQL、Redis 和 API 的宿主机端口均绑定至 `127.0.0.1`。数据保存在 Compose 卷中；`docker compose down` 不删除数据卷。
 
 质量检查：

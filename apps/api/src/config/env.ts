@@ -8,6 +8,7 @@ const envSchema = z.object({
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
   DATABASE_URL: z.string().regex(/^postgres(ql)?:\/\//),
   REDIS_URL: z.string().regex(/^rediss?:\/\//),
+  SWAGGER_ENABLED: z.stringbool().optional(),
 });
 
 const result = envSchema.safeParse(process.env);
@@ -19,4 +20,8 @@ if (!result.success) {
   throw new Error(`Invalid environment variables: ${names}`);
 }
 
-export const env = result.data;
+export const env = {
+  ...result.data,
+  SWAGGER_ENABLED:
+    result.data.SWAGGER_ENABLED ?? result.data.NODE_ENV !== "production",
+};
