@@ -1,24 +1,5 @@
-import { StyleSheet, Text, View } from 'react-native';
-
-import { colors, spacing, typography } from '../../theme/tokens';
+import { PlaceholderScreen } from '../../components/layout/PlaceholderScreen';
 
 export default function HomeScreen() {
-  return (
-    <View style={styles.container}>
-      <Text style={styles.title}>RidePilot</Text>
-      <Text style={styles.subtitle}>移动端基础工程已就绪</Text>
-    </View>
-  );
+  return <PlaceholderScreen title="首页" description="首页内容将在后续产品功能阶段接入。" />;
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.background,
-    padding: spacing.xxl,
-  },
-  title: { color: colors.brand, fontSize: typography.title, fontWeight: '600' },
-  subtitle: { color: colors.textSecondary, fontSize: typography.body, marginTop: spacing.sm },
-});

@@ -22,6 +22,7 @@ const config: ExpoConfig = {
     predictiveBackGestureEnabled: false,
   },
   web: {
+    bundler: "metro",
     favicon: "./assets/favicon.png",
   },
   experiments: {

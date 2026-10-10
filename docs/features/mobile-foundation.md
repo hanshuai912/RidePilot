@@ -6,7 +6,7 @@
 
 ## 2. 技术实现
 
-- `apps/mobile/`：Expo SDK 57 + React Native 0.86 + TypeScript。
+- `apps/mobile/`：Expo SDK 57 + React Native 0.86 + TypeScript；Web 端显式固定 `react` 与 `react-dom` 为同一版本 `19.2.3`。
 - `apps/mobile/src/app/`：Expo Router 文件路由入口。
 - `apps/mobile/src/app/(tabs)/`：首页、训练、饮食、AI 教练、我的五个一级路由壳。
 - `apps/mobile/src/theme/tokens.ts`：暗色主题颜色、间距、圆角、字号和触控尺寸。
@@ -26,9 +26,15 @@
 - `pnpm --filter @ridepilot/mobile exec expo config --json`：配置成功解析，SDK 57、暗色主题和 `expo-router` 插件生效。
 - `pnpm --filter @ridepilot/mobile typecheck`：已执行并通过。
 - `pnpm --filter @ridepilot/mobile lint`：已执行并通过 Expo flat ESLint。
+- `pnpm --filter @ridepilot/mobile exec expo-doctor`：21/21 项检查通过。
+- `pnpm --filter @ridepilot/mobile exec expo export --platform web`：Web bundle 成功导出。
 
 ## 6. 未实现与后续
 
 - 登录注册、API Client、Query、状态管理和业务 Feature 均未加入。
 - 底部导航页面目前是路由占位，不代表对应产品能力已实现。
 - 原生模块、蓝牙、设备同步、通知和权限配置待具体需求确认后增加。
+
+## 7. Phase 0 UI 基础设施
+
+Phase 0 在本工程基础上增加 NativeWind 4、暗色主题映射、Safe Area 布局、通用 UI 组件、Lucide 图标和开发用 `/showcase` 路由。详细目录、组件 Props、Token 用法和验证命令见 [UI 基础架构文档](../frontend/ui-foundation.md)。本次仍未接入任何业务 API 或业务数据。
