@@ -17,11 +17,11 @@ Phase 0 只建立移动端 UI 基础设施，不包含训练、饮食、赛事�
 
 ```text
 apps/mobile/
+├── app/                             # Expo Router 路由
+│   ├── _layout.tsx                  # SafeArea、StatusBar、Root Stack
+│   ├── showcase.tsx                 # 开发用组件预览
+│   └── (tabs)/                      # 一级底部导航
 ├── src/
-│   ├── app/                         # Expo Router 路由
-│   │   ├── _layout.tsx              # SafeArea、StatusBar、Root Stack
-│   │   ├── showcase.tsx             # 开发用组件预览
-│   │   └── (tabs)/                  # 一级底部导航
 │   ├── components/
 │   │   ├── layout/                  # Screen、PageHeader、占位页
 │   │   └── ui/                      # 可复用基础组件
@@ -36,7 +36,7 @@ apps/mobile/
 └── nativewind-env.d.ts             # className 类型声明
 ```
 
-路由继续使用当前仓库的 `src/app` 结构，没有重复创建平行的 `app/` 目录。
+Expo Router 路由位于工程根目录的 `app/`；通用 UI 与主题仍位于 `src/`。
 
 ## 3. 技术栈与依赖版本
 
@@ -68,6 +68,7 @@ TypeScript Token 位于 `apps/mobile/src/theme/`：
 - `index.ts`：统一导出 `darkTheme`
 
 NativeWind Token 位于 `tailwind.config.js`，使用相同的颜色语义名称，例如 `bg-background`、`bg-surface`、`text-primary`、`text-secondary`、`text-brand`。
+暗色策略为 `class`，与 Expo 的固定暗色配置一致；Web 端切换文档暗色类时不会触发 NativeWind 的 `media` 模式冲突。
 
 组件中优先使用 utility class 或 TypeScript Token；新增组件不要散落新的主题色、间距和圆角值。
 
@@ -103,10 +104,10 @@ NativeWind Token 位于 `tailwind.config.js`，使用相同的颜色语义名称
 
 ## 7. 如何添加新页面
 
-Expo Router 页面放在 `src/app/`。页面只负责装配布局和组件；可复用 UI 放在 `components/`，跨页面逻辑放在 `hooks/` 或 `lib/`。
+Expo Router 页面放在 `app/`。页面只负责装配布局和组件；可复用 UI 放在 `src/components/`，跨页面逻辑放在 `src/hooks/` 或 `src/lib/`。
 
-- 一级页面放入 `src/app/(tabs)/`，并在 Tabs Layout 注册。
-- 详情或编辑页面放在 `src/app/` 对应路由下，不加入底部导航。
+- 一级页面放入 `app/(tabs)/`，并在 Tabs Layout 注册。
+- 详情或编辑页面放在 `app/` 对应路由下，不加入底部导航。
 - 使用 `Screen` 处理 Safe Area、背景和滚动。
 - 使用 `PageHeader` 保持标题和副标题层级一致。
 - 暂无业务数据时使用明确占位状态，不制造训练或营养数据。
@@ -174,7 +175,8 @@ pnpm --filter @ridepilot/mobile exec expo export --platform web
 - ESLint 检查通过
 - Expo Doctor 21/21 检查通过
 - Web bundle 成功导出，包含 NativeWind CSS
-- Expo Router 识别 `src/app` 路由和 `/showcase`
+- Expo Router 识别 `app/` 路由和 `/showcase`
+- `npm run web -- --clear` 的浏览器页面已渲染首页和五个导航入口；`/training` 与 `/showcase` 也已验证可访问，Metro 完成 bundle。
 
 已知边界：
 

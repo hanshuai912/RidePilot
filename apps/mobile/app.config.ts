@@ -13,6 +13,7 @@ const config: ExpoConfig = {
     supportsTablet: true,
   },
   android: {
+    package: "com.ridepilot.dev",
     adaptiveIcon: {
       backgroundColor: "#0D0F0E",
       foregroundImage: "./assets/android-icon-foreground.png",

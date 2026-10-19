@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { View } from 'react-native';
 
-import { PageHeader } from '../components/layout/PageHeader';
-import { Screen } from '../components/layout/Screen';
+import { PageHeader } from '../src/components/layout/PageHeader';
+import { Screen } from '../src/components/layout/Screen';
 import {
   AppText,
   Badge,
@@ -17,8 +17,8 @@ import {
   Switch,
   Tabs,
   Textarea,
-} from '../components/ui';
-import { colors } from '../theme/colors';
+} from '../src/components/ui';
+import { colors } from '../src/theme/colors';
 
 const palette = [
   ['背景', colors.background],

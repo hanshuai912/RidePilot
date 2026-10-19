@@ -1,7 +1,7 @@
 import { Tabs } from 'expo-router';
 import { Dumbbell, Home, MessageCircle, Salad, UserRound } from 'lucide-react-native';
 
-import { colors, layout } from '../../theme/tokens';
+import { colors, layout } from '../../src/theme/tokens';
 
 export default function TabsLayout() {
   return (
