@@ -19,6 +19,7 @@ const envSchema = z
       .min(32)
       .refine((value) => !value.startsWith("replace-with")),
     AUTH_TEST_CODE_ENABLED: z.stringbool().optional(),
+    CORS_ALLOWED_ORIGINS: z.string().optional(),
   })
   .superRefine((input, context) => {
     if (input.JWT_ACCESS_SECRET === input.JWT_REFRESH_SECRET) {
@@ -41,6 +42,10 @@ if (!result.success) {
 
 export const env = {
   ...result.data,
+  CORS_ALLOWED_ORIGINS: (result.data.CORS_ALLOWED_ORIGINS ?? "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean),
   SWAGGER_ENABLED:
     result.data.SWAGGER_ENABLED ?? result.data.NODE_ENV !== "production",
   AUTH_TEST_CODE_ENABLED:
