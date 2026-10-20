@@ -49,15 +49,12 @@ export function WelcomeScreen() {
             <View style={styles.markIcon}>
               <View style={styles.markLine} />
             </View>
-            <Text style={styles.markText}>私人骑行训练</Text>
+            <Text style={styles.markText}>私人运动训练</Text>
           </View>
           <View style={styles.heroCopy}>
-            <Text style={styles.heroTitle}>每一次骑行，</Text>
+            <Text style={styles.heroTitle}>每一次训练，</Text>
             <Text style={[styles.heroTitle, styles.heroHighlight]}>
               都更有方向。
-            </Text>
-            <Text style={styles.heroSubtitle}>
-              从你的目标与时间出发，安排训练、饮食和阶段进步。
             </Text>
           </View>
         </ImageBackground>
@@ -70,9 +67,6 @@ export function WelcomeScreen() {
           </AuthButton>
         </View>
         <View style={styles.footer}>
-          <Text style={styles.footerText}>
-            当前账号使用手机号和密码；注册验证码仅用于测试格式，不发送短信。
-          </Text>
           <Pressable
             onPress={() => setPrivacyOpen(true)}
             accessibilityRole="button"

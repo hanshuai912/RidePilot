@@ -61,9 +61,9 @@ function AuthenticatedStack() {
         <Stack.Screen name="showcase" options={{ title: "UI Showcase" }} />
       </Stack.Protected>
       <Stack.Protected guard={status === "guest"}>
+        <Stack.Screen name="welcome" options={{ headerShown: false }} />
         <Stack.Screen name="login" options={{ headerShown: false }} />
         <Stack.Screen name="register" options={{ headerShown: false }} />
-        <Stack.Screen name="welcome" options={{ headerShown: false }} />
       </Stack.Protected>
     </Stack>
   );
