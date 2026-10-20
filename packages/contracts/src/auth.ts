@@ -53,7 +53,7 @@ export const registerRequestSchema = z
 
 export const loginRequestSchema = z.object({
   phone: phoneSchema,
-  password: z.string().min(1).max(1024),
+  password: z.string().min(1, "请输入密码").max(1024, "密码过长"),
 });
 
 export const refreshRequestSchema = z.object({

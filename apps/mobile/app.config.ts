@@ -8,7 +8,7 @@ const config: ExpoConfig = {
   scheme: "ridepilot",
   userInterfaceStyle: "dark",
   icon: "./assets/icon.png",
-  plugins: ["expo-router"],
+  plugins: ["expo-router", "expo-secure-store"],
   ios: {
     supportsTablet: true,
   },

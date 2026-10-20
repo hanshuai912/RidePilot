@@ -1,26 +1,81 @@
-import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { Stack } from "expo-router";
+import { StatusBar } from "expo-status-bar";
+import { ActivityIndicator, View } from "react-native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 
-import '../global.css';
+import "../global.css";
 
-import { colors } from '../src/theme/tokens';
+import { colors } from "../src/theme/tokens";
+import { AuthProvider, useAuth } from "../src/features/auth/hooks/AuthProvider";
+import { AppText, Button } from "../src/components/ui";
+
+function AuthenticatedStack() {
+  const { status, retry } = useAuth();
+  if (status === "loading") {
+    return (
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: colors.background,
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <ActivityIndicator
+          color={colors.brand}
+          accessibilityLabel="正在检查登录状态"
+        />
+      </View>
+    );
+  }
+  if (status === "unavailable") {
+    return (
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: colors.background,
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 24,
+          gap: 18,
+        }}
+      >
+        <AppText style={{ color: colors.textPrimary }}>
+          暂时无法验证登录状态，请检查 API 连接后重试。
+        </AppText>
+        <Button onPress={() => void retry()}>重试</Button>
+      </View>
+    );
+  }
+  return (
+    <Stack
+      screenOptions={{
+        contentStyle: { backgroundColor: colors.background },
+        headerStyle: { backgroundColor: colors.background },
+        headerTintColor: colors.textPrimary,
+        headerShadowVisible: false,
+      }}
+    >
+      <Stack.Protected guard={status === "authenticated"}>
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="showcase" options={{ title: "UI Showcase" }} />
+      </Stack.Protected>
+      <Stack.Protected guard={status === "guest"}>
+        <Stack.Screen name="login" options={{ headerShown: false }} />
+        <Stack.Screen name="register" options={{ headerShown: false }} />
+        <Stack.Screen name="welcome" options={{ headerShown: false }} />
+      </Stack.Protected>
+    </Stack>
+  );
+}
 
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <StatusBar style="light" />
-      <Stack
-        screenOptions={{
-          contentStyle: { backgroundColor: colors.background },
-          headerStyle: { backgroundColor: colors.background },
-          headerTintColor: colors.textPrimary,
-          headerShadowVisible: false,
-        }}
-      >
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="showcase" options={{ title: 'UI Showcase' }} />
-      </Stack>
+      <AuthProvider>
+        <AuthenticatedStack />
+      </AuthProvider>
     </SafeAreaProvider>
   );
 }
