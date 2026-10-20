@@ -44,7 +44,6 @@ export function LoginScreen() {
       eyebrow="继续你的骑行计划"
       sectionLabel="欢迎回来"
       title="登录账号"
-      subtitle="使用注册时填写的手机号与密码，继续查看你的训练计划。"
     >
       <View style={styles.form}>
         <Controller
@@ -53,13 +52,11 @@ export function LoginScreen() {
           render={({ field, fieldState }) => (
             <AuthField
               label="手机号"
-              hint="注册手机号"
-              helper="请输入中国大陆 11 位手机号"
               error={fieldState.error?.message}
               value={field.value}
               onChangeText={field.onChange}
               onBlur={field.onBlur}
-              placeholder="请输入注册时的手机号"
+              placeholder="请输入手机号"
               keyboardType="number-pad"
               autoComplete="tel"
               textContentType="telephoneNumber"
@@ -73,7 +70,6 @@ export function LoginScreen() {
           render={({ field, fieldState }) => (
             <AuthField
               label="密码"
-              helper="请输入注册时设置的密码"
               error={fieldState.error?.message}
               password
               value={field.value}

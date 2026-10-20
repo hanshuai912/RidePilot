@@ -56,9 +56,11 @@ export function AuthField({
           </Pressable>
         ) : null}
       </View>
-      <Text style={[styles.helper, error ? styles.error : null]}>
-        {error || helper || " "}
-      </Text>
+      {error || helper ? (
+        <Text style={[styles.helper, error ? styles.error : null]}>
+          {error || helper || " "}
+        </Text>
+      ) : null}
     </View>
   );
 }

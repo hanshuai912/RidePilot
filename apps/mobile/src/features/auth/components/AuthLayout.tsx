@@ -26,7 +26,7 @@ export function AuthLayout({
   eyebrow: string;
   sectionLabel: string;
   title: string;
-  subtitle: string;
+  subtitle?: string;
   kind: "login" | "register";
   children: ReactNode;
 }) {
@@ -54,7 +54,7 @@ export function AuthLayout({
           </View>
           <Text style={styles.eyebrow}>{sectionLabel}</Text>
           <Text style={styles.title}>{title}</Text>
-          <Text style={styles.subtitle}>{subtitle}</Text>
+          {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
           {children}
           <Pressable
             onPress={() => setPrivacyOpen(true)}
