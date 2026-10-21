@@ -1,5 +1,5 @@
-import { PlaceholderScreen } from '../../src/components/layout/PlaceholderScreen';
+import { HomeScreen as HomeScreenView } from "../../src/features/home/screens/HomeScreen";
 
 export default function HomeScreen() {
-  return <PlaceholderScreen title="首页" description="首页内容将在后续产品功能阶段接入。" />;
+  return <HomeScreenView />;
 }

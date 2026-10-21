@@ -1,7 +1,7 @@
-import { ActivityIndicator, Pressable, type PressableProps } from 'react-native';
+import { ActivityIndicator, Pressable, Text, type PressableProps } from 'react-native';
 
 import { cn } from '../../lib/cn';
-import { AppText } from './AppText';
+import { colors } from '../../theme/colors';
 
 type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
 type ButtonSize = 'sm' | 'md' | 'lg';
@@ -13,17 +13,17 @@ const variantClasses: Record<ButtonVariant, string> = {
   danger: 'bg-negative',
 };
 
-const textClasses: Record<ButtonVariant, string> = {
-  primary: 'text-brand-on',
-  secondary: 'text-primary',
-  ghost: 'text-brand',
-  danger: 'text-brand-on',
-};
-
 const sizeClasses: Record<ButtonSize, string> = {
   sm: 'min-h-[40px] px-3',
   md: 'min-h-[48px] px-4',
   lg: 'min-h-[52px] px-5',
+};
+
+const textColors: Record<ButtonVariant, string> = {
+  primary: colors.brandOn,
+  secondary: colors.textPrimary,
+  ghost: colors.brand,
+  danger: colors.brandOn,
 };
 
 export type ButtonProps = PressableProps & {
@@ -60,9 +60,19 @@ export function Button({
       {...props}
     >
       {loading ? (
-        <ActivityIndicator color={variant === 'secondary' ? '#EFF0E9' : '#171913'} />
+        <ActivityIndicator color={textColors[variant]} />
       ) : (
-        <AppText className={cn('font-semibold', textClasses[variant])}>{children}</AppText>
+        <Text
+          style={{
+            color: textColors[variant],
+            fontSize: 15,
+            lineHeight: 20,
+            fontWeight:
+              variant === 'secondary' || variant === 'ghost' ? '600' : '700',
+          }}
+        >
+          {children}
+        </Text>
       )}
     </Pressable>
   );

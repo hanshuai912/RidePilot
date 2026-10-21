@@ -32,7 +32,7 @@ beforeEach(() => {
 
 test("welcome offers registration and login entry points", async () => {
   const screen = await render(<WelcomeScreen />);
-  expect(screen.getByText("每一次骑行，")).toBeTruthy();
+  expect(screen.getByText("每一次训练，")).toBeTruthy();
   await fireEvent.press(screen.getByRole("button", { name: "创建账号" }));
   expect(router.push).toHaveBeenCalledWith("/register");
   await fireEvent.press(screen.getByRole("button", { name: "已有账号，登录" }));
@@ -42,7 +42,7 @@ test("welcome offers registration and login entry points", async () => {
 test("login rejects invalid phone locally and submits valid credentials", async () => {
   const screen = await render(<LoginScreen />);
   await fireEvent.changeText(
-    screen.getByPlaceholderText("请输入注册时的手机号"),
+    screen.getByPlaceholderText("请输入手机号"),
     "123",
   );
   await fireEvent.changeText(
@@ -54,7 +54,7 @@ test("login rejects invalid phone locally and submits valid credentials", async 
   expect(login).not.toHaveBeenCalled();
 
   await fireEvent.changeText(
-    screen.getByPlaceholderText("请输入注册时的手机号"),
+    screen.getByPlaceholderText("请输入手机号"),
     "13812345678",
   );
   await fireEvent.press(screen.getByText("登录"));
@@ -69,11 +69,11 @@ test("login rejects invalid phone locally and submits valid credentials", async 
 test("register requires matching passwords and a six-digit test code", async () => {
   const screen = await render(<RegisterScreen />);
   await fireEvent.changeText(
-    screen.getByPlaceholderText("请输入 11 位手机号"),
+    screen.getByPlaceholderText("请输入手机号"),
     "13812345678",
   );
   await fireEvent.changeText(
-    screen.getByPlaceholderText("任意 6 位数字"),
+    screen.getByPlaceholderText("请输入验证码"),
     "12345",
   );
   await fireEvent.changeText(
@@ -90,7 +90,7 @@ test("register requires matching passwords and a six-digit test code", async () 
   expect(register).not.toHaveBeenCalled();
 
   await fireEvent.changeText(
-    screen.getByPlaceholderText("任意 6 位数字"),
+    screen.getByPlaceholderText("请输入验证码"),
     "123456",
   );
   await fireEvent.changeText(
@@ -114,7 +114,7 @@ test("login failure keeps the form and shows a safe credential error", async () 
   );
   const screen = await render(<LoginScreen />);
   await fireEvent.changeText(
-    screen.getByPlaceholderText("请输入注册时的手机号"),
+    screen.getByPlaceholderText("请输入手机号"),
     "13812345678",
   );
   await fireEvent.changeText(
@@ -123,7 +123,7 @@ test("login failure keeps the form and shows a safe credential error", async () 
   );
   await fireEvent.press(screen.getByRole("button", { name: "登录" }));
   expect(await screen.findByText("手机号或密码不正确")).toBeTruthy();
-  expect(screen.getByPlaceholderText("请输入注册时的手机号").props.value).toBe(
+  expect(screen.getByPlaceholderText("请输入手机号").props.value).toBe(
     "13812345678",
   );
 });
@@ -131,7 +131,7 @@ test("login failure keeps the form and shows a safe credential error", async () 
 test("empty login password shows a Chinese validation message", async () => {
   const screen = await render(<LoginScreen />);
   await fireEvent.changeText(
-    screen.getByPlaceholderText("请输入注册时的手机号"),
+    screen.getByPlaceholderText("请输入手机号"),
     "13812345678",
   );
   await fireEvent.press(screen.getByRole("button", { name: "登录" }));
