@@ -143,6 +143,7 @@ async function back() {
 test("calendar opens independent detail and edit routes; native back returns to detail", async () => {
   await open();
   await waitFor(() => expect(screen.getByText("查看课程")).toBeTruthy());
+  expect(screen.getByRole("image", { name: /平均强度 125 W/ })).toBeTruthy();
   await fireEvent.press(screen.getByText("查看课程"));
   await waitFor(() =>
     expect(screen.getByTestId("current-path").props.children).toBe(
@@ -170,6 +171,32 @@ test("calendar opens independent detail and edit routes; native back returns to 
       `/workouts/${workout.id}`,
     ),
   );
+});
+
+test("distance-only calendar cards keep distance information and actions without a chart", async () => {
+  api.getCalendar.mockImplementation(async (_token, from, to) => ({
+    from,
+    to,
+    ftpAvailable: false,
+    items: [
+      {
+        ...workout,
+        timeTargetMinutes: null,
+        distanceTargetKm: 8,
+        segments: [
+          {
+            ...workout.segments[0],
+            target: { kind: "distance", value: 8, unit: "km" },
+          },
+        ],
+      },
+    ],
+  }));
+  await open();
+  await waitFor(() => expect(screen.getByText("8 公里")).toBeTruthy());
+  expect(screen.queryByText(/强度均值/)).toBeNull();
+  expect(screen.getByText("查看课程")).toBeTruthy();
+  expect(screen.getByText("编辑动作")).toBeTruthy();
 });
 
 test("new course saves to the formal plan in one action after returning from segment editing", async () => {

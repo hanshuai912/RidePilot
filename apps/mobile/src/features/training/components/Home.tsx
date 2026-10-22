@@ -5,6 +5,7 @@ import { colors } from "../../../theme/tokens";
 import type { Workout } from "../model/training";
 import { dateLabel, weekday } from "../model/training";
 import { styles } from "./training.styles";
+import { WorkoutProfileChart } from "./WorkoutProfileChart";
 
 export function Home({
   days,
@@ -148,6 +149,7 @@ export function Home({
                 {item.segments.length} 个动作
               </AppText>
             </View>
+            <WorkoutProfileChart segments={item.segments} />
             <View style={styles.buttonRow}>
               <Button
                 variant="secondary"
