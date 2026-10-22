@@ -112,6 +112,8 @@ Expo Router 页面放在 `app/`。页面只负责装配布局和组件；可复�
 - 使用 `PageHeader` 保持标题和副标题层级一致。
 - 暂无业务数据时使用明确占位状态，不制造训练或营养数据。
 
+训练业务采用 `app/(tabs)/training.tsx` 日历入口和受登录保护的 `app/workouts/_layout.tsx` 二级 Stack。详情、新建、课程编辑、动作编辑和确认预览各自为独立路由，复用现有黑金主题；页面与状态边界见 [手动训练课程](../features/manual-training-workout.md)。Stack 使用原生导航标题和返回能力，避免用页面内部状态模拟整套导航。
+
 ## 8. 如何使用统一主题
 
 NativeWind 示例：
