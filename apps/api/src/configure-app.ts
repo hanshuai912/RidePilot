@@ -10,7 +10,7 @@ export function configureApp(app: INestApplication): void {
         ? env.CORS_ALLOWED_ORIGINS
         : env.NODE_ENV !== "production",
     methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    allowedHeaders: ["Content-Type", "Authorization", "Idempotency-Key"],
     maxAge: 600,
   });
 

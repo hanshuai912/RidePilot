@@ -40,4 +40,19 @@ describe("API CORS", () => {
       response.headers["access-control-allow-headers"].toLowerCase(),
     ).toContain("content-type");
   });
+
+  it("allows the idempotency key when Expo Web saves a course", async () => {
+    const response = await request(app.getHttpServer())
+      .options("/api/v1/proposals/example/apply")
+      .set("Origin", "http://localhost:8081")
+      .set("Access-Control-Request-Method", "POST")
+      .set(
+        "Access-Control-Request-Headers",
+        "authorization,content-type,idempotency-key",
+      )
+      .expect(204);
+    expect(
+      response.headers["access-control-allow-headers"].toLowerCase(),
+    ).toContain("idempotency-key");
+  });
 });

@@ -34,6 +34,36 @@ enum ViewPreference {
   PROFESSIONAL
 }
 
+enum TrainingPlanStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+enum PlanItemEventType {
+  WORKOUT
+}
+
+enum PlanItemStatus {
+  SCHEDULED
+}
+
+enum ProposalType {
+  MANUAL_WORKOUT_CREATE
+  MANUAL_WORKOUT_EDIT
+}
+
+enum ProposalStatus {
+  DRAFT
+  PENDING_VALIDATION
+  READY
+  BLOCKED
+  APPLIED
+  REJECTED
+  EXPIRED
+}
+
 model User {
   id          String           @id @default(uuid()) @db.Uuid
   status      UserStatus       @default(ACTIVE)
@@ -46,8 +76,126 @@ model User {
   credentials AuthCredential[]
   sessions    AuthSession[]
   athleteProfile AthleteProfile?
+  abilityMeasurements AbilityMeasurement[]
+  trainingPlans TrainingPlan[]
+  proposals ChangeProposal[]
 
   @@map("users")
+}
+
+model AbilityMeasurement {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  metricType String   @map("metric_type") @db.VarChar(64)
+  value      Decimal  @db.Decimal(8, 2)
+  unit       String   @db.VarChar(16)
+  measuredAt DateTime @map("measured_at")
+  source     String   @db.VarChar(32)
+  confidence String?  @db.VarChar(32)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([userId, metricType, measuredAt])
+  @@map("ability_measurements")
+}
+
+model TrainingPlan {
+  id              String          @id @default(uuid()) @db.Uuid
+  userId          String          @map("user_id") @db.Uuid
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status          TrainingPlanStatus @default(DRAFT)
+  activeVersionId String?         @unique @map("active_version_id") @db.Uuid
+  activeVersion   PlanVersion?    @relation("ActivePlanVersion", fields: [activeVersionId], references: [id])
+  versions        PlanVersion[]   @relation("PlanVersions")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+
+  @@index([userId, status])
+  @@map("training_plans")
+}
+
+model PlanVersion {
+  id             String        @id @default(uuid()) @db.Uuid
+  planId         String        @map("plan_id") @db.Uuid
+  plan           TrainingPlan  @relation("PlanVersions", fields: [planId], references: [id], onDelete: Cascade)
+  activeForPlan  TrainingPlan? @relation("ActivePlanVersion")
+  versionNo      Int           @map("version_no")
+  baseVersionId  String?       @map("base_version_id") @db.Uuid
+  changeReason   String?       @map("change_reason") @db.VarChar(255)
+  snapshot       Json?
+  appliedAt      DateTime?     @map("applied_at")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  workouts       Workout[]
+  planItems      PlanItem[]
+  proposals      ChangeProposal[]
+
+  @@unique([planId, versionNo])
+  @@index([planId, appliedAt])
+  @@map("plan_versions")
+}
+
+model Workout {
+  id              String      @id @default(uuid()) @db.Uuid
+  planVersionId   String      @map("plan_version_id") @db.Uuid
+  planVersion     PlanVersion @relation(fields: [planVersionId], references: [id], onDelete: Cascade)
+  sportType       String      @map("sport_type") @db.VarChar(32)
+  purpose         String?     @db.VarChar(64)
+  title           String?     @db.VarChar(120)
+  scheduledDate   DateTime    @map("scheduled_date") @db.Date
+  dayOrder        Int         @map("day_order")
+  timeTargetMin   Decimal?    @map("time_target_min") @db.Decimal(8, 2)
+  distanceTargetKm Decimal?   @map("distance_target_km") @db.Decimal(8, 2)
+  source          String      @db.VarChar(32)
+  structure       Json
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+  planItem        PlanItem?
+
+  @@index([planVersionId, scheduledDate, dayOrder])
+  @@map("workouts")
+}
+
+model PlanItem {
+  id            String      @id @default(uuid()) @db.Uuid
+  planVersionId String      @map("plan_version_id") @db.Uuid
+  planVersion   PlanVersion @relation(fields: [planVersionId], references: [id], onDelete: Cascade)
+  eventType     PlanItemEventType @map("event_type")
+  scheduledDate DateTime    @map("scheduled_date") @db.Date
+  scheduledStart DateTime?  @map("scheduled_start")
+  dayOrder      Int         @map("day_order")
+  referenceId   String?     @map("reference_id") @db.Uuid
+  workoutId     String?     @unique @map("workout_id") @db.Uuid
+  workout       Workout?    @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+  status        PlanItemStatus @default(SCHEDULED)
+
+  @@index([planVersionId, scheduledDate, dayOrder])
+  @@map("plan_items")
+}
+
+model ChangeProposal {
+  id                 String         @id @default(uuid()) @db.Uuid
+  userId             String         @map("user_id") @db.Uuid
+  user               User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  baseVersionId      String?        @map("base_version_id") @db.Uuid
+  baseVersion        PlanVersion?   @relation(fields: [baseVersionId], references: [id], onDelete: Cascade)
+  proposalType       ProposalType   @map("proposal_type")
+  status             ProposalStatus @default(DRAFT)
+  targetWorkoutId    String?        @map("target_workout_id") @db.Uuid
+  draft              Json
+  original           Json?
+  proposalVersion    Int            @default(1) @map("proposal_version")
+  validationPassed   Boolean?       @map("validation_passed")
+  validationWarnings Json?          @map("validation_warnings")
+  validationBlockers Json?         @map("validation_blockers")
+  idempotencyKey     String?        @unique @map("idempotency_key") @db.VarChar(255)
+  appliedVersionId   String?        @map("applied_version_id") @db.Uuid
+  expiresAt          DateTime?      @map("expires_at")
+  createdAt          DateTime       @default(now()) @map("created_at")
+  updatedAt          DateTime       @updatedAt @map("updated_at")
+
+  @@index([userId, status])
+  @@index([baseVersionId])
+  @@map("change_proposals")
 }
 
 model AthleteProfile {
