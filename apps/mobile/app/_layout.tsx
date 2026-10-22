@@ -58,6 +58,7 @@ function AuthenticatedStack() {
     >
       <Stack.Protected guard={status === "authenticated"}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="workouts" options={{ headerShown: false }} />
         <Stack.Screen name="showcase" options={{ title: "UI Showcase" }} />
       </Stack.Protected>
       <Stack.Protected guard={status === "guest"}>

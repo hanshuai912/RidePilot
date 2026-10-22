@@ -1,5 +1,5 @@
-import { PlaceholderScreen } from '../../src/components/layout/PlaceholderScreen';
+import { TrainingScreen } from "../../src/features/training/screens/TrainingScreen";
 
-export default function TrainingScreen() {
-  return <PlaceholderScreen title="训练" description="训练日历和课程模块将在后续产品功能阶段接入。" />;
+export default function TrainingScreenRoute() {
+  return <TrainingScreen />;
 }

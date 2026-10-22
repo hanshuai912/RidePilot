@@ -17,3 +17,28 @@ export type {
 } from "./auth";
 export { profilePatchSchema, profileResponseSchema } from "./profile";
 export type { ProfilePatch, ProfileResponse } from "./profile";
+export {
+  applyProposalResponseSchema,
+  applyProposalSchema,
+  calendarResponseSchema,
+  createManualWorkoutProposalSchema,
+  editWorkoutProposalSchema,
+  manualWorkoutDraftSchema,
+  proposalResponseSchema,
+  updateProposalSchema,
+  workoutIntensitySchema,
+  workoutSegmentSchema,
+  workoutSegmentTypeSchema,
+  workoutTargetSchema,
+} from "./training";
+export type {
+  ApplyProposal,
+  ApplyProposalResponse,
+  CalendarResponse,
+  CreateManualWorkoutProposal,
+  EditWorkoutProposal,
+  ManualWorkoutDraft,
+  ProposalResponse,
+  UpdateProposal,
+  WorkoutSegment,
+} from "./training";
