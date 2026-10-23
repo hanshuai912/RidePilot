@@ -20,6 +20,12 @@ const envSchema = z
       .refine((value) => !value.startsWith("replace-with")),
     AUTH_TEST_CODE_ENABLED: z.stringbool().optional(),
     CORS_ALLOWED_ORIGINS: z.string().optional(),
+    AI_PROVIDER: z.enum(["openai-compatible"]).default("openai-compatible"),
+    AI_BASE_URL: z.string().url().optional(),
+    AI_API_KEY: z.string().min(1).optional(),
+    AI_MODEL: z.string().min(1).optional(),
+    AI_TIMEOUT_MS: z.coerce.number().int().positive().default(30000),
+    AI_GUARD_MODE: z.enum(["noop"]).default("noop"),
   })
   .superRefine((input, context) => {
     if (input.JWT_ACCESS_SECRET === input.JWT_REFRESH_SECRET) {
@@ -28,6 +34,37 @@ const envSchema = z
         path: ["JWT_REFRESH_SECRET"],
         message: "Refresh secret must differ from access secret",
       });
+    }
+
+    if (input.NODE_ENV === "production") {
+      if (!input.AI_BASE_URL) {
+        context.addIssue({
+          code: "custom",
+          path: ["AI_BASE_URL"],
+          message: "AI_BASE_URL is required in production",
+        });
+      }
+      if (!input.AI_API_KEY) {
+        context.addIssue({
+          code: "custom",
+          path: ["AI_API_KEY"],
+          message: "AI_API_KEY is required in production",
+        });
+      }
+      if (!input.AI_MODEL) {
+        context.addIssue({
+          code: "custom",
+          path: ["AI_MODEL"],
+          message: "AI_MODEL is required in production",
+        });
+      }
+      if (input.AI_GUARD_MODE === "noop") {
+        context.addIssue({
+          code: "custom",
+          path: ["AI_GUARD_MODE"],
+          message: "NoopGuard is not allowed in production",
+        });
+      }
     }
   });
 
