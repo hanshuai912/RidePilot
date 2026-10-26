@@ -31,6 +31,7 @@ export {
   workoutSegmentTypeSchema,
   workoutTargetSchema,
 } from "./training";
+export * from "./coach";
 export type {
   ApplyProposal,
   ApplyProposalResponse,

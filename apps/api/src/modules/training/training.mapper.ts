@@ -33,6 +33,7 @@ export function toSummary(workout: {
   purpose: string | null;
   scheduledDate: Date;
   dayOrder: number;
+  source: string;
   timeTargetMin: unknown;
   distanceTargetKm: unknown;
   structure: unknown;
@@ -45,7 +46,7 @@ export function toSummary(workout: {
     id: workout.id,
     planVersion: workout.planVersion?.versionNo ?? 1,
     sportType: "cycling" as const,
-    source: "manual" as const,
+    source: workout.source === "ai" ? ("ai" as const) : ("manual" as const),
     title: workout.title,
     purpose: workout.purpose,
     scheduledDate: dbToDate(workout.scheduledDate),

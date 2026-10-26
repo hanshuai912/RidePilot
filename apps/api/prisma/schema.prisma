@@ -52,6 +52,12 @@ enum PlanItemStatus {
 enum ProposalType {
   MANUAL_WORKOUT_CREATE
   MANUAL_WORKOUT_EDIT
+  AI_WEEK_PLAN
+  AI_WORKOUT_ADJUST
+  AI_PLAN_ADJUST
+  AI_ASSESSMENT_REVIEW
+  AI_RACE_REPLAN
+  PLAN_RESTORE
 }
 
 enum ProposalStatus {
@@ -65,22 +71,134 @@ enum ProposalStatus {
 }
 
 model User {
-  id          String           @id @default(uuid()) @db.Uuid
-  status      UserStatus       @default(ACTIVE)
-  createdAt   DateTime         @default(now()) @map("created_at")
-  updatedAt   DateTime         @updatedAt @map("updated_at")
-  displayName String?          @map("display_name") @db.VarChar(80)
-  timezone    String           @default("UTC") @db.VarChar(64)
-  locale      String           @default("zh-CN") @db.VarChar(16)
-  profileVersion Int            @default(1) @map("profile_version")
-  credentials AuthCredential[]
-  sessions    AuthSession[]
-  athleteProfile AthleteProfile?
-  abilityMeasurements AbilityMeasurement[]
-  trainingPlans TrainingPlan[]
-  proposals ChangeProposal[]
+  id                   String                @id @default(uuid()) @db.Uuid
+  status               UserStatus            @default(ACTIVE)
+  createdAt            DateTime              @default(now()) @map("created_at")
+  updatedAt            DateTime              @updatedAt @map("updated_at")
+  displayName          String?               @map("display_name") @db.VarChar(80)
+  timezone             String                @default("UTC") @db.VarChar(64)
+  locale               String                @default("zh-CN") @db.VarChar(16)
+  profileVersion       Int                   @default(1) @map("profile_version")
+  credentials          AuthCredential[]
+  sessions             AuthSession[]
+  athleteProfile       AthleteProfile?
+  abilityMeasurements  AbilityMeasurement[]
+  trainingPlans        TrainingPlan[]
+  proposals            ChangeProposal[]
+  trainingGoals        TrainingGoal[]
+  trainingAvailability TrainingAvailability?
+  trainingActivities   TrainingActivity[]
+  assessments          TrainingAssessment[]
+  races                TrainingRace[]
+  aiGenerations        AiGeneration[]
 
   @@map("users")
+}
+
+model TrainingGoal {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        String   @db.VarChar(32)
+  description String?  @db.VarChar(200)
+  targetWkg   Decimal? @map("target_wkg") @db.Decimal(4, 2)
+  targetDate  DateTime @map("target_date") @db.Date
+  priority    String   @db.VarChar(16)
+  status      String   @default("ACTIVE") @db.VarChar(16)
+  version     Int      @default(1)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([userId, status])
+  @@map("training_goals")
+}
+
+model TrainingAvailability {
+  userId            String   @id @map("user_id") @db.Uuid
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  timezone          String   @db.VarChar(64)
+  weekdays          Json
+  maxSessionMinutes Int      @map("max_session_minutes")
+  version           Int      @default(1)
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  @@map("training_availability")
+}
+
+model TrainingActivity {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workoutId   String?  @map("workout_id") @db.Uuid
+  localDate   DateTime @map("local_date") @db.Date
+  status      String   @db.VarChar(16)
+  durationMin Int?     @map("duration_min")
+  rpe         Int?
+  fatigue     Int?
+  notes       String?  @db.VarChar(200)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@unique([userId, workoutId])
+  @@index([userId, localDate])
+  @@map("training_activities")
+}
+
+model TrainingAssessment {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goalId      String?  @map("goal_id") @db.Uuid
+  localDate   DateTime @map("local_date") @db.Date
+  protocol    String   @db.VarChar(64)
+  status      String   @default("SCHEDULED") @db.VarChar(16)
+  resultWatts Decimal? @map("result_watts") @db.Decimal(8, 2)
+  conditions  String?  @db.VarChar(200)
+  version     Int      @default(1)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([userId, localDate])
+  @@map("training_assessments")
+}
+
+model TrainingRace {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String   @db.VarChar(120)
+  localDate  DateTime @map("local_date") @db.Date
+  timezone   String   @db.VarChar(64)
+  distanceKm Decimal  @map("distance_km") @db.Decimal(8, 2)
+  priority   String   @db.VarChar(1)
+  status     String   @default("CONFIRMED") @db.VarChar(16)
+  version    Int      @default(1)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@index([userId, localDate])
+  @@map("training_races")
+}
+
+model AiGeneration {
+  id             String    @id @default(uuid()) @db.Uuid
+  userId         String    @map("user_id") @db.Uuid
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scene          String    @db.VarChar(40)
+  status         String    @default("QUEUED") @db.VarChar(16)
+  input          Json
+  idempotencyKey String    @map("idempotency_key") @db.VarChar(255)
+  proposalId     String?   @map("proposal_id") @db.Uuid
+  errorCode      String?   @map("error_code") @db.VarChar(64)
+  requestId      String?   @map("request_id") @db.VarChar(64)
+  attempts       Int       @default(0)
+  leaseUntil     DateTime? @map("lease_until")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  @@unique([userId, idempotencyKey])
+  @@index([status, leaseUntil])
+  @@index([userId, createdAt])
+  @@map("ai_generations")
 }
 
 model AbilityMeasurement {
@@ -100,34 +218,34 @@ model AbilityMeasurement {
 }
 
 model TrainingPlan {
-  id              String          @id @default(uuid()) @db.Uuid
-  userId          String          @map("user_id") @db.Uuid
-  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id              String             @id @default(uuid()) @db.Uuid
+  userId          String             @map("user_id") @db.Uuid
+  user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   status          TrainingPlanStatus @default(DRAFT)
-  activeVersionId String?         @unique @map("active_version_id") @db.Uuid
-  activeVersion   PlanVersion?    @relation("ActivePlanVersion", fields: [activeVersionId], references: [id])
-  versions        PlanVersion[]   @relation("PlanVersions")
-  createdAt       DateTime        @default(now()) @map("created_at")
-  updatedAt       DateTime        @updatedAt @map("updated_at")
+  activeVersionId String?            @unique @map("active_version_id") @db.Uuid
+  activeVersion   PlanVersion?       @relation("ActivePlanVersion", fields: [activeVersionId], references: [id])
+  versions        PlanVersion[]      @relation("PlanVersions")
+  createdAt       DateTime           @default(now()) @map("created_at")
+  updatedAt       DateTime           @updatedAt @map("updated_at")
 
   @@index([userId, status])
   @@map("training_plans")
 }
 
 model PlanVersion {
-  id             String        @id @default(uuid()) @db.Uuid
-  planId         String        @map("plan_id") @db.Uuid
-  plan           TrainingPlan  @relation("PlanVersions", fields: [planId], references: [id], onDelete: Cascade)
-  activeForPlan  TrainingPlan? @relation("ActivePlanVersion")
-  versionNo      Int           @map("version_no")
-  baseVersionId  String?       @map("base_version_id") @db.Uuid
-  changeReason   String?       @map("change_reason") @db.VarChar(255)
-  snapshot       Json?
-  appliedAt      DateTime?     @map("applied_at")
-  createdAt      DateTime      @default(now()) @map("created_at")
-  workouts       Workout[]
-  planItems      PlanItem[]
-  proposals      ChangeProposal[]
+  id            String           @id @default(uuid()) @db.Uuid
+  planId        String           @map("plan_id") @db.Uuid
+  plan          TrainingPlan     @relation("PlanVersions", fields: [planId], references: [id], onDelete: Cascade)
+  activeForPlan TrainingPlan?    @relation("ActivePlanVersion")
+  versionNo     Int              @map("version_no")
+  baseVersionId String?          @map("base_version_id") @db.Uuid
+  changeReason  String?          @map("change_reason") @db.VarChar(255)
+  snapshot      Json?
+  appliedAt     DateTime?        @map("applied_at")
+  createdAt     DateTime         @default(now()) @map("created_at")
+  workouts      Workout[]
+  planItems     PlanItem[]
+  proposals     ChangeProposal[]
 
   @@unique([planId, versionNo])
   @@index([planId, appliedAt])
@@ -135,38 +253,38 @@ model PlanVersion {
 }
 
 model Workout {
-  id              String      @id @default(uuid()) @db.Uuid
-  planVersionId   String      @map("plan_version_id") @db.Uuid
-  planVersion     PlanVersion @relation(fields: [planVersionId], references: [id], onDelete: Cascade)
-  sportType       String      @map("sport_type") @db.VarChar(32)
-  purpose         String?     @db.VarChar(64)
-  title           String?     @db.VarChar(120)
-  scheduledDate   DateTime    @map("scheduled_date") @db.Date
-  dayOrder        Int         @map("day_order")
-  timeTargetMin   Decimal?    @map("time_target_min") @db.Decimal(8, 2)
-  distanceTargetKm Decimal?   @map("distance_target_km") @db.Decimal(8, 2)
-  source          String      @db.VarChar(32)
-  structure       Json
-  createdAt       DateTime    @default(now()) @map("created_at")
-  updatedAt       DateTime    @updatedAt @map("updated_at")
-  planItem        PlanItem?
+  id               String      @id @default(uuid()) @db.Uuid
+  planVersionId    String      @map("plan_version_id") @db.Uuid
+  planVersion      PlanVersion @relation(fields: [planVersionId], references: [id], onDelete: Cascade)
+  sportType        String      @map("sport_type") @db.VarChar(32)
+  purpose          String?     @db.VarChar(64)
+  title            String?     @db.VarChar(120)
+  scheduledDate    DateTime    @map("scheduled_date") @db.Date
+  dayOrder         Int         @map("day_order")
+  timeTargetMin    Decimal?    @map("time_target_min") @db.Decimal(8, 2)
+  distanceTargetKm Decimal?    @map("distance_target_km") @db.Decimal(8, 2)
+  source           String      @db.VarChar(32)
+  structure        Json
+  createdAt        DateTime    @default(now()) @map("created_at")
+  updatedAt        DateTime    @updatedAt @map("updated_at")
+  planItem         PlanItem?
 
   @@index([planVersionId, scheduledDate, dayOrder])
   @@map("workouts")
 }
 
 model PlanItem {
-  id            String      @id @default(uuid()) @db.Uuid
-  planVersionId String      @map("plan_version_id") @db.Uuid
-  planVersion   PlanVersion @relation(fields: [planVersionId], references: [id], onDelete: Cascade)
-  eventType     PlanItemEventType @map("event_type")
-  scheduledDate DateTime    @map("scheduled_date") @db.Date
-  scheduledStart DateTime?  @map("scheduled_start")
-  dayOrder      Int         @map("day_order")
-  referenceId   String?     @map("reference_id") @db.Uuid
-  workoutId     String?     @unique @map("workout_id") @db.Uuid
-  workout       Workout?    @relation(fields: [workoutId], references: [id], onDelete: Cascade)
-  status        PlanItemStatus @default(SCHEDULED)
+  id             String            @id @default(uuid()) @db.Uuid
+  planVersionId  String            @map("plan_version_id") @db.Uuid
+  planVersion    PlanVersion       @relation(fields: [planVersionId], references: [id], onDelete: Cascade)
+  eventType      PlanItemEventType @map("event_type")
+  scheduledDate  DateTime          @map("scheduled_date") @db.Date
+  scheduledStart DateTime?         @map("scheduled_start")
+  dayOrder       Int               @map("day_order")
+  referenceId    String?           @map("reference_id") @db.Uuid
+  workoutId      String?           @unique @map("workout_id") @db.Uuid
+  workout        Workout?          @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+  status         PlanItemStatus    @default(SCHEDULED)
 
   @@index([planVersionId, scheduledDate, dayOrder])
   @@map("plan_items")
@@ -186,7 +304,7 @@ model ChangeProposal {
   proposalVersion    Int            @default(1) @map("proposal_version")
   validationPassed   Boolean?       @map("validation_passed")
   validationWarnings Json?          @map("validation_warnings")
-  validationBlockers Json?         @map("validation_blockers")
+  validationBlockers Json?          @map("validation_blockers")
   idempotencyKey     String?        @unique @map("idempotency_key") @db.VarChar(255)
   appliedVersionId   String?        @map("applied_version_id") @db.Uuid
   expiresAt          DateTime?      @map("expires_at")
@@ -199,19 +317,19 @@ model ChangeProposal {
 }
 
 model AthleteProfile {
-  id               String         @id @default(uuid()) @db.Uuid
-  userId           String         @unique @map("user_id") @db.Uuid
-  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  gender           Gender?
-  ageBand          String?        @map("age_band") @db.VarChar(32)
-  heightCm         Decimal?       @map("height_cm") @db.Decimal(5, 2)
-  weightKg         Decimal?       @map("weight_kg") @db.Decimal(6, 2)
-  experienceLevel  String?        @map("experience_level") @db.VarChar(32)
-  trainingPurpose  String?        @map("training_purpose") @db.VarChar(500)
-  equipmentFlags   Json?          @map("equipment_flags")
-  viewPreference   ViewPreference  @default(SIMPLE) @map("view_preference")
-  createdAt        DateTime       @default(now()) @map("created_at")
-  updatedAt        DateTime       @updatedAt @map("updated_at")
+  id              String         @id @default(uuid()) @db.Uuid
+  userId          String         @unique @map("user_id") @db.Uuid
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  gender          Gender?
+  ageBand         String?        @map("age_band") @db.VarChar(32)
+  heightCm        Decimal?       @map("height_cm") @db.Decimal(5, 2)
+  weightKg        Decimal?       @map("weight_kg") @db.Decimal(6, 2)
+  experienceLevel String?        @map("experience_level") @db.VarChar(32)
+  trainingPurpose String?        @map("training_purpose") @db.VarChar(500)
+  equipmentFlags  Json?          @map("equipment_flags")
+  viewPreference  ViewPreference @default(SIMPLE) @map("view_preference")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
 
   @@map("athlete_profiles")
 }

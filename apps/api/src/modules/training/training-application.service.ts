@@ -18,10 +18,16 @@ import {
   dbToDate,
   validateDraft,
 } from "./training.validation";
+import { CoachProposalService } from "../coach/coach-proposal.service";
+import { PlanRestoreService } from "../coach/plan-restore.service";
 
 @Injectable()
 export class TrainingApplicationService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly coachProposals: CoachProposalService,
+    private readonly restore: PlanRestoreService,
+  ) {}
 
   async applyProposal(
     userId: string,
@@ -29,6 +35,24 @@ export class TrainingApplicationService {
     input: ApplyProposal,
     idempotencyKey: string,
   ): Promise<ApplyProposalResponse> {
+    const type = await this.prisma.changeProposal.findFirst({
+      where: { id: proposalId, userId },
+      select: { proposalType: true },
+    });
+    if (type && this.coachProposals.isAiProposal(type.proposalType))
+      return this.coachProposals.apply(
+        userId,
+        proposalId,
+        input.expectedBaseVersion,
+        idempotencyKey,
+      );
+    if (type?.proposalType === "PLAN_RESTORE")
+      return this.restore.apply(
+        userId,
+        proposalId,
+        input.expectedBaseVersion,
+        idempotencyKey,
+      );
     if (!idempotencyKey)
       throw new ConflictException({
         code: "IDEMPOTENCY_KEY_REQUIRED",

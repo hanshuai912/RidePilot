@@ -6,10 +6,12 @@ import {
 } from "@nestjs/common";
 import {
   ApplyProposal,
+  AiProposalResponse,
   CalendarResponse,
   CreateManualWorkoutProposal,
   EditWorkoutProposal,
   ProposalResponse,
+  RestoreProposalResponse,
   UpdateProposal,
 } from "@ridepilot/contracts";
 import { randomUUID } from "node:crypto";
@@ -18,6 +20,8 @@ import type { DraftPayload } from "./training.types";
 import { toDraft, toSummary, toProposalResponse } from "./training.mapper";
 import { PrismaService } from "../../infra/prisma/prisma.service";
 import { TrainingRepository } from "./training.repository";
+import { CoachProposalService } from "../coach/coach-proposal.service";
+import { PlanRestoreService } from "../coach/plan-restore.service";
 import {
   assertEditableDate,
   assertPlanVersion,
@@ -32,6 +36,8 @@ export class TrainingService {
     private readonly prisma: PrismaService,
     private readonly repository: TrainingRepository,
     private readonly application: TrainingApplicationService,
+    private readonly coachProposals: CoachProposalService,
+    private readonly restore: PlanRestoreService,
   ) {}
 
   async createManualProposal(
@@ -113,13 +119,17 @@ export class TrainingService {
   async getProposal(
     userId: string,
     proposalId: string,
-  ): Promise<ProposalResponse> {
+  ): Promise<ProposalResponse | AiProposalResponse | RestoreProposalResponse> {
     const proposal = await this.repository.findProposal(userId, proposalId);
     if (!proposal)
       throw new NotFoundException({
         code: "PROPOSAL_NOT_FOUND",
         message: "训练变更草稿不存在",
       });
+    if (this.coachProposals.isAiProposal(proposal.proposalType))
+      return this.coachProposals.get(userId, proposalId);
+    if (proposal.proposalType === "PLAN_RESTORE")
+      return this.restore.get(userId, proposalId);
     return toProposalResponse(
       proposal,
       proposal.original,
@@ -138,6 +148,16 @@ export class TrainingService {
       throw new NotFoundException({
         code: "PROPOSAL_NOT_FOUND",
         message: "训练变更草稿不存在",
+      });
+    if (this.coachProposals.isAiProposal(proposal.proposalType))
+      throw new BadRequestException({
+        code: "AI_PROPOSAL_EDIT_ROUTE_REQUIRED",
+        message: "请使用 AI 提案编辑接口",
+      });
+    if (proposal.proposalType === "PLAN_RESTORE")
+      throw new BadRequestException({
+        code: "PROPOSAL_NOT_EDITABLE",
+        message: "恢复提案不可编辑",
       });
     if (!["DRAFT", "BLOCKED", "READY"].includes(proposal.status))
       throw new ConflictException({
@@ -182,19 +202,23 @@ export class TrainingService {
         code: "PROPOSAL_VERSION_CONFLICT",
         message: "草稿已被其他请求修改，请重新读取",
       });
-    return this.getProposal(userId, proposalId);
+    return this.getProposal(userId, proposalId) as Promise<ProposalResponse>;
   }
 
   async validateProposal(
     userId: string,
     proposalId: string,
-  ): Promise<ProposalResponse> {
+  ): Promise<ProposalResponse | AiProposalResponse | RestoreProposalResponse> {
     const proposal = await this.repository.findProposal(userId, proposalId);
     if (!proposal)
       throw new NotFoundException({
         code: "PROPOSAL_NOT_FOUND",
         message: "训练变更草稿不存在",
       });
+    if (this.coachProposals.isAiProposal(proposal.proposalType))
+      return this.coachProposals.validate(userId, proposalId);
+    if (proposal.proposalType === "PLAN_RESTORE")
+      return this.restore.validate(userId, proposalId);
     if (!["DRAFT", "BLOCKED", "READY"].includes(proposal.status))
       throw new ConflictException({
         code: "PROPOSAL_NOT_EDITABLE",

@@ -23,6 +23,8 @@ import {
   createManualWorkoutProposalSchema,
   editWorkoutProposalSchema,
   proposalResponseSchema,
+  aiProposalResponseSchema,
+  restoreProposalResponseSchema,
   updateProposalSchema,
   CreateManualWorkoutProposal,
   EditWorkoutProposal,
@@ -69,7 +71,15 @@ export class TrainingController {
   }
 
   @Get("proposals/:proposalId")
-  @ApiOkResponse({ schema: toOpenApiSchema(proposalResponseSchema) })
+  @ApiOkResponse({
+    schema: {
+      oneOf: [
+        toOpenApiSchema(proposalResponseSchema),
+        toOpenApiSchema(aiProposalResponseSchema),
+        toOpenApiSchema(restoreProposalResponseSchema),
+      ],
+    },
+  })
   getProposal(
     @CurrentPrincipal() principal: AuthPrincipal,
     @Param("proposalId") proposalId: string,
@@ -89,7 +99,15 @@ export class TrainingController {
   }
 
   @Post("proposals/:proposalId/validate")
-  @ApiCreatedResponse({ schema: toOpenApiSchema(proposalResponseSchema) })
+  @ApiCreatedResponse({
+    schema: {
+      oneOf: [
+        toOpenApiSchema(proposalResponseSchema),
+        toOpenApiSchema(aiProposalResponseSchema),
+        toOpenApiSchema(restoreProposalResponseSchema),
+      ],
+    },
+  })
   validate(
     @CurrentPrincipal() principal: AuthPrincipal,
     @Param("proposalId") proposalId: string,

@@ -2,6 +2,8 @@
 
 所有接口前缀为 `/api/v1`，需要 `Authorization: Bearer <access-token>`。
 
+AI 教练新增的计划生成、调整、历史恢复及相关资料接口见 [AI 教练 API](./ai-coach.md)。这些入口仍复用本页的提案校验和正式版本应用语义。
+
 人工课程在移动端通过一次“保存当天课程”操作自动串联草稿创建/更新、校验和应用接口；成功以应用响应为准。接口与事务边界保持不变，首次/后续版本和幂等检查仍由服务端执行。Web 跨域预检允许 `Authorization`、`Content-Type` 和 `Idempotency-Key`。
 
 ## 接口

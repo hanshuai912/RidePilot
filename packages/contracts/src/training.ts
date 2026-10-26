@@ -61,7 +61,7 @@ const workoutSummarySchema = z.object({
   id: z.uuid(),
   planVersion: z.number().int().positive(),
   sportType: z.literal("cycling"),
-  source: z.literal("manual"),
+  source: z.enum(["manual", "ai"]),
   title: z.string().nullable(),
   purpose: z.string().nullable(),
   scheduledDate: z.string().date(),

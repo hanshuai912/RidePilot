@@ -1,5 +1,7 @@
 # 训练计划与人工课程数据
 
+AI 教练的新增模型、迁移和 AI 课程来源见 [AI 教练数据模型](./ai-coach.md)。
+
 `TrainingPlan` 按 `userId` 隔离，`ACTIVE` 加 `activeVersionId` 表示正式计划，与人工/AI 来源无关。`PlanVersion` 的 `(planId, versionNo)` 唯一，版本从 1 开始；`Workout` 与 `PlanItem` 归属具体版本，历史版本保留。
 
 `ChangeProposal.baseVersionId` 可空：`null` 仅用于尚无正式计划时创建人工课程草稿，API 对应 `basePlanVersion = 0`。仅保存或校验草稿不写入正式计划。确认后在同一事务中创建 ACTIVE 计划、第 1 版、课程、日历项目，并记录 `appliedVersionId`、`idempotencyKey`；已有计划继续创建下一版。
