@@ -18,6 +18,7 @@ import {
   ProfileApiError,
 } from "../services/profile.api";
 import type { ProfileResponse } from "@ridepilot/contracts";
+import { FtpMeasurementCard } from "../components/FtpMeasurementCard";
 
 type EditableProfile = Pick<
   ProfileResponse,
@@ -381,7 +382,6 @@ export function ProfileScreen() {
               </View>
             </View>
           </Card>
-
           <View style={styles.section}>
             <AppText style={styles.sectionTitle}>我的资料</AppText>
           </View>
@@ -419,6 +419,9 @@ export function ProfileScreen() {
               last
             />
           </Card>
+          {session?.accessToken ? (
+            <FtpMeasurementCard token={session.accessToken} />
+          ) : null}
 
           <View style={styles.section}>
             <AppText style={styles.sectionTitle}>数据与隐私</AppText>
@@ -634,6 +637,19 @@ function ProfileEditor({
             onChange({ ...draft, trainingPurpose })
           }
         />
+        <AppText variant="label" className="mt-5" muted>
+          训练时区
+        </AppText>
+        <Input
+          className="mt-2"
+          value={draft.timezone}
+          placeholder="例如 Asia/Shanghai"
+          autoCapitalize="none"
+          onChangeText={(timezone) => onChange({ ...draft, timezone })}
+        />
+        <AppText variant="caption" muted className="mt-1">
+          训练日期会按这个时区解释。
+        </AppText>
         <AppText variant="label" className="mt-5" muted>
           课程显示偏好
         </AppText>

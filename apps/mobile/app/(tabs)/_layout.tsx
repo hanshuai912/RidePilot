@@ -1,4 +1,4 @@
-import { Tabs } from "expo-router";
+import { Tabs, usePathname } from "expo-router";
 import {
   Dumbbell,
   Home,
@@ -10,19 +10,24 @@ import {
 import { colors } from "../../src/theme/tokens";
 
 export default function TabsLayout() {
+  const pathname = usePathname();
+  const isCoachSubpage = pathname.includes("/coach/");
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: colors.brand,
         tabBarInactiveTintColor: colors.textMuted,
-        tabBarStyle: {
-          backgroundColor: colors.surface1,
-          borderTopColor: colors.border,
-          height: 82,
-          paddingBottom: 16,
-          paddingTop: 10,
-        },
+        tabBarStyle: isCoachSubpage
+          ? { display: "none" }
+          : {
+              backgroundColor: colors.surface1,
+              borderTopColor: colors.border,
+              height: 82,
+              paddingBottom: 16,
+              paddingTop: 10,
+            },
         tabBarLabelStyle: { fontSize: 11 },
       }}
     >

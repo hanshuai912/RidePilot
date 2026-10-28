@@ -78,7 +78,7 @@ Content-Type: application/json
   ],
   "warnings": [],
   "blockers": [],
-  "skillVersion": "1.0.0",
+  "skillVersion": "1.1.0",
   "model": "<configured-model>"
 }
 ```
@@ -96,6 +96,14 @@ Content-Type: application/json
 
 基础版本过期时返回 `409 PLAN_VERSION_CONFLICT`；模型输出无效时任务变为 `FAILED`，`errorCode` 为 `AI_OUTPUT_INVALID`，不会创建可应用提案。确认成功返回 `success`、`newPlanVersion` 和 `affectedDates`；例如 `{"success":true,"newPlanVersion":1,"affectedDates":["2030-06-04"]}`。
 
-调整请求复用 `weekGenerationInputSchema`，已有计划的 `expectedBaseVersion` 必须等于当前版本；周调整使用 `replace_week`，单课调整使用 `replace_workout`。测试与赛事入口由路径指定关联事件。恢复提案请求传 `expectedBaseVersion`，同样经过预览、校验和确认应用。
+调整请求复用 `weekGenerationInputSchema`，已有计划的 `expectedBaseVersion` 必须等于当前版本；周调整使用 `replace_week`，单课调整使用 `replace_workout`。训练日历的每节课程会返回可选的 `editable` 字段：只有课程日期不早于用户时区当天且没有训练记录时为 `true`。测试与赛事入口由路径指定关联事件。恢复提案请求传 `expectedBaseVersion`，同样经过预览、校验和确认应用。
+
+`empty_week` 用于为本周剩余可训练日期补排课程。服务端只把仍可编辑的未来课程视为“该周已有课程”；历史课程或已经记录训练的课程会保留在新版本中，不会阻止剩余日期生成。若仍有可编辑课程，返回 `409 WEEK_NOT_EMPTY` 并要求使用调整入口；若没有剩余可训练日期，返回 `409 NO_REMAINING_TRAINING_DATES`。
 
 常见业务错误：`INSUFFICIENT_TRAINING_INPUT`（含 `missingFields`）、`PLAN_VERSION_CONFLICT`、`NO_EDITABLE_WORKOUTS`、`PROPOSAL_VALIDATION_FAILED`、`IDEMPOTENCY_KEY_CONFLICT`。异步模型或结构校验失败在任务的 `errorCode` 中体现，正式计划不会改变。JWT 或资源归属错误分别按现有鉴权与 404 规则返回。
+
+## 移动端快捷调整与反馈
+
+课程详情的“让 AI 调整这节课”使用 `POST /workouts/:id/ai-adjust-proposal`，默认请求体为 `mode=replace_workout`，并传入课程的 `planVersion`、目标、周一日期、快捷原因和可选说明。客户端读取异步任务关联的提案后，显示原课程和新课程差异；只有提案重新校验为 `READY`，并经用户确认，才调用 `/proposals/:id/apply`。
+
+课程详情的“记录训练反馈”使用 `POST /activities`，保存完成状态、实际时长、RPE、疲劳和备注。训练记录与正式计划版本独立保存，已记录课程不再作为可调整课程覆盖。响应结构包含 `id`、`workoutId`、`localDate`、`status`、`durationMin`、`rpe`、`fatigue` 和 `notes`。

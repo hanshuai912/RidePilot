@@ -10,6 +10,9 @@ jest.mock("../services/profile.api", () => ({
   patchProfile: jest.fn(),
   ProfileApiError: class ProfileApiError extends Error {},
 }));
+jest.mock("../components/FtpMeasurementCard", () => ({
+  FtpMeasurementCard: () => null,
+}));
 
 const mockedUseAuth = useAuth as jest.MockedFunction<typeof useAuth>;
 const mockedGetProfile = getProfile as jest.MockedFunction<typeof getProfile>;

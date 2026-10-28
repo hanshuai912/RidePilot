@@ -69,6 +69,8 @@ const workoutSummarySchema = z.object({
   timeTargetMinutes: z.number().nonnegative().nullable(),
   distanceTargetKm: z.number().nonnegative().nullable(),
   segments: z.array(workoutSegmentSchema),
+  /** Whether this workout can still be changed by a plan adjustment. */
+  editable: z.boolean().optional(),
 });
 
 export const proposalResponseSchema = z.object({

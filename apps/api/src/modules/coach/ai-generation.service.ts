@@ -40,7 +40,21 @@ export class AiGenerationService implements OnModuleInit, OnModuleDestroy {
     private readonly validator: CoachPlanValidator,
   ) {}
 
-  onModuleInit() {
+  async onModuleInit() {
+    try {
+      await this.prisma.aiGeneration.findFirst({ select: { id: true } });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2021"
+      ) {
+        throw new Error(
+          "AI 教练数据库表尚未创建。请运行 pnpm --filter @ridepilot/api db:deploy，然后重新启动 API。",
+          { cause: error },
+        );
+      }
+      throw error;
+    }
     this.timer = setInterval(() => void this.tick(), 1_000);
     this.timer.unref();
   }
@@ -188,6 +202,10 @@ export class AiGenerationService implements OnModuleInit, OnModuleDestroy {
               },
               experienceLevel: context.experienceLevel,
               availability: context.availability.weekdays,
+              allowedDates: context.availableDates,
+              forbiddenDates: context.forbiddenDates,
+              dateConstraint:
+                "每节训练只能安排在 allowedDates 中，不能使用 forbiddenDates 或其他日期",
               maxSessionMinutes: context.availability.maxSessionMinutes,
               bodyMetrics: context.bodyMetrics,
               currentFtpWkg: context.currentFtpWkg,
@@ -478,14 +496,6 @@ export class AiGenerationService implements OnModuleInit, OnModuleDestroy {
         const day = workout.scheduledDate.toISOString().slice(0, 10);
         return day >= input.weekStartDate && day <= end;
       }) ?? [];
-    if (
-      ["initial", "empty_week"].includes(input.mode) &&
-      existingWorkouts.length
-    )
-      throw new ConflictException({
-        code: "WEEK_NOT_EMPTY",
-        message: "该周已有课程，请使用调整入口",
-      });
     const activityRecords = existingWorkouts.length
       ? await this.prisma.trainingActivity.findMany({
           where: {
@@ -500,6 +510,16 @@ export class AiGenerationService implements OnModuleInit, OnModuleDestroy {
       (item) =>
         dbToDate(item.scheduledDate) >= localToday && !recordedIds.has(item.id),
     );
+    if (input.mode === "initial" && existingWorkouts.length)
+      throw new ConflictException({
+        code: "WEEK_NOT_EMPTY",
+        message: "该周已有课程，请使用调整入口",
+      });
+    if (input.mode === "empty_week" && editable.length)
+      throw new ConflictException({
+        code: "WEEK_NOT_EMPTY",
+        message: "该周仍有可调整课程，请使用调整入口",
+      });
     const replaceWorkoutIds =
       input.mode === "replace_workout"
         ? editable
@@ -591,6 +611,31 @@ export class AiGenerationService implements OnModuleInit, OnModuleDestroy {
       day = new Date(day.getTime() + 86_400_000)
     )
       forbiddenDates.push(day.toISOString().slice(0, 10));
+    const availableWeekdays = new Set(
+      (availability.weekdays as unknown as WeeklyAvailabilitySlot[]).map(
+        (item) => item.weekday,
+      ),
+    );
+    const availableDates: string[] = [];
+    for (
+      let day = new Date(start);
+      day.toISOString().slice(0, 10) <= end;
+      day = new Date(day.getTime() + 86_400_000)
+    ) {
+      const date = day.toISOString().slice(0, 10);
+      if (
+        date >= localToday &&
+        availableWeekdays.has(day.getUTCDay()) &&
+        !forbiddenDates.includes(date)
+      ) {
+        availableDates.push(date);
+      }
+    }
+    if (input.mode === "empty_week" && !availableDates.length)
+      throw new ConflictException({
+        code: "NO_REMAINING_TRAINING_DATES",
+        message: "本周没有剩余可训练日期，请选择下周开始",
+      });
     return {
       ftp,
       goal: {
@@ -617,6 +662,7 @@ export class AiGenerationService implements OnModuleInit, OnModuleDestroy {
         : null,
       plan,
       forbiddenDates,
+      availableDates,
       replaceWorkoutIds,
       retainedMinutes: Object.fromEntries(
         existingWorkouts
@@ -646,6 +692,8 @@ export class AiGenerationService implements OnModuleInit, OnModuleDestroy {
 
   private errorCode(error: unknown) {
     if (error instanceof AiException) return error.code;
+    if (error instanceof Prisma.PrismaClientKnownRequestError)
+      return `DB_${error.code}`;
     if (
       error instanceof BadRequestException ||
       error instanceof ConflictException

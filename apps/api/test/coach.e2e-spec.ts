@@ -302,6 +302,23 @@ describeWithDatabase("AI coach weekly plan API", () => {
     expect(chat.body).toMatchObject({ readOnly: true, model: "mock-coach" });
 
     const workoutId = calendar.body.items[0].id;
+    const weekAdjustment = await post("plans/adjust-proposal")
+      .set("Idempotency-Key", randomUUID())
+      .send({
+        weekStartDate: monday(),
+        goalId: goal.body.id,
+        mode: "replace_week",
+        expectedBaseVersion: 1,
+      })
+      .expect(202);
+    const weekJob = await waitForGeneration(weekAdjustment.body.generationId);
+    expect(weekJob.status).toBe("READY");
+    expect(
+      (await get(`proposals/${weekJob.proposalId}`).expect(200)).body,
+    ).toMatchObject({
+      scene: "PLAN_ADJUST",
+      replaceWorkoutIds: [workoutId],
+    });
     const adjustment = await post(`workouts/${workoutId}/ai-adjust-proposal`)
       .set("Idempotency-Key", randomUUID())
       .send({

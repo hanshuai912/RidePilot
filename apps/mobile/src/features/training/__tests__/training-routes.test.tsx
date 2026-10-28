@@ -7,10 +7,14 @@ import {
   waitFor,
   act,
 } from "expo-router/testing-library";
-import type { ProposalResponse } from "@ridepilot/contracts";
+import type {
+  AiProposalResponse,
+  ProposalResponse,
+} from "@ridepilot/contracts";
 import TabsLayout from "../../../../app/(tabs)/_layout";
 import WorkoutLayout from "../../../../app/workouts/_layout";
 import { useAuth } from "../../auth/hooks/AuthProvider";
+import { coachApi } from "../../coach/services/coach.api";
 import { trainingApi } from "../services/training.api";
 import { TrainingScreen } from "../screens/TrainingScreen";
 import { NewWorkoutScreen } from "../screens/NewWorkoutScreen";
@@ -18,9 +22,20 @@ import { WorkoutDetailScreen } from "../screens/WorkoutDetailScreen";
 import { WorkoutEditorScreen } from "../screens/WorkoutEditorScreen";
 import { WorkoutPreviewScreen } from "../screens/WorkoutPreviewScreen";
 import { WorkoutSegmentScreen } from "../screens/WorkoutSegmentScreen";
-import { iso } from "../model/training";
+import { addDays, iso } from "../model/training";
 
 jest.mock("../../auth/hooks/AuthProvider", () => ({ useAuth: jest.fn() }));
+jest.mock("../../coach/services/coach.api", () => ({
+  coachApi: {
+    goals: jest.fn(),
+    adjustWorkout: jest.fn(),
+    generation: jest.fn(),
+    proposal: jest.fn(),
+    validate: jest.fn(),
+    apply: jest.fn(),
+    recordActivity: jest.fn(),
+  },
+}));
 jest.mock("../services/training.api", () => ({
   ...jest.requireActual("../services/training.api"),
   trainingApi: {
@@ -35,6 +50,7 @@ jest.mock("../services/training.api", () => ({
   },
 }));
 const api = jest.mocked(trainingApi);
+const coach = jest.mocked(coachApi);
 const today = iso(new Date());
 const workout = {
   id: "00000000-0000-4000-8000-000000000001",
@@ -64,6 +80,30 @@ const proposal: ProposalResponse = {
   originalWorkout: null,
   draftWorkout: workout,
   validation: { passed: null, warnings: [], blockers: [] },
+};
+const aiProposal: AiProposalResponse = {
+  proposalId: "00000000-0000-4000-8000-000000000003",
+  status: "READY",
+  proposalVersion: 1,
+  basePlanVersion: 1,
+  scene: "WORKOUT_ADJUST",
+  replaceWorkoutIds: [workout.id],
+  weekStartDate: today,
+  summary: "今天缩短课程并保留耐力训练目的",
+  stageSummary: "保持当前训练阶段",
+  assessmentSuggestion: "按原计划复评",
+  workouts: [
+    {
+      scheduledDate: today,
+      title: "短时耐力骑行",
+      purpose: "保持有氧刺激",
+      segments: workout.segments,
+    },
+  ],
+  warnings: [],
+  blockers: [],
+  skillVersion: "1.1.0",
+  model: "test-model",
 };
 const routes = {
   _layout: function TestRoot() {
@@ -129,6 +169,42 @@ beforeEach(() => {
     newPlanVersion: 1,
     affectedDates: [today],
   });
+  coach.goals.mockResolvedValue([
+    {
+      id: "00000000-0000-4000-8000-000000000004",
+      type: "ENDURANCE",
+      description: null,
+      targetWkg: null,
+      targetDate: addDays(today, 56),
+      priority: "PRIMARY",
+      status: "ACTIVE",
+      version: 1,
+    },
+  ]);
+  coach.adjustWorkout.mockResolvedValue({
+    generationId: "00000000-0000-4000-8000-000000000005",
+    status: "READY",
+    proposalId: aiProposal.proposalId,
+    errorCode: null,
+    requestId: "request-1",
+  });
+  coach.proposal.mockResolvedValue(aiProposal);
+  coach.validate.mockResolvedValue(aiProposal);
+  coach.apply.mockResolvedValue({
+    success: true,
+    newPlanVersion: 2,
+    affectedDates: [today],
+  });
+  coach.recordActivity.mockResolvedValue({
+    id: "00000000-0000-4000-8000-000000000006",
+    workoutId: workout.id,
+    localDate: today,
+    status: "PARTIAL",
+    durationMin: 20,
+    rpe: 7,
+    fatigue: 6,
+    notes: "最后一组没有完成",
+  });
 });
 
 async function open(url = "/training") {
@@ -139,6 +215,44 @@ async function back() {
     router.back();
   });
 }
+
+test("calendar opens the applied AI workout date and identifies its source", async () => {
+  const appliedDate = addDays(today, 7);
+  api.getCalendar.mockImplementation(async (_token, from, to) => ({
+    from,
+    to,
+    ftpAvailable: true,
+    items:
+      from <= appliedDate && to >= appliedDate
+        ? [{ ...workout, source: "ai", scheduledDate: appliedDate }]
+        : [],
+  }));
+  await open(`/training?date=${appliedDate}`);
+  await waitFor(() => expect(screen.getByText("AI 教练 · 正式")).toBeTruthy());
+  expect(api.getCalendar).toHaveBeenCalledWith(
+    "token",
+    expect.any(String),
+    expect.any(String),
+  );
+  const [from, to] = api.getCalendar.mock.lastCall!.slice(1);
+  expect(from! <= appliedDate && to! >= appliedDate).toBe(true);
+});
+
+test("changing calendar week also moves the selected date", async () => {
+  const futureDate = addDays(today, 7);
+  api.getCalendar.mockImplementation(async (_token, from, to) => ({
+    from,
+    to,
+    ftpAvailable: true,
+    items:
+      from <= futureDate && to >= futureDate
+        ? [{ ...workout, source: "ai", scheduledDate: futureDate }]
+        : [],
+  }));
+  await open();
+  await fireEvent.press(screen.getByText("›"));
+  await waitFor(() => expect(screen.getByText("AI 教练 · 正式")).toBeTruthy());
+});
 
 test("calendar opens independent detail and edit routes; native back returns to detail", async () => {
   await open();
@@ -170,6 +284,68 @@ test("calendar opens independent detail and edit routes; native back returns to 
     expect(screen.getByTestId("current-path").props.children).toBe(
       `/workouts/${workout.id}`,
     ),
+  );
+});
+
+test("workout detail generates, previews, validates and applies an AI adjustment", async () => {
+  await open(`/training?date=${today}`);
+  await waitFor(() => expect(screen.getByText("查看课程")).toBeTruthy());
+  await fireEvent.press(screen.getByText("查看课程"));
+  await waitFor(() =>
+    expect(screen.getByText("让 AI 调整这节课")).toBeTruthy(),
+  );
+  await fireEvent.press(screen.getByText("让 AI 调整这节课"));
+  await fireEvent.press(screen.getByText("生成调整草稿"));
+  await waitFor(() =>
+    expect(screen.getByText("确认今天的新课程？")).toBeTruthy(),
+  );
+  expect(coach.adjustWorkout).toHaveBeenCalledWith(
+    "token",
+    workout.id,
+    expect.objectContaining({
+      mode: "replace_workout",
+      targetWorkoutId: workout.id,
+      expectedBaseVersion: workout.planVersion,
+    }),
+    expect.any(String),
+  );
+  await fireEvent.press(screen.getByText("确认应用到今天"));
+  await waitFor(() =>
+    expect(coach.validate).toHaveBeenCalledWith("token", aiProposal.proposalId),
+  );
+  expect(coach.apply).toHaveBeenCalledWith(
+    "token",
+    aiProposal.proposalId,
+    aiProposal.basePlanVersion,
+    expect.any(String),
+  );
+});
+
+test("workout detail records partial completion feedback", async () => {
+  await open(`/training?date=${today}`);
+  await waitFor(() => expect(screen.getByText("查看课程")).toBeTruthy());
+  await fireEvent.press(screen.getByText("查看课程"));
+  await waitFor(() => expect(screen.getByText("记录训练反馈")).toBeTruthy());
+  await fireEvent.press(screen.getByText("记录训练反馈"));
+  await fireEvent.press(screen.getByText("部分完成"));
+  await fireEvent.changeText(screen.getByPlaceholderText("时长（分钟）"), "20");
+  await fireEvent.changeText(screen.getByPlaceholderText("RPE 1-10"), "7");
+  await fireEvent.changeText(screen.getByPlaceholderText("疲劳 1-10"), "6");
+  await fireEvent.changeText(
+    screen.getByPlaceholderText("例如：最后一组没有完成"),
+    "最后一组没有完成",
+  );
+  await fireEvent.press(screen.getByText("保存训练反馈"));
+  await waitFor(() =>
+    expect(coach.recordActivity).toHaveBeenCalledWith("token", {
+      workoutId: workout.id,
+      localDate: today,
+      status: "PARTIAL",
+      durationMin: 20,
+      rpe: 7,
+      fatigue: 6,
+      notes: "最后一组没有完成",
+    }),
   );
 });
 

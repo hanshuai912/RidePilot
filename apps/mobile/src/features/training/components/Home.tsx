@@ -3,7 +3,7 @@ import { Bike, ChevronRight, Plus, RefreshCw } from "lucide-react-native";
 import { AppText, Button, Card, Spinner } from "../../../components/ui";
 import { colors } from "../../../theme/tokens";
 import type { Workout } from "../model/training";
-import { dateLabel, weekday } from "../model/training";
+import { dateLabel, iso, weekday } from "../model/training";
 import { styles } from "./training.styles";
 import { WorkoutProfileChart } from "./WorkoutProfileChart";
 
@@ -20,6 +20,7 @@ export function Home({
   onRefresh,
   onAdd,
   onDetail,
+  onAdjust,
   onEdit,
 }: {
   days: string[];
@@ -34,6 +35,7 @@ export function Home({
   onRefresh: () => void;
   onAdd: () => void;
   onDetail: (workout: Workout) => void;
+  onAdjust: (workout: Workout) => void;
   onEdit: (workout: Workout) => void;
 }) {
   return (
@@ -41,7 +43,7 @@ export function Home({
       <View style={styles.headerRow}>
         <View>
           <AppText variant="label" style={styles.eyebrow}>
-            人工训练计划
+            骑行训练计划
           </AppText>
           <AppText variant="display">训练</AppText>
         </View>
@@ -123,7 +125,7 @@ export function Home({
               <View style={styles.source}>
                 <Bike size={14} color={colors.positive} />
                 <AppText variant="label" style={styles.positive}>
-                  手动创建 · 正式
+                  {item.source === "ai" ? "AI 教练 · 正式" : "手动创建 · 正式"}
                 </AppText>
               </View>
               <AppText variant="caption" muted>
@@ -158,6 +160,13 @@ export function Home({
               >
                 查看课程
               </Button>
+              {item.scheduledDate >= iso(new Date()) ? (
+                <Button size="sm" onPress={() => onAdjust(item)}>
+                  {item.scheduledDate === iso(new Date())
+                    ? "调整今天"
+                    : "AI 调整"}
+                </Button>
+              ) : null}
               <Button size="sm" onPress={() => onEdit(item)}>
                 编辑动作
               </Button>

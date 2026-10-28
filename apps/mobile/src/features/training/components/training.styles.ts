@@ -60,7 +60,7 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 5,
   },
-  buttonRow: { flexDirection: "row", gap: 8, marginTop: 4 },
+  buttonRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 4 },
   addCard: {
     minHeight: 72,
     flexDirection: "row",

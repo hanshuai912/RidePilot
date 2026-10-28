@@ -59,6 +59,9 @@ export const activityInputSchema = z.strictObject({
   fatigue: z.number().int().min(1).max(10).nullable().optional(),
   notes: z.string().trim().max(200).nullable().optional(),
 });
+export const activityResponseSchema = activityInputSchema.extend({
+  id: z.uuid(),
+});
 export const assessmentInputSchema = z.strictObject({
   goalId: z.uuid().nullable().optional(),
   localDate: z.iso.date(),
@@ -92,6 +95,11 @@ export const readinessSchema = z.object({
     z.enum(["ftp", "goal", "availability", "experienceLevel", "weightKg"]),
   ),
   activePlanVersion: z.number().int().nonnegative(),
+});
+
+export const activePlanStatusSchema = z.object({
+  hasActivePlan: z.boolean(),
+  planVersion: z.number().int().nonnegative(),
 });
 
 export const weekGenerationInputSchema = z.strictObject({
@@ -208,6 +216,7 @@ export type AvailabilityInput = z.infer<typeof availabilityInputSchema>;
 export type GoalInput = z.infer<typeof goalInputSchema>;
 export type GoalPatch = z.infer<typeof goalPatchSchema>;
 export type ActivityInput = z.infer<typeof activityInputSchema>;
+export type ActivityResponse = z.infer<typeof activityResponseSchema>;
 export type AssessmentInput = z.infer<typeof assessmentInputSchema>;
 export type AssessmentPatch = z.infer<typeof assessmentPatchSchema>;
 export type RaceInput = z.infer<typeof raceInputSchema>;

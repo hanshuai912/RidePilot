@@ -9,12 +9,16 @@ import { RedisService } from "../src/infra/redis/redis.service";
 describe("GET /api/v1/health", () => {
   let app: INestApplication;
   const queryRaw = jest.fn<Promise<unknown>, unknown[]>();
+  const findFirstAiGeneration = jest.fn().mockResolvedValue(null);
   const ping = jest.fn<Promise<string>, []>();
 
   beforeAll(async () => {
     const module = await Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider(PrismaService)
-      .useValue({ $queryRaw: queryRaw })
+      .useValue({
+        $queryRaw: queryRaw,
+        aiGeneration: { findFirst: findFirstAiGeneration },
+      })
       .overrideProvider(RedisService)
       .useValue({ ping })
       .compile();

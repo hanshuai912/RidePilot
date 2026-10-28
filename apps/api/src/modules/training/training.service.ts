@@ -293,11 +293,32 @@ export class TrainingService {
       dateToDb(from),
       dateToDb(to),
     );
+    const [timezone, recordedWorkoutIds] = await Promise.all([
+      this.userTimezone(userId),
+      this.repository.findRecordedWorkoutIds(
+        userId,
+        items.map((item) => item.id),
+      ),
+    ]);
+    const currentDate = new Intl.DateTimeFormat("en-CA", {
+      timeZone: timezone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
+    const recordedIds = new Set(recordedWorkoutIds);
     return {
       from,
       to,
       ftpAvailable: await this.hasFtp(userId),
-      items: items.map((item) => toSummary(item)),
+      items: items.map((item) =>
+        toSummary({
+          ...item,
+          editable:
+            dbToDate(item.scheduledDate) >= currentDate &&
+            !recordedIds.has(item.id),
+        }),
+      ),
     };
   }
 

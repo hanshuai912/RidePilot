@@ -6,23 +6,46 @@ import { AppText } from "../../../components/ui";
 import { useAuth } from "../../auth/hooks/AuthProvider";
 import { Home } from "../components/Home";
 import { styles } from "../components/training.styles";
-import { addDays, iso, type Workout } from "../model/training";
+import { addDays, isTrainingDate, iso, type Workout } from "../model/training";
 import { trainingApi } from "../services/training.api";
 
 export function TrainingScreen() {
-  const { savedAt } = useLocalSearchParams<{ savedAt?: string }>();
+  const { savedAt, date } = useLocalSearchParams<{
+    savedAt?: string;
+    date?: string;
+  }>();
+  return (
+    <TrainingCalendar key={date ?? "current"} date={date} savedAt={savedAt} />
+  );
+}
+
+function TrainingCalendar({
+  date,
+  savedAt,
+}: {
+  date?: string;
+  savedAt?: string;
+}) {
   const { session } = useAuth();
   const token = session?.accessToken;
   const today = iso(new Date());
-  const [selectedDate, setSelectedDate] = useState(today);
+  const initialDate = date && isTrainingDate(date) ? date : today;
+  const [selectedDate, setSelectedDate] = useState(initialDate);
   const [weekStart, setWeekStart] = useState(
-    addDays(today, -((new Date(`${today}T12:00:00`).getDay() + 6) % 7)),
+    addDays(
+      initialDate,
+      -((new Date(`${initialDate}T12:00:00`).getDay() + 6) % 7),
+    ),
   );
   const [calendar, setCalendar] = useState<CalendarResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   const weekEnd = addDays(weekStart, 6);
+  const moveWeek = (offsetDays: number) => {
+    setWeekStart((current) => addDays(current, offsetDays));
+    setSelectedDate((current) => addDays(current, offsetDays));
+  };
   useFocusEffect(
     useCallback(() => {
       void attempt;
@@ -84,8 +107,8 @@ export function TrainingScreen() {
         loading={loading}
         feedback={feedback}
         setSelectedDate={setSelectedDate}
-        onPrev={() => setWeekStart(addDays(weekStart, -7))}
-        onNext={() => setWeekStart(addDays(weekStart, 7))}
+        onPrev={() => moveWeek(-7)}
+        onNext={() => moveWeek(7)}
         onRefresh={() => setAttempt((value) => value + 1)}
         onAdd={() =>
           router.push({
@@ -97,6 +120,12 @@ export function TrainingScreen() {
           router.push({
             pathname: "/workouts/[workoutId]",
             params: { workoutId: workout.id },
+          })
+        }
+        onAdjust={(workout) =>
+          router.push({
+            pathname: "/workouts/[workoutId]",
+            params: { workoutId: workout.id, action: "adjust" },
           })
         }
         onEdit={edit}

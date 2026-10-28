@@ -45,4 +45,21 @@ export class TrainingRepository {
       orderBy: [{ scheduledDate: "asc" }, { dayOrder: "asc" }],
     });
   }
+
+  findRecordedWorkoutIds(userId: string, workoutIds: string[]) {
+    if (workoutIds.length === 0) return Promise.resolve([] as string[]);
+    return this.prisma.trainingActivity
+      .findMany({
+        where: {
+          userId,
+          workoutId: { in: workoutIds },
+        },
+        select: { workoutId: true },
+      })
+      .then((activities) =>
+        activities.flatMap((activity) =>
+          activity.workoutId ? [activity.workoutId] : [],
+        ),
+      );
+  }
 }

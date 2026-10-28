@@ -38,6 +38,7 @@ export function toSummary(workout: {
   distanceTargetKm: unknown;
   structure: unknown;
   planVersion?: { versionNo: number };
+  editable?: boolean;
 }) {
   const structure = workout.structure as {
     segments: DraftPayload["segments"];
@@ -58,6 +59,7 @@ export function toSummary(workout: {
         ? null
         : Number(workout.distanceTargetKm),
     segments: structure.segments,
+    ...(workout.editable === undefined ? {} : { editable: workout.editable }),
   };
 }
 
