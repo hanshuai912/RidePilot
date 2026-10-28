@@ -281,6 +281,7 @@ export function CoachScreen() {
         title={copy.title}
         description={copy.description}
         primary={copy.primary}
+        actionsInScroll
         onPrimary={() => {
           void flow.submitTask();
           router.push(coachRoute("loading"));

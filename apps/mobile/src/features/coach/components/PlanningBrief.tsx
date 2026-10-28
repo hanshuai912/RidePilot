@@ -116,10 +116,6 @@ export function PlanningBrief({
             </Pressable>
           ))}
         </View>
-        <InfoStrip>
-          当前接口会先生成一周训练草稿；选择整周期或下一节时，AI
-          会把你的上下文带入草稿说明。
-        </InfoStrip>
       </Card>
 
       <Card>
