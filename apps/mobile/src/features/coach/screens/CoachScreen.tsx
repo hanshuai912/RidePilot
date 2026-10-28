@@ -83,7 +83,7 @@ export function CoachScreen() {
     ) {
       router.replace(coachRoute("success"));
     }
-  }, [flowStage, routeStage]);
+  }, [flowStage, routeStage, router]);
 
   if (!flow.token)
     return (
@@ -149,15 +149,6 @@ export function CoachScreen() {
       pathname: "/(tabs)/training",
       params: flow.appliedDates[0] ? { date: flow.appliedDates[0] } : {},
     });
-  const openActiveCalendar = async () => {
-    const date = await flow.upcomingWorkoutDate();
-    if (date === undefined) return;
-    router.push({
-      pathname: "/(tabs)/training",
-      params: date ? { date } : {},
-    });
-  };
-
   if (stage === "success")
     return (
       <CoachPage
@@ -171,7 +162,7 @@ export function CoachScreen() {
         onSecondary={() => router.replace("/(tabs)/coach")}
       >
         <View className="items-center">
-          <View className="h-[72px] w-[72px] items-center justify-center rounded-full border border-[#68866D] bg-[#26352A]">
+          <View className="h-[72px] w-[72px] items-center justify-center rounded-full border border-positive/50 bg-surface-2">
             <AppText className="text-[35px] leading-[40px] text-positive">
               ✓
             </AppText>
@@ -183,7 +174,7 @@ export function CoachScreen() {
             首页和训练日历现在会展示正式安排。后续变化仍会先生成草稿，确认后才会应用。
           </AppText>
         </View>
-        <View className="rounded-[17px] border border-border bg-surface p-4">
+        <View className="rounded-card border border-border bg-surface p-4">
           <AppText variant="label" className="text-positive">
             正式计划 v{resources.planStatus.planVersion}
           </AppText>
@@ -211,8 +202,6 @@ export function CoachScreen() {
           flow.goTo(next);
           router.push(coachRoute(next));
         }}
-        secondary="查看训练日历"
-        onSecondary={() => void openActiveCalendar()}
         busy={busy}
         error={error}
       >
@@ -222,7 +211,6 @@ export function CoachScreen() {
           missingData={missingTrainingData(missingFields)}
           onTask={startTask}
           onFeedback={() => router.push("/(tabs)/training")}
-          onCalendar={() => void openActiveCalendar()}
           onCurrentWeek={() => startWeekGeneration("current")}
           onNextWeek={() => startWeekGeneration("next")}
         />
@@ -236,11 +224,12 @@ export function CoachScreen() {
         title="AI 教练"
         compactHeader
         primary="开始建立计划"
+        actionsInScroll
         onPrimary={() => {
           flow.goTo("basics");
           router.push(coachRoute("basics"));
         }}
-        secondary="先手动创建一节训练"
+        secondary="创建训练"
         onSecondary={() => router.push("/workouts/new")}
         error={error}
       >
@@ -343,6 +332,7 @@ export function CoachScreen() {
         title="骑行基础"
         description="先确认训练经验和可用 FTP，AI 计划会按实际测量值计算功率范围。"
         primary="下一步"
+        actionsInScroll
         onPrimary={() => {
           void flow.nextFromBasics().then((next) => {
             if (next) goToStage(next);
@@ -387,6 +377,7 @@ export function CoachScreen() {
         title="训练目标"
         description="确定训练方向与目标日期；目标差距是参考，不代表保证达到。"
         primary="下一步"
+        actionsInScroll
         onPrimary={() => {
           void flow.nextFromGoal().then((next) => {
             if (next) goToStage(next);
@@ -440,6 +431,7 @@ export function CoachScreen() {
         title="时间安排"
         description="选择比较稳定的骑行日和单次可用时长，计划会保留恢复空间。"
         primary={hasActivePlan ? "保存并返回 AI 教练" : "下一步"}
+        actionsInScroll
         onPrimary={() => {
           void flow.nextFromSchedule().then((next) => {
             if (next) goToStage(next);
@@ -477,6 +469,7 @@ export function CoachScreen() {
         title="饮食与禁忌"
         description="先记录饮食限制和偏好。当前只保存在本次引导，不提交后端接口。"
         primary="生成计划草稿"
+        actionsInScroll
         onPrimary={() => {
           if (flow.restriction === "其他限制" && !flow.restrictionNote.trim()) {
             void flow.generate("initial");

@@ -1,6 +1,14 @@
 import { Pressable, View } from "react-native";
-import { Bike, ChevronRight, Plus, RefreshCw } from "lucide-react-native";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Bike,
+  ChevronRight,
+  Plus,
+  RefreshCw,
+} from "lucide-react-native";
 import { AppText, Button, Card, Spinner } from "../../../components/ui";
+import { AppHeader } from "../../../components/layout/AppHeader";
 import { colors } from "../../../theme/tokens";
 import type { Workout } from "../model/training";
 import { dateLabel, iso, weekday } from "../model/training";
@@ -40,32 +48,43 @@ export function Home({
 }) {
   return (
     <View style={styles.page}>
-      <View style={styles.headerRow}>
-        <View>
-          <AppText variant="label" style={styles.eyebrow}>
-            骑行训练计划
-          </AppText>
-          <AppText variant="display">训练</AppText>
-        </View>
-        <Pressable onPress={onRefresh}>
-          <RefreshCw size={19} color={colors.brand} />
-        </Pressable>
-      </View>
+      <AppHeader
+        eyebrow="骑行训练计划"
+        title="训练"
+        right={
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="刷新训练日历"
+            style={styles.iconButton}
+            onPress={onRefresh}
+          >
+            <RefreshCw size={18} color={colors.brand} strokeWidth={1.8} />
+          </Pressable>
+        }
+      />
       <Card style={styles.calendar}>
         <View style={styles.calendarHead}>
           <AppText variant="section">
             {dateLabel(days[0])}—{dateLabel(days[6])}
           </AppText>
           <View style={styles.calendarNav}>
-            <Pressable onPress={onPrev}>
-              <AppText variant="section" style={styles.nav}>
-                ‹
-              </AppText>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="上一周"
+              style={styles.calendarButton}
+              onPress={onPrev}
+            >
+              <ArrowLeft size={16} color={colors.textSecondary} />
+              <AppText style={styles.legacyArrow}>‹</AppText>
             </Pressable>
-            <Pressable onPress={onNext}>
-              <AppText variant="section" style={styles.nav}>
-                ›
-              </AppText>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="下一周"
+              style={styles.calendarButton}
+              onPress={onNext}
+            >
+              <ArrowRight size={16} color={colors.textSecondary} />
+              <AppText style={styles.legacyArrow}>›</AppText>
             </Pressable>
           </View>
         </View>
@@ -161,13 +180,17 @@ export function Home({
                 查看课程
               </Button>
               {item.scheduledDate >= iso(new Date()) ? (
-                <Button size="sm" onPress={() => onAdjust(item)}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onPress={() => onAdjust(item)}
+                >
                   {item.scheduledDate === iso(new Date())
                     ? "调整今天"
                     : "AI 调整"}
                 </Button>
               ) : null}
-              <Button size="sm" onPress={() => onEdit(item)}>
+              <Button variant="ghost" size="sm" onPress={() => onEdit(item)}>
                 编辑动作
               </Button>
             </View>

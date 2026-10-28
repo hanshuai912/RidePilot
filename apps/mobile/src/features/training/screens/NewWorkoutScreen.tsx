@@ -37,7 +37,12 @@ export function NewWorkoutScreen() {
     router.push({ pathname: "/workouts/editor", params: { draftId } });
   };
   return (
-    <TrainingPage error={resource.error} retry={resource.retry}>
+    <TrainingPage
+      title="添加计划"
+      onBack={backToTraining}
+      error={resource.error}
+      retry={resource.retry}
+    >
       <DateStep
         date={date}
         workouts={resource.data?.items ?? []}

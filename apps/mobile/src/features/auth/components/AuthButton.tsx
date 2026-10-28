@@ -59,7 +59,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   primary: { borderColor: authColors.brand, backgroundColor: authColors.brand },
-  secondary: { borderColor: "#555E54", backgroundColor: "#252A26" },
+  secondary: {
+    borderColor: authColors.border,
+    backgroundColor: authColors.surface2,
+  },
   disabled: { opacity: 0.48 },
   label: { fontSize: 15, lineHeight: 20, fontWeight: "700" },
   primaryLabel: { color: authColors.brandOn },

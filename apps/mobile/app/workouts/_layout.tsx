@@ -10,9 +10,7 @@ export default function WorkoutLayout() {
       <Stack
         screenOptions={{
           contentStyle: { backgroundColor: colors.background },
-          headerStyle: { backgroundColor: colors.background },
-          headerTintColor: colors.textPrimary,
-          headerShadowVisible: false,
+          headerShown: false,
         }}
       >
         <Stack.Screen name="new" options={{ title: "添加计划" }} />

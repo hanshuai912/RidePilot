@@ -1,9 +1,11 @@
 import { Pressable, View } from "react-native";
+import { Flag, Mountain, Target } from "lucide-react-native";
 import type { ProfileResponse } from "@ridepilot/contracts";
 
 import { AppText, Button, Card, Input } from "../../../components/ui";
 import { targetDateAfterWeeks } from "../model/plan-dates";
 import { ChoicePill } from "./CoachPage";
+import { colors } from "../../../theme/colors";
 
 export type Experience = NonNullable<ProfileResponse["experienceLevel"]>;
 export type GoalType = "FTP" | "ENDURANCE" | "RACE";
@@ -15,7 +17,7 @@ function GoalOption({
   selected,
   onPress,
 }: {
-  icon: string;
+  icon: React.ReactNode;
   label: string;
   description: string;
   selected: boolean;
@@ -28,8 +30,8 @@ function GoalOption({
       className={`min-h-[72px] flex-row items-center gap-3 rounded-[15px] border px-3 ${selected ? "border-brand bg-brand-subtle" : "border-border bg-surface-2"}`}
       onPress={onPress}
     >
-      <View className="h-[34px] w-[34px] items-center justify-center rounded-[10px] bg-[#2D332D]">
-        <AppText className="text-brand">{icon}</AppText>
+      <View className="h-[34px] w-[34px] items-center justify-center rounded-[10px] bg-brand-subtle">
+        {icon}
       </View>
       <View className="flex-1">
         <AppText className={selected ? "text-brand" : "text-primary"}>
@@ -188,7 +190,7 @@ export function BasicsStep({
                   key={value}
                   accessibilityRole="checkbox"
                   accessibilityState={{ checked: selected }}
-                  className={`rounded-xl border px-3 py-3 ${selected ? "border-negative bg-[#3B2827]" : "border-border bg-surface-2"}`}
+                  className={`rounded-xl border px-3 py-3 ${selected ? "border-negative bg-surface-2" : "border-border bg-surface-2"}`}
                   onPress={() =>
                     setSymptomFlags(
                       selected
@@ -244,21 +246,21 @@ export function GoalStep({
         </AppText>
         <View className="mt-4 gap-2">
           <GoalOption
-            icon="↗"
+            icon={<Target color={colors.brand} size={17} strokeWidth={1.8} />}
             label="提升 FTP / 阈值能力"
             description="提高持续输出和爬坡能力"
             selected={type === "FTP"}
             onPress={() => setType("FTP")}
           />
           <GoalOption
-            icon="◌"
+            icon={<Mountain color={colors.brand} size={17} strokeWidth={1.8} />}
             label="提升耐力与长距离能力"
             description="让长时间骑行更稳定"
             selected={type === "ENDURANCE"}
             onPress={() => setType("ENDURANCE")}
           />
           <GoalOption
-            icon="◆"
+            icon={<Flag color={colors.brand} size={17} strokeWidth={1.8} />}
             label="准备一场比赛"
             description="围绕目标日期安排阶段训练"
             selected={type === "RACE"}
@@ -510,7 +512,7 @@ export function NutritionStep({
           ))}
         </View>
       </Card>
-      <View className="rounded-[14px] border border-[#3F493F] bg-[#242B25] p-3">
+      <View className="rounded-[14px] border border-positive/40 bg-surface-2 p-3">
         <AppText variant="label" className="text-positive">
           本次生成范围
         </AppText>

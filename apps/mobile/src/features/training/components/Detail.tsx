@@ -3,6 +3,7 @@ import { AppText, Button, Card } from "../../../components/ui";
 import type { Workout } from "../model/training";
 import { dateLabel, iso } from "../model/training";
 import { WorkoutSegmentList, segmentTotals } from "./WorkoutSegmentList";
+import { WorkoutProfileChart } from "./WorkoutProfileChart";
 import { Total } from "./TrainingParts";
 import { styles } from "./training.styles";
 
@@ -45,6 +46,7 @@ export function Detail({
             value={totals.kilometers ? `${totals.kilometers} 公里` : "—"}
           />
         </View>
+        <WorkoutProfileChart segments={workout.segments} />
       </Card>
       <View style={styles.sectionRow}>
         <AppText variant="card">动作列表</AppText>

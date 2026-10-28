@@ -115,7 +115,7 @@ export function PlanPreview({
           </View>
         </View>
       </View>
-      <View className="rounded-[14px] border border-[#3F493F] bg-[#242B25] p-3">
+      <View className="rounded-[14px] border border-positive/40 bg-surface-2 p-3">
         <AppText variant="label" className="text-positive">
           计划说明
         </AppText>

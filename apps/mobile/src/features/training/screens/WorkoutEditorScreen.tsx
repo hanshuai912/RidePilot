@@ -24,6 +24,8 @@ export function WorkoutEditorScreen() {
     });
   return (
     <TrainingPage
+      title="手动课程"
+      onBack={backToTraining}
       loading={state.loading}
       error={state.error}
       retry={state.retry}

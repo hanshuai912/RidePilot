@@ -6,7 +6,7 @@ import { coachApi } from "../../coach/services/coach.api";
 import { waitForCoachProposal } from "../../coach/services/generation-task";
 import { AppText } from "../../../components/ui";
 import { Detail } from "../components/Detail";
-import { TrainingPage } from "../components/TrainingPage";
+import { TrainingPage, backToTraining } from "../components/TrainingPage";
 import { WorkoutAdjustmentPreview } from "../components/WorkoutAdjustmentPreview";
 import { WorkoutAdjustmentSheet } from "../components/WorkoutAdjustmentSheet";
 import { WorkoutFeedbackSheet } from "../components/WorkoutFeedbackSheet";
@@ -164,6 +164,8 @@ export function WorkoutDetailScreen() {
 
   return (
     <TrainingPage
+      title="课程详情"
+      onBack={backToTraining}
       loading={resource.loading}
       error={resource.error}
       retry={resource.retry}

@@ -19,6 +19,7 @@ import {
 } from "../services/profile.api";
 import type { ProfileResponse } from "@ridepilot/contracts";
 import { FtpMeasurementCard } from "../components/FtpMeasurementCard";
+import { colors } from "../../../theme/colors";
 
 type EditableProfile = Pick<
   ProfileResponse,
@@ -46,12 +47,12 @@ const emptyProfile: EditableProfile = {
 };
 
 const m01Colors = {
-  text: "#EFF0E9",
-  sub: "#ADB2AA",
-  muted: "#858D84",
-  gold: "#D2C18F",
-  green: "#91AD99",
-  orange: "#D9A66F",
+  text: colors.textPrimary,
+  sub: colors.textSecondary,
+  muted: colors.textMuted,
+  gold: colors.brand,
+  green: colors.positive,
+  orange: colors.warning,
 } as const;
 
 const styles = StyleSheet.create({
@@ -84,21 +85,21 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "#726E55",
+    borderColor: colors.brandSubtle,
     borderRadius: 29,
-    backgroundColor: "#272B25",
+    backgroundColor: colors.surface2,
   },
   profileStats: {
     flexDirection: "row",
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: "#292F29",
+    borderTopColor: colors.divider,
     paddingHorizontal: 17,
     paddingTop: 13,
     paddingBottom: 14,
   },
   secondStat: {
     borderLeftWidth: StyleSheet.hairlineWidth,
-    borderLeftColor: "#292F29",
+    borderLeftColor: colors.divider,
     paddingLeft: 15,
   },
   section: {
@@ -190,7 +191,7 @@ const styles = StyleSheet.create({
   },
   rowDivider: {
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#292F29",
+    borderBottomColor: colors.divider,
   },
   rowTitle: {
     color: m01Colors.text,

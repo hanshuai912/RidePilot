@@ -1,22 +1,27 @@
-import { ActivityIndicator, Pressable, Text, type PressableProps } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  Text,
+  type PressableProps,
+} from "react-native";
 
-import { cn } from '../../lib/cn';
-import { colors } from '../../theme/colors';
+import { cn } from "../../lib/cn";
+import { colors } from "../../theme/colors";
 
-type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
-type ButtonSize = 'sm' | 'md' | 'lg';
+type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
+type ButtonSize = "sm" | "md" | "lg";
 
 const variantClasses: Record<ButtonVariant, string> = {
-  primary: 'bg-brand',
-  secondary: 'border border-border bg-surface-2',
-  ghost: 'bg-transparent',
-  danger: 'bg-negative',
+  primary: "bg-brand",
+  secondary: "border border-border bg-surface-2",
+  ghost: "bg-transparent",
+  danger: "bg-negative",
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
-  sm: 'min-h-[40px] px-3',
-  md: 'min-h-[48px] px-4',
-  lg: 'min-h-[52px] px-5',
+  sm: "min-h-[44px] px-3",
+  md: "min-h-[48px] px-4",
+  lg: "min-h-[52px] px-5",
 };
 
 const textColors: Record<ButtonVariant, string> = {
@@ -35,8 +40,8 @@ export type ButtonProps = PressableProps & {
 };
 
 export function Button({
-  variant = 'primary',
-  size = 'md',
+  variant = "primary",
+  size = "md",
   loading = false,
   disabled,
   className,
@@ -50,10 +55,10 @@ export function Button({
       accessibilityRole="button"
       accessibilityState={{ disabled: isDisabled, busy: loading }}
       className={cn(
-        'flex-row items-center justify-center rounded-xl',
+        "flex-row items-center justify-center rounded-xl",
         variantClasses[variant],
         sizeClasses[size],
-        isDisabled && 'opacity-50',
+        isDisabled && "opacity-50",
         className,
       )}
       disabled={isDisabled}
@@ -68,7 +73,7 @@ export function Button({
             fontSize: 15,
             lineHeight: 20,
             fontWeight:
-              variant === 'secondary' || variant === 'ghost' ? '600' : '700',
+              variant === "secondary" || variant === "ghost" ? "600" : "700",
           }}
         >
           {children}

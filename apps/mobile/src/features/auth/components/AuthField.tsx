@@ -85,7 +85,7 @@ const styles = StyleSheet.create({
     width: "100%",
     height: 54,
     borderWidth: 1,
-    borderColor: "#485149",
+    borderColor: colors.border,
     borderRadius: 13,
     backgroundColor: colors.surface1,
     color: colors.textPrimary,
@@ -113,5 +113,5 @@ const styles = StyleSheet.create({
     fontSize: 11,
     lineHeight: 16,
   },
-  error: { color: "#E3A39B" },
+  error: { color: colors.negative },
 });

@@ -1,4 +1,5 @@
 import { StyleSheet, Text, View } from "react-native";
+import { authColors as colors } from "./auth-theme";
 
 export function AuthFeedback({ message }: { message: string | null }) {
   if (!message) return null;
@@ -12,11 +13,11 @@ export function AuthFeedback({ message }: { message: string | null }) {
 const styles = StyleSheet.create({
   box: {
     borderWidth: 1,
-    borderColor: "#77504C",
+    borderColor: colors.negative,
     backgroundColor: "#332523",
     borderRadius: 12,
     padding: 12,
     marginBottom: 14,
   },
-  text: { color: "#EFB6B0", fontSize: 12, lineHeight: 19 },
+  text: { color: colors.negative, fontSize: 12, lineHeight: 19 },
 });

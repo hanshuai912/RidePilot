@@ -5,7 +5,7 @@ import {
   type RegisterRequest,
 } from "@ridepilot/contracts";
 import { router } from "expo-router";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { AuthButton } from "../components/AuthButton";
@@ -32,6 +32,12 @@ export function RegisterScreen() {
       confirmPassword: "",
     },
   });
+  const password = useWatch({ control, name: "password" });
+  const passwordRules = [
+    ["大写字母 A–Z", /[A-Z]/.test(password)],
+    ["小写字母 a–z", /[a-z]/.test(password)],
+    ["特殊符号", /[^A-Za-z0-9]/.test(password)],
+  ] as const;
 
   const submit = handleSubmit(async (input) => {
     setFeedback(null);
@@ -126,6 +132,28 @@ export function RegisterScreen() {
             />
           )}
         />
+        <View style={styles.ruleCard} accessibilityLabel="密码规则">
+          <Text style={styles.ruleTitle}>
+            密码至少 6 个字符，并满足以下三类中的两类
+          </Text>
+          <Text style={styles.ruleDescription}>
+            输入时会实时标出已满足的类别。
+          </Text>
+          <View style={styles.ruleList}>
+            {passwordRules.map(([label, met]) => (
+              <View
+                style={[styles.rule, met ? styles.ruleMet : null]}
+                key={label}
+              >
+                <Text
+                  style={[styles.ruleText, met ? styles.ruleTextMet : null]}
+                >
+                  {label}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </View>
         <AuthFeedback message={feedback} />
         <AuthButton loading={isSubmitting} onPress={submit}>
           创建账号
@@ -160,15 +188,15 @@ const styles = StyleSheet.create({
   ruleList: { flexDirection: "row", flexWrap: "wrap", gap: 7, marginTop: 10 },
   rule: {
     borderWidth: 1,
-    borderColor: "#495149",
-    backgroundColor: "#272D28",
+    borderColor: colors.border,
+    backgroundColor: colors.surface2,
     borderRadius: 999,
     paddingVertical: 5,
     paddingHorizontal: 8,
   },
-  ruleMet: { borderColor: "#5B765D", backgroundColor: "#29372B" },
+  ruleMet: { borderColor: colors.positive, backgroundColor: colors.surface2 },
   ruleText: { color: colors.textSecondary, fontSize: 11 },
-  ruleTextMet: { color: "#ADD0B1" },
+  ruleTextMet: { color: colors.positive },
   note: {
     color: colors.textMuted,
     fontSize: 11,

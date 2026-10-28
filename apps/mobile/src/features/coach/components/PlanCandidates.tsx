@@ -62,7 +62,7 @@ export function PlanCandidates({
       <Pressable
         accessibilityRole="radio"
         accessibilityState={{ selected }}
-        className={`rounded-[18px] border p-4 ${selected ? "border-brand bg-[#2A2A22]" : "border-border bg-surface"}`}
+        className={`rounded-[18px] border p-4 ${selected ? "border-brand bg-brand-subtle" : "border-border bg-surface"}`}
         onPress={onSelect}
       >
         <View className="flex-row items-start justify-between gap-3">
@@ -84,7 +84,7 @@ export function PlanCandidates({
           </AppText>
         </View>
         <View className="mt-4 flex-row flex-wrap gap-2">
-          <View className="rounded-full border border-[#45584A] bg-[#263329] px-2.5 py-1">
+          <View className="rounded-full border border-positive/40 bg-surface-2 px-2.5 py-1">
             <AppText variant="label" className="text-positive">
               保留恢复空间
             </AppText>
@@ -109,7 +109,7 @@ export function PlanCandidates({
           当前接口只返回一份真实推荐草稿，暂不生成未经校验的第二套方案。
         </AppText>
       </View>
-      <View className="flex-row gap-2 rounded-[14px] border border-[#66523C] bg-[#3B3026] p-3">
+      <View className="flex-row gap-2 rounded-[14px] border border-warning/50 bg-surface-2 p-3">
         <AppText className="text-warning">△</AppText>
         <AppText variant="caption" className="flex-1 text-secondary">
           当前服务端返回一份推荐草稿。确认前不会覆盖正式计划，饮食信息也不会提交。

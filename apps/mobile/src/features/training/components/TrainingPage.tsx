@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { router } from "expo-router";
+import { AppHeader } from "../../../components/layout/AppHeader";
 import { Screen } from "../../../components/layout/Screen";
 import { AppText, Button, Spinner } from "../../../components/ui";
 import { styles } from "./training.styles";
@@ -12,11 +13,15 @@ export function TrainingPage({
   loading,
   error,
   retry,
+  title,
+  onBack,
   children,
 }: {
   loading?: boolean;
   error?: string | null;
   retry?: () => void;
+  title?: string;
+  onBack?: () => void;
   children?: ReactNode;
 }) {
   return (
@@ -30,6 +35,7 @@ export function TrainingPage({
         },
       }}
     >
+      {title ? <AppHeader title={title} compact onBack={onBack} /> : null}
       {loading ? (
         <Spinner accessibilityLabel="正在加载训练数据" />
       ) : error ? (
@@ -44,17 +50,7 @@ export function TrainingPage({
           </Button>
         </>
       ) : (
-        <>
-          {children}
-          {!router.canGoBack() ? (
-            <Button
-              variant="ghost"
-              onPress={() => router.replace("/(tabs)/training")}
-            >
-              返回训练
-            </Button>
-          ) : null}
-        </>
+        <>{children}</>
       )}
     </Screen>
   );

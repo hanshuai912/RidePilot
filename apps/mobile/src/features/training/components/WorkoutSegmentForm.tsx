@@ -276,7 +276,7 @@ const styles = StyleSheet.create({
     minWidth: 65,
     alignItems: "center",
     justifyContent: "center",
-    minHeight: 38,
+    minHeight: 44,
     borderRadius: 8,
   },
   activeOption: { backgroundColor: colors.brandSubtle },

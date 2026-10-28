@@ -1,6 +1,13 @@
 import { Pressable, View } from "react-native";
+import {
+  ClipboardCheck,
+  Flag,
+  RefreshCw,
+  RotateCcw,
+} from "lucide-react-native";
 
 import { AppText, Button, Card } from "../../../components/ui";
+import { colors } from "../../../theme/colors";
 import type { CoachTask } from "../hooks/useInitialPlan";
 import { AiMark, InfoStrip } from "./CoachPage";
 
@@ -10,7 +17,7 @@ function QuickAction({
   description,
   onPress,
 }: {
-  icon: string;
+  icon: React.ReactNode;
   label: string;
   description: string;
   onPress: () => void;
@@ -21,8 +28,8 @@ function QuickAction({
       className="min-h-[112px] flex-1 rounded-[16px] border border-border bg-surface-2 p-3"
       onPress={onPress}
     >
-      <View className="h-8 w-8 items-center justify-center rounded-[10px] bg-[#303228]">
-        <AppText className="text-brand">{icon}</AppText>
+      <View className="h-8 w-8 items-center justify-center rounded-[10px] bg-brand-subtle">
+        {icon}
       </View>
       <AppText variant="card" className="mt-3 text-[15px]">
         {label}
@@ -40,7 +47,6 @@ export function CoachHome({
   missingData,
   onTask,
   onFeedback,
-  onCalendar,
   onCurrentWeek,
   onNextWeek,
 }: {
@@ -49,7 +55,6 @@ export function CoachHome({
   missingData: string;
   onTask: (task: CoachTask) => void;
   onFeedback: () => void;
-  onCalendar: () => void;
   onCurrentWeek: () => void;
   onNextWeek: () => void;
 }) {
@@ -58,7 +63,7 @@ export function CoachHome({
       <View className="overflow-hidden rounded-[19px] border border-border bg-surface p-4">
         <View className="flex-row items-start justify-between">
           <AiMark />
-          <View className="rounded-full border border-[#625D42] bg-[#302F24] px-3 py-1.5">
+          <View className="rounded-full border border-brand-subtle bg-brand-subtle px-3 py-1.5">
             <AppText variant="label" className="text-brand">
               正式计划 v{planVersion}
             </AppText>
@@ -99,13 +104,17 @@ export function CoachHome({
         </AppText>
         <View className="flex-row gap-2">
           <QuickAction
-            icon="↗"
+            icon={
+              <RefreshCw color={colors.brand} size={17} strokeWidth={1.8} />
+            }
             label="重新规划"
             description="调整目标或训练日期"
             onPress={() => onTask("REPLAN")}
           />
           <QuickAction
-            icon="◌"
+            icon={
+              <RotateCcw color={colors.brand} size={17} strokeWidth={1.8} />
+            }
             label="赛后恢复"
             description="安排恢复周再开始"
             onPress={() => onTask("RECOVERY")}
@@ -113,13 +122,19 @@ export function CoachHome({
         </View>
         <View className="mt-2 flex-row gap-2">
           <QuickAction
-            icon="▣"
+            icon={
+              <ClipboardCheck
+                color={colors.brand}
+                size={17}
+                strokeWidth={1.8}
+              />
+            }
             label="训练反馈"
             description="查看训练并告诉我结果"
             onPress={onFeedback}
           />
           <QuickAction
-            icon="◆"
+            icon={<Flag color={colors.brand} size={17} strokeWidth={1.8} />}
             label="准备比赛"
             description="加入比赛日期与目标"
             onPress={() => onTask("RACE")}
@@ -154,9 +169,6 @@ export function CoachHome({
             规划下周
           </Button>
         </View>
-        <Button className="mt-2" variant="ghost" onPress={onCalendar}>
-          查看完整训练日历
-        </Button>
       </Card>
     </>
   );

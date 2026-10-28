@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
   },
   heroHighlight: { color: colors.brand },
   heroSubtitle: {
-    color: "#D0D5CD",
+    color: colors.textSecondary,
     fontSize: 13,
     lineHeight: 20,
     maxWidth: 295,

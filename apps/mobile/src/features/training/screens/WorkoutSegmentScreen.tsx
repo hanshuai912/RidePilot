@@ -1,4 +1,4 @@
-import { Stack, router, useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { SegmentStep } from "../components/SegmentStep";
 import { TrainingPage } from "../components/TrainingPage";
 import { useTrainingDraftRoute } from "../hooks/useTrainingDraftRoute";
@@ -16,6 +16,8 @@ export function WorkoutSegmentScreen() {
     router.dismissTo({ pathname: "/workouts/editor", params: state.params });
   return (
     <TrainingPage
+      title={rawIndex === undefined ? "添加动作" : "编辑动作"}
+      onBack={back}
       loading={!state.entry && state.loading}
       error={
         state.error ??
@@ -23,9 +25,6 @@ export function WorkoutSegmentScreen() {
       }
       retry={state.retry}
     >
-      <Stack.Screen
-        options={{ title: rawIndex === undefined ? "添加动作" : "编辑动作" }}
-      />
       {state.entry && valid ? (
         <SegmentStep
           initial={
