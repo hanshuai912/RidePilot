@@ -70,6 +70,23 @@ enum ProposalStatus {
   EXPIRED
 }
 
+enum ExternalConnectionStatus {
+  AUTHORIZING
+  CONNECTED
+  REAUTH_REQUIRED
+  DEGRADED
+  FAILED
+}
+
+enum ExternalSyncRunStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  PARTIAL
+  FAILED
+  REAUTH_REQUIRED
+}
+
 model User {
   id                   String                @id @default(uuid()) @db.Uuid
   status               UserStatus            @default(ACTIVE)
@@ -91,6 +108,7 @@ model User {
   assessments          TrainingAssessment[]
   races                TrainingRace[]
   aiGenerations        AiGeneration[]
+  externalConnections  ExternalConnection[]
 
   @@map("users")
 }
@@ -364,4 +382,74 @@ model AuthSession {
   @@index([userId])
   @@index([expiresAt])
   @@map("auth_sessions")
+}
+
+model ExternalConnection {
+  id                   String                   @id @default(uuid()) @db.Uuid
+  userId               String                   @map("user_id") @db.Uuid
+  user                 User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  providerKey          String                   @map("provider_key") @db.VarChar(64)
+  status               ExternalConnectionStatus @default(AUTHORIZING)
+  providerAccountId    String?                  @map("provider_account_id") @db.VarChar(128)
+  providerAccountLabel String?                  @map("provider_account_label") @db.VarChar(160)
+  oauthClientId        String?                  @map("oauth_client_id") @db.VarChar(255)
+  oauthIssuer          String?                  @map("oauth_issuer") @db.VarChar(255)
+  scopes               Json?
+  accessTokenCiphertext String?                 @map("access_token_ciphertext") @db.Text
+  refreshTokenCiphertext String?                @map("refresh_token_ciphertext") @db.Text
+  tokenExpiresAt       DateTime?                @map("token_expires_at")
+  lastSyncedAt         DateTime?                @map("last_synced_at")
+  version              Int                      @default(1)
+  createdAt            DateTime                 @default(now()) @map("created_at")
+  updatedAt            DateTime                 @updatedAt @map("updated_at")
+  oauthAttempts        OAuthAuthorizationAttempt[]
+  syncRuns             ExternalSyncRun[]
+
+  @@unique([userId, providerKey])
+  @@index([userId, status])
+  @@index([tokenExpiresAt])
+  @@map("external_connections")
+}
+
+model OAuthAuthorizationAttempt {
+  id                    String             @id @default(uuid()) @db.Uuid
+  userId                String             @map("user_id") @db.Uuid
+  connectionId          String?            @map("connection_id") @db.Uuid
+  providerKey           String             @map("provider_key") @db.VarChar(64)
+  oauthClientId         String             @map("oauth_client_id") @db.VarChar(255)
+  oauthIssuer           String             @map("oauth_issuer") @db.VarChar(255)
+  stateHash             String             @unique @map("state_hash") @db.Char(64)
+  codeVerifierCiphertext String            @map("code_verifier_ciphertext") @db.Text
+  redirectUri           String             @map("redirect_uri") @db.VarChar(500)
+  appRedirectUri        String             @map("app_redirect_uri") @db.VarChar(500)
+  expiresAt             DateTime           @map("expires_at")
+  consumedAt            DateTime?          @map("consumed_at")
+  createdAt             DateTime           @default(now()) @map("created_at")
+  connection            ExternalConnection? @relation(fields: [connectionId], references: [id], onDelete: SetNull)
+
+  @@index([userId, providerKey, expiresAt])
+  @@map("oauth_authorization_attempts")
+}
+
+model ExternalSyncRun {
+  id             String                @id @default(uuid()) @db.Uuid
+  connectionId   String                @map("connection_id") @db.Uuid
+  connection     ExternalConnection    @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  status         ExternalSyncRunStatus @default(QUEUED)
+  requestedFrom  DateTime?             @map("requested_from") @db.Date
+  requestedTo    DateTime?             @map("requested_to") @db.Date
+  itemsSeen      Int                   @default(0) @map("items_seen")
+  itemsImported  Int                   @default(0) @map("items_imported")
+  itemsUpdated   Int                   @default(0) @map("items_updated")
+  itemsSkipped   Int                   @default(0) @map("items_skipped")
+  errorCode      String?               @map("error_code") @db.VarChar(64)
+  requestId      String?               @map("request_id") @db.VarChar(64)
+  idempotencyKey String                @map("idempotency_key") @db.VarChar(255)
+  startedAt      DateTime?             @map("started_at")
+  finishedAt     DateTime?             @map("finished_at")
+  createdAt      DateTime              @default(now()) @map("created_at")
+
+  @@unique([connectionId, idempotencyKey])
+  @@index([connectionId, createdAt])
+  @@map("external_sync_runs")
 }

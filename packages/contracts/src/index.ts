@@ -32,6 +32,18 @@ export {
   workoutTargetSchema,
 } from "./training";
 export * from "./coach";
+export {
+  externalConnectionListSchema,
+  externalConnectionSchema,
+  integrationAuthorizationResponseSchema,
+  integrationProviderListSchema,
+  integrationProviderSchema,
+} from "./integrations";
+export type {
+  ExternalConnection,
+  IntegrationAuthorizationResponse,
+  IntegrationProvider,
+} from "./integrations";
 export type {
   ApplyProposal,
   ApplyProposalResponse,

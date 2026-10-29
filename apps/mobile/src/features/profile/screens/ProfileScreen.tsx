@@ -20,6 +20,7 @@ import {
 import type { ProfileResponse } from "@ridepilot/contracts";
 import { FtpMeasurementCard } from "../components/FtpMeasurementCard";
 import { colors } from "../../../theme/colors";
+import { CorosConnectionCard } from "../../integrations/components/CorosConnectionCard";
 
 type EditableProfile = Pick<
   ProfileResponse,
@@ -423,6 +424,8 @@ export function ProfileScreen() {
           {session?.accessToken ? (
             <FtpMeasurementCard token={session.accessToken} />
           ) : null}
+
+          {session?.accessToken ? <CorosConnectionCard /> : null}
 
           <View style={styles.section}>
             <AppText style={styles.sectionTitle}>数据与隐私</AppText>

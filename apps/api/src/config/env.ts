@@ -26,6 +26,19 @@ const envSchema = z
     AI_MODEL: z.string().min(1).optional(),
     AI_TIMEOUT_MS: z.coerce.number().int().positive().default(30000),
     AI_GUARD_MODE: z.enum(["noop"]).default("noop"),
+    COROS_MCP_URL: z.string().url().default("https://mcp.coros.com/mcp"),
+    COROS_OAUTH_SCOPE: z.string().default("openid offline_access mcp.tools"),
+    COROS_OAUTH_REDIRECT_URI: z
+      .string()
+      .url()
+      .default(
+        "http://localhost:3000/api/v1/integrations/oauth/callback/coros",
+      ),
+    INTEGRATION_APP_REDIRECT_URI: z
+      .string()
+      .min(1)
+      .default("ridepilot://coros-callback"),
+    MCP_TOKEN_ENCRYPTION_KEY: z.string().min(32).optional(),
   })
   .superRefine((input, context) => {
     if (input.JWT_ACCESS_SECRET === input.JWT_REFRESH_SECRET) {
@@ -63,6 +76,13 @@ const envSchema = z
           code: "custom",
           path: ["AI_GUARD_MODE"],
           message: "NoopGuard is not allowed in production",
+        });
+      }
+      if (!input.MCP_TOKEN_ENCRYPTION_KEY) {
+        context.addIssue({
+          code: "custom",
+          path: ["MCP_TOKEN_ENCRYPTION_KEY"],
+          message: "MCP_TOKEN_ENCRYPTION_KEY is required in production",
         });
       }
     }

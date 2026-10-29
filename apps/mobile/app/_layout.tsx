@@ -60,6 +60,7 @@ function AuthenticatedStack() {
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="workouts" options={{ headerShown: false }} />
         <Stack.Screen name="showcase" options={{ title: "UI Showcase" }} />
+        <Stack.Screen name="coros-callback" options={{ headerShown: false }} />
       </Stack.Protected>
       <Stack.Protected guard={status === "guest"}>
         <Stack.Screen name="welcome" options={{ headerShown: false }} />
