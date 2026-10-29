@@ -323,6 +323,7 @@ export class AiGenerationService implements OnModuleInit, OnModuleDestroy {
       const now = new Date();
       const candidate = await this.prisma.aiGeneration.findFirst({
         where: {
+          scene: { not: "NUTRITION_PLAN" },
           OR: [
             { status: "QUEUED" },
             { status: "RUNNING", leaseUntil: { lt: now } },

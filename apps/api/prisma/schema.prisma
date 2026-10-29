@@ -109,8 +109,116 @@ model User {
   races                TrainingRace[]
   aiGenerations        AiGeneration[]
   externalConnections  ExternalConnection[]
+  nutritionProfile     NutritionProfile?
+  nutritionPlans       NutritionPlan[]
+  nutritionProposals   NutritionProposal[]
 
   @@map("users")
+}
+
+model NutritionProfile {
+  id              String   @id @default(uuid()) @db.Uuid
+  userId          String   @unique @map("user_id") @db.Uuid
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dietStyle       String   @map("diet_style") @db.VarChar(32)
+  habits          Json
+  allergens       Json
+  restrictions    Json
+  restrictionNote String?  @map("restriction_note") @db.VarChar(200)
+  commonFoods     Json     @map("common_foods")
+  mealSchedule    Json     @map("meal_schedule")
+  version         Int      @default(1)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@map("nutrition_profiles")
+}
+
+model NutritionPlan {
+  id              String                   @id @default(uuid()) @db.Uuid
+  userId          String                   @map("user_id") @db.Uuid
+  user            User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status          String                   @default("ACTIVE") @db.VarChar(16)
+  activeVersionId String?                  @unique @map("active_version_id") @db.Uuid
+  activeVersion   NutritionPlanVersion?    @relation("ActiveNutritionPlanVersion", fields: [activeVersionId], references: [id])
+  versions        NutritionPlanVersion[]  @relation("NutritionPlanVersions")
+  proposals       NutritionProposal[]
+  createdAt       DateTime                 @default(now()) @map("created_at")
+  updatedAt       DateTime                 @updatedAt @map("updated_at")
+
+  @@index([userId, status])
+  @@map("nutrition_plans")
+}
+
+model NutritionPlanVersion {
+  id                    String                 @id @default(uuid()) @db.Uuid
+  planId                String                 @map("plan_id") @db.Uuid
+  plan                  NutritionPlan         @relation("NutritionPlanVersions", fields: [planId], references: [id], onDelete: Cascade)
+  activeForPlan         NutritionPlan?        @relation("ActiveNutritionPlanVersion")
+  versionNo             Int                    @map("version_no")
+  baseVersionId         String?                @map("base_version_id") @db.Uuid
+  source                String                 @db.VarChar(32)
+  profileVersion        Int                    @map("profile_version")
+  trainingPlanVersionNo Int?                   @map("training_plan_version_no")
+  snapshot              Json?
+  appliedAt             DateTime?              @map("applied_at")
+  createdAt             DateTime               @default(now()) @map("created_at")
+  items                 NutritionItem[]
+  proposals             NutritionProposal[]
+
+  @@unique([planId, versionNo])
+  @@index([planId, appliedAt])
+  @@map("nutrition_plan_versions")
+}
+
+model NutritionItem {
+  id                    String               @id @default(uuid()) @db.Uuid
+  planVersionId         String               @map("plan_version_id") @db.Uuid
+  planVersion            NutritionPlanVersion @relation(fields: [planVersionId], references: [id], onDelete: Cascade)
+  localDate             DateTime             @map("local_date") @db.Date
+  mealType              String               @map("meal_type") @db.VarChar(32)
+  scheduledLocalTime    String               @map("scheduled_local_time") @db.VarChar(5)
+  title                 String               @db.VarChar(120)
+  foods                 Json
+  nutrients             Json
+  nutritionSource       String               @map("nutrition_source") @db.VarChar(32)
+  confidence            String               @db.VarChar(16)
+  linkedWorkoutId       String?              @map("linked_workout_id") @db.Uuid
+  notes                 String?              @db.VarChar(300)
+  createdAt             DateTime             @default(now()) @map("created_at")
+
+  @@index([planVersionId, localDate, mealType])
+  @@index([linkedWorkoutId])
+  @@map("nutrition_items")
+}
+
+model NutritionProposal {
+  id                    String                 @id @default(uuid()) @db.Uuid
+  userId                String                 @map("user_id") @db.Uuid
+  user                  User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planId                String?                @map("plan_id") @db.Uuid
+  plan                  NutritionPlan?         @relation(fields: [planId], references: [id], onDelete: Cascade)
+  baseVersionId         String?                @map("base_version_id") @db.Uuid
+  baseVersion            NutritionPlanVersion? @relation(fields: [baseVersionId], references: [id], onDelete: SetNull)
+  proposalType          String                 @map("proposal_type") @db.VarChar(32)
+  status                String                 @default("DRAFT") @db.VarChar(16)
+  draft                 Json
+  original              Json?
+  metadata              Json?
+  proposalVersion       Int                    @default(1) @map("proposal_version")
+  validationPassed      Boolean?               @map("validation_passed")
+  validationWarnings    Json?                  @map("validation_warnings")
+  validationBlockers    Json?                  @map("validation_blockers")
+  idempotencyKey        String?                @unique @map("idempotency_key") @db.VarChar(255)
+  applyIdempotencyKey   String?                @unique @map("apply_idempotency_key") @db.VarChar(255)
+  appliedVersionId      String?                @map("applied_version_id") @db.Uuid
+  expiresAt             DateTime?              @map("expires_at")
+  createdAt             DateTime               @default(now()) @map("created_at")
+  updatedAt             DateTime               @updatedAt @map("updated_at")
+
+  @@index([userId, status])
+  @@index([planId])
+  @@map("nutrition_proposals")
 }
 
 model TrainingGoal {

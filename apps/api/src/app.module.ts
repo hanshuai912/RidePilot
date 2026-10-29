@@ -6,6 +6,7 @@ import { ProfileModule } from "./modules/profile/profile.module";
 import { TrainingModule } from "./modules/training/training.module";
 import { CoachModule } from "./modules/coach/coach.module";
 import { IntegrationsModule } from "./modules/integrations/integrations.module";
+import { NutritionModule } from "./modules/nutrition/nutrition.module";
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { IntegrationsModule } from "./modules/integrations/integrations.module";
     CoachModule,
     TrainingModule,
     IntegrationsModule,
+    NutritionModule,
   ],
 })
 export class AppModule {}
