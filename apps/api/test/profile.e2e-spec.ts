@@ -61,10 +61,12 @@ describeWithDatabase("profile API", () => {
       phoneMasked: expect.stringMatching(/^19\d\*{4}\d{4}$/),
       phoneVerificationStatus: "UNVERIFIED",
       gender: null,
-      viewPreference: "SIMPLE",
+      birthDate: null,
       version: 1,
     });
     expect(response.body).not.toHaveProperty("passwordHash");
+    expect(response.body).not.toHaveProperty("viewPreference");
+    expect(response.body).not.toHaveProperty("trainingPurpose");
   });
 
   it("patches only submitted fields and preserves the rest", async () => {
@@ -74,12 +76,14 @@ describeWithDatabase("profile API", () => {
       .send({
         displayName: "阿骑",
         gender: "PREFER_NOT_TO_SAY",
+        birthDate: "1990-01-02",
         heightCm: 178,
         expectedVersion: 1,
       })
       .expect(200);
     expect(first.body.displayName).toBe("阿骑");
     expect(first.body.heightCm).toBe(178);
+    expect(first.body.birthDate).toBe("1990-01-02");
     expect(first.body.weightKg).toBeNull();
     expect(first.body.version).toBe(2);
 
@@ -99,6 +103,16 @@ describeWithDatabase("profile API", () => {
       .post("/api/v1/me/profile")
       .set("Authorization", `Bearer ${accessToken}`)
       .send({ phone: "13812345678" })
+      .expect(400);
+    await request(app.getHttpServer())
+      .post("/api/v1/me/profile")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .send({ viewPreference: "PROFESSIONAL" })
+      .expect(400);
+    await request(app.getHttpServer())
+      .post("/api/v1/me/profile")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .send({ timezone: "Asia/Shanghai" })
       .expect(400);
     await request(app.getHttpServer())
       .post("/api/v1/me/profile")

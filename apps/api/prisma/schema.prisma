@@ -447,6 +447,7 @@ model AthleteProfile {
   userId          String         @unique @map("user_id") @db.Uuid
   user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   gender          Gender?
+  birthDate       DateTime?      @map("birth_date") @db.Date
   ageBand         String?        @map("age_band") @db.VarChar(32)
   heightCm        Decimal?       @map("height_cm") @db.Decimal(5, 2)
   weightKg        Decimal?       @map("weight_kg") @db.Decimal(6, 2)

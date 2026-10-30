@@ -4,6 +4,7 @@
   "main": "expo-router/entry",
   "dependencies": {
     "@hookform/resolvers": "^5.9.2",
+    "@react-native-community/datetimepicker": "9.1.0",
     "@ridepilot/contracts": "workspace:*",
     "expo": "~57.0.27",
     "expo-constants": "~57.0.21",

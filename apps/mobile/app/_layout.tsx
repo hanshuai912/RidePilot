@@ -58,7 +58,15 @@ function AuthenticatedStack() {
     >
       <Stack.Protected guard={status === "authenticated"}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="personal-info"
+          options={{ headerShown: false, title: "个人信息" }}
+        />
         <Stack.Screen name="workouts" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="cycling-power-zones"
+          options={{ headerShown: false, title: "骑行功率区间" }}
+        />
         <Stack.Screen name="showcase" options={{ title: "UI Showcase" }} />
         <Stack.Screen name="coros-callback" options={{ headerShown: false }} />
       </Stack.Protected>

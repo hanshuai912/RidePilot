@@ -7,3 +7,4 @@ coverage/
 !.env.test.example
 apps/api/src/generated/
 *.tsbuildinfo
+/RidePilot-dev.apk

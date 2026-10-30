@@ -20,8 +20,6 @@ export class ProfileRepository {
     expectedVersion: number | undefined,
     data: {
       displayName?: string | null;
-      timezone?: string;
-      locale?: string;
       profileVersion: number;
       athlete: Record<string, unknown>;
     },
@@ -38,8 +36,6 @@ export class ProfileRepository {
           ...(data.displayName === undefined
             ? {}
             : { displayName: data.displayName }),
-          ...(data.timezone === undefined ? {} : { timezone: data.timezone }),
-          ...(data.locale === undefined ? {} : { locale: data.locale }),
           profileVersion: { increment: 1 },
         },
       });

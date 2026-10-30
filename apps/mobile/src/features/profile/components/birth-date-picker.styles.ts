@@ -1,0 +1,115 @@
+import { StyleSheet } from "react-native";
+
+import { colors } from "../../../theme/colors";
+import { layout } from "../../../theme/layout";
+import { radii } from "../../../theme/radius";
+import { spacing } from "../../../theme/spacing";
+import { typography } from "../../../theme/typography";
+
+export const datePickerStyles = StyleSheet.create({
+  field: { marginTop: spacing.sm },
+  fieldRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  trigger: {
+    minHeight: layout.buttonHeight - spacing.xs,
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface2,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+  },
+  fieldValue: { flex: 1, fontSize: typography.body },
+  placeholder: { color: colors.textMuted },
+  disabled: { opacity: 0.5 },
+  modal: { flex: 1, justifyContent: "flex-end" },
+  scrim: { ...StyleSheet.absoluteFill, backgroundColor: colors.scrim },
+  sheet: {
+    width: "100%",
+    maxWidth: layout.contentMaxWidth,
+    alignSelf: "center",
+    maxHeight: "94%",
+    backgroundColor: colors.surface1,
+    borderWidth: 1,
+    borderBottomWidth: 0,
+    borderColor: colors.border,
+    borderTopLeftRadius: radii.card + spacing.xs,
+    borderTopRightRadius: radii.card + spacing.xs,
+    overflow: "hidden",
+  },
+  safeArea: { flexShrink: 1 },
+  handleArea: {
+    height: layout.tapMin,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  handle: {
+    width: spacing.xxl + spacing.lg,
+    height: spacing.xs,
+    borderRadius: radii.pill,
+    backgroundColor: colors.border,
+  },
+  content: { flexShrink: 1, paddingHorizontal: spacing.xl },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.sm,
+  },
+  description: { color: colors.textSecondary },
+  preview: {
+    fontSize: typography.section,
+    fontWeight: "600",
+    lineHeight: 28,
+    marginVertical: spacing.xl,
+    fontVariant: ["tabular-nums"],
+  },
+  columns: { flexDirection: "row", gap: spacing.md, flexShrink: 1 },
+  column: { flex: 1, minWidth: 0, flexShrink: 1 },
+  columnLabel: {
+    fontSize: typography.caption,
+    color: colors.textSecondary,
+    textAlign: "center",
+    marginBottom: spacing.sm,
+  },
+  wheel: {
+    borderRadius: radii.md,
+    backgroundColor: colors.surface2,
+    overflow: "hidden",
+  },
+  options: { flex: 1 },
+  selectionBand: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.brand,
+    backgroundColor: colors.brandSubtle,
+  },
+  option: {
+    flexDirection: "row",
+    gap: spacing.xs,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: spacing.xs,
+    borderWidth: 1,
+    borderColor: "transparent",
+    borderRadius: radii.md,
+  },
+  optionText: {
+    fontSize: typography.body,
+    fontVariant: ["tabular-nums"],
+    color: colors.textSecondary,
+  },
+  selectedText: { color: colors.brand, fontWeight: "600" },
+  actions: {
+    paddingVertical: spacing.xl,
+    marginTop: spacing.lg,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.divider,
+  },
+});
