@@ -14,6 +14,7 @@ import { getProfile } from "../services/profile.api";
 import { router, useFocusEffect } from "expo-router";
 import type { ProfileResponse } from "@ridepilot/contracts";
 import { FtpMeasurementCard } from "../components/FtpMeasurementCard";
+import { HeartRateSettingsCard } from "../components/HeartRateSettingsCard";
 import { colors } from "../../../theme/colors";
 import { CorosConnectionCard } from "../../integrations/components/CorosConnectionCard";
 
@@ -273,6 +274,9 @@ export function ProfileScreen() {
           </Pressable>
           {session?.accessToken ? (
             <FtpMeasurementCard token={session.accessToken} />
+          ) : null}
+          {session?.accessToken ? (
+            <HeartRateSettingsCard token={session.accessToken} />
           ) : null}
 
           {session?.accessToken ? <CorosConnectionCard /> : null}

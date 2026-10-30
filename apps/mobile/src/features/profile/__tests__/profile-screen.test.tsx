@@ -17,6 +17,10 @@ import {
   ProfileApiError,
 } from "../services/profile.api";
 
+jest.mock("../components/HeartRateSettingsCard", () => ({
+  HeartRateSettingsCard: () => null,
+}));
+
 jest.mock("../../auth/hooks/AuthProvider", () => ({ useAuth: jest.fn() }));
 jest.mock("../services/profile.api", () => ({
   ...jest.requireActual("../services/profile.api"),

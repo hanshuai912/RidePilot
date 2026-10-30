@@ -1,5 +1,7 @@
 # 用户档案数据
 
+统一心率配置新增独立一对一 `heart_rate_settings`，见 [心率设置数据](heart-rate.md)；不改变原个人档案或 FTP 历史存储。
+
 迁移：`apps/api/prisma/migrations/20261009063809_user_profile/migration.sql`、`apps/api/prisma/migrations/20261030100000_simplify_profile/migration.sql`。
 
 - `users.display_name`、`users.timezone`、`users.locale` 保存账户展示与地区偏好。

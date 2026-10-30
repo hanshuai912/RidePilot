@@ -14,6 +14,10 @@ import { getProfile } from "../services/profile.api";
 import { ProfileScreen } from "../screens/ProfileScreen";
 import { CyclingPowerZonesScreen } from "../screens/CyclingPowerZonesScreen";
 
+jest.mock("../components/HeartRateSettingsCard", () => ({
+  HeartRateSettingsCard: () => null,
+}));
+
 jest.mock("../../auth/hooks/AuthProvider", () => ({ useAuth: jest.fn() }));
 jest.mock("../../coach/services/coach.api", () => ({
   coachApi: { ftp: jest.fn(), addFtp: jest.fn() },

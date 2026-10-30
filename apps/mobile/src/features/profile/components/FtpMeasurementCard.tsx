@@ -6,6 +6,7 @@ import type { FtpMeasurementInput } from "@ridepilot/contracts";
 import { AppText, Card, Spinner } from "../../../components/ui";
 import { colors } from "../../../theme/colors";
 import { coachApi } from "../../coach/services/coach.api";
+import { profileMetricStyles as styles } from "./profile-metric-card.styles";
 
 type Ftp = FtpMeasurementInput & { id: string };
 
@@ -44,17 +45,24 @@ export function FtpMeasurementCard({ token }: { token: string }) {
       accessibilityHint="编辑 FTP 并查看七个功率区间"
       onPress={() => router.push("/cycling-power-zones")}
     >
-      <Card className="mt-3 flex-row items-center gap-3 rounded-[18px] p-4">
-        <View className="h-9 w-9 items-center justify-center rounded-[10px] bg-brand-subtle">
-          <Activity color={colors.brand} size={19} />
+      <Card style={styles.card}>
+        <View style={styles.icon}>
+          <Activity color={colors.brand} size={18} />
         </View>
-        <AppText variant="card" className="flex-1">
+        <AppText
+          className="font-medium leading-[22px]"
+          style={[styles.content, styles.title]}
+        >
           FTP 功率
         </AppText>
         {loading ? (
           <Spinner accessibilityLabel="读取 FTP" />
         ) : (
-          <AppText className="text-brand">
+          <AppText
+            variant="caption"
+            className="font-medium leading-[20px] text-brand"
+            style={styles.value}
+          >
             {error ? "读取失败" : ftp ? `${ftp.valueWatts} W` : "去填写"}
           </AppText>
         )}

@@ -110,10 +110,26 @@ model User {
   aiGenerations        AiGeneration[]
   externalConnections  ExternalConnection[]
   nutritionProfile     NutritionProfile?
+  heartRateSettings    HeartRateSettings?
   nutritionPlans       NutritionPlan[]
   nutritionProposals   NutritionProposal[]
 
   @@map("users")
+}
+
+model HeartRateSettings {
+  userId                    String   @id @map("user_id") @db.Uuid
+  user                      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  method                    String   @db.VarChar(16)
+  maxHeartRate              Int?     @map("max_heart_rate")
+  restingHeartRate          Int?     @map("resting_heart_rate")
+  lactateThresholdHeartRate Int?     @map("lactate_threshold_heart_rate")
+  ruleVersion               Int      @default(1) @map("rule_version")
+  version                   Int      @default(1)
+  createdAt                 DateTime @default(now()) @map("created_at")
+  updatedAt                 DateTime @updatedAt @map("updated_at")
+
+  @@map("heart_rate_settings")
 }
 
 model NutritionProfile {

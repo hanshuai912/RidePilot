@@ -1,5 +1,7 @@
 # 用户信息 API
 
+统一心率设置是独立资源，见 [心率区间 API](heart-rate.md)，不通过个人信息 POST 更新。
+
 接口前缀为 `/api/v1`，所有请求都需要 `Authorization: Bearer <accessToken>`。接口只使用当前令牌中的用户 ID，不接受路径用户 ID。
 
 ## GET `/me/profile`

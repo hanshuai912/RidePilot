@@ -1,4 +1,5 @@
 export { healthResponseSchema } from "./health";
+export * from "./heart-rate";
 export type { HealthResponse } from "./health";
 export {
   authResponseSchema,
