@@ -20,7 +20,7 @@ RidePilot 需要读取 COROS 等外部运动平台的训练、睡眠和恢复数
 ### 当前已实现
 
 - NestJS `IntegrationsModule`：COROS Provider 列表、连接状态、OAuth Authorization Code + PKCE、回调、加密 token 保存和解除绑定。
-- React Native「我的」页面 COROS 数据卡片：绑定、重新授权、回调恢复、状态展示和解除绑定。
+- React Native「我的 → 第三方 App」页面 COROS 数据卡片：绑定、重新授权、回调恢复、状态展示和解除绑定。授权回调返回第三方 App 页，入口和布局详见 [第三方 App](third-party-apps.md)。
 - PostgreSQL 连接、OAuth attempt 和同步运行记录模型已提交 migration。
 
 当前尚未实现远程 MCP `tools/list`、训练数据拉取和规范化活动导入；这些需要先用真实 COROS 账号完成兼容性验证。

@@ -13,10 +13,8 @@ import { useAuth } from "../../auth/hooks/AuthProvider";
 import { getProfile } from "../services/profile.api";
 import { router, useFocusEffect } from "expo-router";
 import type { ProfileResponse } from "@ridepilot/contracts";
-import { FtpMeasurementCard } from "../components/FtpMeasurementCard";
-import { HeartRateSettingsCard } from "../components/HeartRateSettingsCard";
+import { ProfileSettingsList } from "../components/ProfileSettingsList";
 import { colors } from "../../../theme/colors";
-import { CorosConnectionCard } from "../../integrations/components/CorosConnectionCard";
 
 const m01Colors = {
   text: colors.textPrimary,
@@ -273,13 +271,8 @@ export function ProfileScreen() {
             </Card>
           </Pressable>
           {session?.accessToken ? (
-            <FtpMeasurementCard token={session.accessToken} />
+            <ProfileSettingsList token={session.accessToken} />
           ) : null}
-          {session?.accessToken ? (
-            <HeartRateSettingsCard token={session.accessToken} />
-          ) : null}
-
-          {session?.accessToken ? <CorosConnectionCard /> : null}
 
           <View style={styles.section}>
             <AppText style={styles.sectionTitle}>数据与隐私</AppText>

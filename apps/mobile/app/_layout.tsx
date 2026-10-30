@@ -71,6 +71,10 @@ function AuthenticatedStack() {
           name="cycling-power-zones"
           options={{ headerShown: false, title: "骑行功率区间" }}
         />
+        <Stack.Screen
+          name="third-party-apps"
+          options={{ headerShown: false, title: "第三方 App" }}
+        />
         <Stack.Screen name="showcase" options={{ title: "UI Showcase" }} />
         <Stack.Screen name="coros-callback" options={{ headerShown: false }} />
       </Stack.Protected>

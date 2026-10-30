@@ -3,7 +3,7 @@ import { Pressable, View } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { Activity, ChevronRight } from "lucide-react-native";
 import type { FtpMeasurementInput } from "@ridepilot/contracts";
-import { AppText, Card, Spinner } from "../../../components/ui";
+import { AppText, Spinner } from "../../../components/ui";
 import { colors } from "../../../theme/colors";
 import { coachApi } from "../../coach/services/coach.api";
 import { profileMetricStyles as styles } from "./profile-metric-card.styles";
@@ -45,7 +45,7 @@ export function FtpMeasurementCard({ token }: { token: string }) {
       accessibilityHint="编辑 FTP 并查看七个功率区间"
       onPress={() => router.push("/cycling-power-zones")}
     >
-      <Card style={styles.card}>
+      <View style={styles.row}>
         <View style={styles.icon}>
           <Activity color={colors.brand} size={18} />
         </View>
@@ -67,7 +67,7 @@ export function FtpMeasurementCard({ token }: { token: string }) {
           </AppText>
         )}
         <ChevronRight color={colors.textMuted} size={18} />
-      </Card>
+      </View>
     </Pressable>
   );
 }

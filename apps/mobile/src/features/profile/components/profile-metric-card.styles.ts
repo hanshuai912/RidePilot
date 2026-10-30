@@ -5,14 +5,24 @@ import { radii } from "../../../theme/radius";
 import { typography } from "../../../theme/typography";
 
 export const profileMetricStyles = StyleSheet.create({
-  card: {
+  group: {
     marginTop: spacing.md,
+    padding: 0,
+    borderRadius: radii.card,
+    overflow: "hidden",
+  },
+  row: {
     minHeight: 72,
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.md,
     padding: spacing.lg,
-    borderRadius: radii.card,
+  },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.divider,
+    marginLeft: spacing.lg + 32 + spacing.md,
+    marginRight: spacing.lg,
   },
   icon: {
     width: 32,

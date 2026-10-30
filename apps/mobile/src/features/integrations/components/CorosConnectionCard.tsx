@@ -97,9 +97,9 @@ export function CorosConnectionCard() {
           : cause instanceof IntegrationsApiError &&
               cause.code === "COROS_OAUTH_REGISTRATION_FAILED"
             ? "COROS MCP 动态授权注册失败，请检查回调地址和网络"
-          : cause instanceof Error
-            ? cause.message
-            : "无法打开 COROS 授权页";
+            : cause instanceof Error
+              ? cause.message
+              : "无法打开 COROS 授权页";
       setError(message);
     } finally {
       setBusy(false);
@@ -133,7 +133,7 @@ export function CorosConnectionCard() {
   };
 
   return (
-    <Card style={styles.card}>
+    <Card>
       <View style={styles.header}>
         <View style={styles.iconWrap}>
           <Activity color={colors.brand} size={20} strokeWidth={1.7} />
@@ -197,7 +197,6 @@ export function CorosConnectionCard() {
 }
 
 const styles = StyleSheet.create({
-  card: { marginTop: 12 },
   header: { flexDirection: "row", alignItems: "flex-start", gap: 11 },
   iconWrap: {
     width: 36,

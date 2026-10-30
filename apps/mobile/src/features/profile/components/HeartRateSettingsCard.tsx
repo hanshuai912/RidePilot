@@ -6,7 +6,7 @@ import {
   heartRateMethodLabels,
   type HeartRateResponse,
 } from "@ridepilot/contracts";
-import { AppText, Card, Spinner } from "../../../components/ui";
+import { AppText, Spinner } from "../../../components/ui";
 import { colors } from "../../../theme/colors";
 import { heartRateApi } from "../services/heart-rate.api";
 import { profileMetricStyles as styles } from "./profile-metric-card.styles";
@@ -44,7 +44,7 @@ export function HeartRateSettingsCard({ token }: { token: string }) {
       accessibilityHint="设置心率并查看训练区间"
       onPress={() => router.push("/heart-rate-zones")}
     >
-      <Card style={styles.card}>
+      <View style={styles.row}>
         <View style={styles.icon}>
           <HeartPulse color={colors.brand} size={18} />
         </View>
@@ -75,7 +75,7 @@ export function HeartRateSettingsCard({ token }: { token: string }) {
           </AppText>
         )}
         <ChevronRight color={colors.textMuted} size={18} />
-      </Card>
+      </View>
     </Pressable>
   );
 }

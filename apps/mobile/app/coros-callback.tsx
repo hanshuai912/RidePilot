@@ -9,13 +9,11 @@ export default function CorosCallbackRoute() {
 
   useEffect(() => {
     if (status === "error") {
-      Alert.alert("COROS 授权未完成", "请返回“我的”页面后重试绑定。", [
+      Alert.alert("COROS 授权未完成", "请在“第三方 App”页面重试绑定。", [
         { text: "知道了" },
       ]);
     }
-    router.replace({
-      pathname: "/(tabs)/profile",
-    });
+    router.dismissTo("/third-party-apps");
   }, [status]);
 
   return (
