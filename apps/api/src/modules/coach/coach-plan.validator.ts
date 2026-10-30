@@ -12,6 +12,7 @@ export class CoachPlanValidator {
     raw: unknown,
     input: {
       weekStartDate: string;
+      endDate?: string;
       ftpWatts: number;
       weekdays: WeeklyAvailabilitySlot[];
       maxSessionMinutes: number;
@@ -27,14 +28,14 @@ export class CoachPlanValidator {
       });
     const output = parsed.data;
     const start = new Date(`${input.weekStartDate}T00:00:00.000Z`);
-    if (start.getUTCDay() !== 1)
+    if (!input.endDate && start.getUTCDay() !== 1)
       throw new BadRequestException({
         code: "INVALID_WEEK_START",
         message: "周起始日必须是周一",
       });
-    const end = new Date(start.getTime() + 6 * 86_400_000)
-      .toISOString()
-      .slice(0, 10);
+    const end =
+      input.endDate ??
+      new Date(start.getTime() + 6 * 86_400_000).toISOString().slice(0, 10);
     const availability = new Map(
       input.weekdays.map((day) => [day.weekday, day.availableMinutes]),
     );
@@ -42,6 +43,11 @@ export class CoachPlanValidator {
       Object.entries(input.retainedMinutes ?? {}),
     );
     const hardDays: string[] = [];
+    if (!input.endDate && output.workouts.length > 14)
+      throw new BadRequestException({
+        code: "AI_OUTPUT_INVALID",
+        message: "单周课程过多",
+      });
     for (const workout of output.workouts) {
       if (
         workout.scheduledDate < input.weekStartDate ||
@@ -104,6 +110,36 @@ export class CoachPlanValidator {
       if (hard) hardDays.push(workout.scheduledDate);
     }
     hardDays.sort();
+    // Each eligible calendar week must be represented; otherwise a model may
+    // silently generate only the first week of a multiweek request.
+    if (input.endDate) {
+      const eligibleWeeks = new Set<string>();
+      const coveredWeeks = new Set<string>();
+      const weekKey = (date: Date) =>
+        new Date(date.getTime() - ((date.getUTCDay() + 6) % 7) * 86_400_000)
+          .toISOString()
+          .slice(0, 10);
+      for (
+        let day = new Date(start);
+        day.toISOString().slice(0, 10) <= end;
+        day = new Date(day.getTime() + 86_400_000)
+      ) {
+        if (
+          availability.has(day.getUTCDay()) &&
+          !input.forbiddenDates?.includes(day.toISOString().slice(0, 10))
+        )
+          eligibleWeeks.add(weekKey(day));
+      }
+      for (const workout of output.workouts)
+        coveredWeeks.add(
+          weekKey(new Date(`${workout.scheduledDate}T00:00:00Z`)),
+        );
+      if ([...eligibleWeeks].some((week) => !coveredWeeks.has(week)))
+        throw new BadRequestException({
+          code: "AI_OUTPUT_INVALID",
+          message: "课程未覆盖所选范围中的全部可训练周",
+        });
+    }
     for (let i = 1; i < hardDays.length; i++) {
       const previous = Date.parse(`${hardDays[i - 1]}T00:00:00.000Z`);
       const current = Date.parse(`${hardDays[i]}T00:00:00.000Z`);

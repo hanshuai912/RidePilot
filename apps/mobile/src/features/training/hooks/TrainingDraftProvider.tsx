@@ -21,6 +21,7 @@ type DraftContextValue = {
   saved: (id: string, proposal: ProposalResponse) => void;
   restore: (id: string, proposal: ProposalResponse, hasFtp: boolean) => void;
   remove: (id: string) => void;
+  setFtpAvailable: (id: string, available: boolean) => void;
 };
 const Context = createContext<DraftContextValue | null>(null);
 let nextDraftId = 0;
@@ -98,9 +99,25 @@ export function TrainingDraftProvider({ children }: { children: ReactNode }) {
       return next;
     });
   }, []);
+  const setFtpAvailable = useCallback((id: string, hasFtp: boolean) => {
+    setEntries((all) =>
+      all[id] && all[id].hasFtp !== hasFtp
+        ? { ...all, [id]: { ...all[id], hasFtp } }
+        : all,
+    );
+  }, []);
   const value = useMemo(
-    () => ({ entries, create, edit, update, saved, restore, remove }),
-    [entries, create, edit, update, saved, restore, remove],
+    () => ({
+      entries,
+      create,
+      edit,
+      update,
+      saved,
+      restore,
+      remove,
+      setFtpAvailable,
+    }),
+    [entries, create, edit, update, saved, restore, remove, setFtpAvailable],
   );
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }

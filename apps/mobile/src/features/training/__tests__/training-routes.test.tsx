@@ -37,6 +37,7 @@ jest.mock("../../auth/hooks/AuthProvider", () => ({ useAuth: jest.fn() }));
 jest.mock("../../coach/services/coach.api", () => ({
   coachApi: {
     goals: jest.fn(),
+    ftp: jest.fn(),
     adjustWorkout: jest.fn(),
     generation: jest.fn(),
     proposal: jest.fn(),
@@ -139,6 +140,23 @@ const routes = {
   "workouts/segment": WorkoutSegmentScreen,
   "workouts/preview": WorkoutPreviewScreen,
   "workouts/[workoutId]": WorkoutDetailScreen,
+  "cycling-power-zones": function FtpSettings() {
+    return (
+      <Text
+        onPress={() => {
+          coach.ftp.mockResolvedValue({
+            id: "ftp-1",
+            valueWatts: 250,
+            measuredAt: new Date().toISOString(),
+            source: "MANUAL",
+          });
+          router.back();
+        }}
+      >
+        保存 FTP 并返回
+      </Text>
+    );
+  },
 };
 
 beforeEach(() => {
@@ -154,6 +172,12 @@ beforeEach(() => {
     register: jest.fn(),
     logout: jest.fn(),
     retry: jest.fn(),
+  });
+  coach.ftp.mockResolvedValue({
+    id: "ftp-1",
+    valueWatts: 250,
+    measuredAt: new Date().toISOString(),
+    source: "MANUAL",
   });
   api.getCalendar.mockImplementation(async (_token, from, to) => ({
     from,
@@ -242,6 +266,32 @@ beforeEach(() => {
     fatigue: 6,
     notes: "最后一组没有完成",
   });
+});
+
+test("manual creation without FTP resumes the selected date after setting FTP", async () => {
+  coach.ftp.mockResolvedValue(null);
+  const selected = addDays(today, 5);
+  await renderRouter(routes, { initialUrl: `/workouts/new?date=${selected}` });
+  await fireEvent.press(await screen.findByText("设置 FTP"));
+  expect(api.createManual).not.toHaveBeenCalled();
+  await fireEvent.press(screen.getByText("保存 FTP 并返回"));
+  expect((await screen.findByPlaceholderText("YYYY-MM-DD")).props.value).toBe(
+    selected,
+  );
+});
+
+test("manual editing without FTP keeps the existing local course while visiting settings", async () => {
+  coach.ftp.mockResolvedValue(null);
+  await renderRouter(routes, {
+    initialUrl: `/workouts/editor?workoutId=${workout.id}`,
+  });
+  await fireEvent.press(await screen.findByText("设置 FTP"));
+  expect(api.createEdit).not.toHaveBeenCalled();
+  await fireEvent.press(screen.getByText("保存 FTP 并返回"));
+  expect(
+    (await screen.findByPlaceholderText("例如：爬坡专项")).props.value,
+  ).toBe("耐力骑行");
+  expect(screen.getByText("训练动作 · 1 个")).toBeTruthy();
 });
 
 async function open(url = "/training") {
@@ -474,6 +524,7 @@ test("new course saves to the formal plan in one action after returning from seg
       "/workouts/segment",
     ),
   );
+  await fireEvent.press(screen.getByText("功率 W"));
   const required = screen.getAllByPlaceholderText("必填");
   await fireEvent.changeText(required[0], "30");
   await fireEvent.changeText(required[1], "100");

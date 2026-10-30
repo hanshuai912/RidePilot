@@ -115,6 +115,16 @@ describeWithDatabase("manual training plan API", () => {
     const auth = await register();
     userId = auth.user.id;
     token = auth.tokens.accessToken;
+    await prisma.abilityMeasurement.create({
+      data: {
+        userId,
+        metricType: "FTP",
+        value: 250,
+        unit: "W",
+        source: "MANUAL",
+        measuredAt: new Date(),
+      },
+    });
   });
   afterAll(async () => {
     // Break the active-version reference before cascading test fixtures.
@@ -436,6 +446,7 @@ describeWithDatabase("manual training plan API", () => {
     await post("workouts/manual-proposals")
       .send(draft({ scheduledDate: "2000-01-01" }))
       .expect(409);
+    await prisma.abilityMeasurement.deleteMany({ where: { userId } });
     await post("workouts/manual-proposals")
       .send(
         draft({
@@ -449,6 +460,16 @@ describeWithDatabase("manual training plan API", () => {
         }),
       )
       .expect(400);
+    await prisma.abilityMeasurement.create({
+      data: {
+        userId,
+        metricType: "FTP",
+        value: 250,
+        unit: "W",
+        source: "MANUAL",
+        measuredAt: new Date(),
+      },
+    });
     const proposal = await create();
     expect((await apply(proposal).expect(409)).body.code).toBe(
       "PROPOSAL_NOT_READY",
@@ -466,7 +487,7 @@ describeWithDatabase("manual training plan API", () => {
   });
 
   it("rechecks FTP at confirmation and allows the blocked initial draft to be corrected", async () => {
-    const ftp = await prisma.abilityMeasurement.create({
+    await prisma.abilityMeasurement.create({
       data: {
         userId,
         metricType: "FTP",
@@ -489,12 +510,20 @@ describeWithDatabase("manual training plan API", () => {
         }),
       ),
     );
-    await prisma.abilityMeasurement.delete({ where: { id: ftp.id } });
-    expect((await apply(proposal).expect(400)).body.code).toBe(
-      "FTP_NOT_AVAILABLE",
-    );
+    await prisma.abilityMeasurement.deleteMany({ where: { userId } });
+    expect((await apply(proposal).expect(400)).body.code).toBe("FTP_REQUIRED");
     expect(await prisma.trainingPlan.count({ where: { userId } })).toBe(0);
     expect((await ready(proposal)).status).toBe("BLOCKED");
+    await prisma.abilityMeasurement.create({
+      data: {
+        userId,
+        metricType: "FTP",
+        value: 250,
+        unit: "W",
+        source: "MANUAL",
+        measuredAt: new Date(),
+      },
+    });
     const updated = proposalResponseSchema.parse(
       (
         await patch(proposal.proposalId, {

@@ -241,6 +241,9 @@ export function CoachScreen() {
           onCurrentWeek={() => startWeekGeneration("current")}
           onNextWeek={() => startWeekGeneration("next")}
         />
+        <Button variant="secondary" onPress={() => router.push("/goals")}>
+          目标与阶段 · 按范围生成课程
+        </Button>
       </CoachPage>
     );
 
@@ -384,7 +387,7 @@ export function CoachScreen() {
           setExperience={flow.setExperience}
           ftpWatts={resources.ftpWatts}
           profile={resources.profile}
-          onFtp={toProfile}
+          onFtp={() => router.push("/cycling-power-zones")}
           bodyStatus={flow.bodyStatus}
           setBodyStatus={flow.setBodyStatus}
           bodyNote={flow.bodyNote}

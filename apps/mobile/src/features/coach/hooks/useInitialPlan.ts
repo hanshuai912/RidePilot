@@ -179,7 +179,7 @@ export function useInitialPlan() {
   const nextFromBasics = async (): Promise<InitialPlanStage | undefined> => {
     if (!token || !resources) return;
     if (!resources.ftpWatts) {
-      setError("请先到个人资料补充 FTP，然后返回继续");
+      setError("请先设置 FTP，然后返回继续");
       return;
     }
     if (

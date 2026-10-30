@@ -62,8 +62,8 @@ export function WorkoutSegmentForm({
   );
 
   const save = () => {
-    if (intensityKind === "ftp_percent" && !hasFtp) {
-      setError("当前没有可用 FTP，请改用绝对功率");
+    if (!hasFtp) {
+      setError("请先设置 FTP，再编辑训练动作");
       return;
     }
     if (!valid) {
@@ -239,7 +239,7 @@ export function WorkoutSegmentForm({
         </View>
         {!hasFtp ? (
           <AppText variant="caption" muted style={styles.hint}>
-            当前没有可用 FTP，%FTP 已禁用；可以使用绝对功率 W。
+            请先设置 FTP，再创建或调整训练。
           </AppText>
         ) : null}
       </Card>

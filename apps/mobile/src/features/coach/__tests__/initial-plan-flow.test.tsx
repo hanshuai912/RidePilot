@@ -197,7 +197,7 @@ test("missing FTP blocks the wizard and points to personal data", async () => {
   await act(async () => {
     await result.current.nextFromBasics();
   });
-  expect(result.current.error).toContain("个人资料补充 FTP");
+  expect(result.current.error).toContain("设置 FTP");
   expect(api.generate).not.toHaveBeenCalled();
 });
 

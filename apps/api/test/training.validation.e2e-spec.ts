@@ -40,9 +40,12 @@ describe("training validation", () => {
             },
           ],
         }),
-        false,
+        true,
       ),
     ).toEqual({ timeTargetMinutes: 20, distanceTargetKm: 20 });
+  });
+  it("rejects absolute watts without ftp", () => {
+    expect(() => validateDraft(draft(), false)).toThrow("请先设置 FTP");
   });
   it("rejects ftp percentages without ftp", () => {
     expect(() =>

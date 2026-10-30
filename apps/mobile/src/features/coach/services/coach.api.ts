@@ -37,7 +37,7 @@ export class CoachApiError extends Error {
   }
 }
 
-async function request<T>(
+export async function coachRequest<T>(
   path: string,
   token: string,
   schema: { parse: (value: unknown) => T },
@@ -95,6 +95,8 @@ async function request<T>(
   }
 }
 
+const request = coachRequest;
+
 export const coachApi = {
   planStatus: (token: string) =>
     request("plans/active/status", token, activePlanStatusSchema),
@@ -123,6 +125,8 @@ export const coachApi = {
       body: input,
     }),
   goals: (token: string) => request("goals", token, goalSchema.array()),
+  goal: (token: string, id: string) =>
+    request(`goals/${encodeURIComponent(id)}`, token, goalSchema),
   createGoal: (token: string, input: GoalInput) =>
     request("goals", token, goalSchema, { method: "POST", body: input }),
   updateGoal: (token: string, id: string, input: GoalPatch) =>

@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import type { CalendarResponse } from "@ridepilot/contracts";
 import { Screen } from "../../../components/layout/Screen";
-import { AppText } from "../../../components/ui";
+import { AppText, Button } from "../../../components/ui";
 import { useAuth } from "../../auth/hooks/AuthProvider";
 import { Home } from "../components/Home";
 import { styles } from "../components/training.styles";
@@ -124,12 +124,15 @@ function TrainingCalendar({
         }
         onAdjust={(workout) =>
           router.push({
-            pathname: "/workouts/[workoutId]",
-            params: { workoutId: workout.id, action: "adjust" },
+            pathname: "/workouts/adjust",
+            params: { workoutId: workout.id, source: "training" },
           })
         }
         onEdit={edit}
       />
+      <Button variant="secondary" onPress={() => router.push("/goals")}>
+        目标与阶段 · 生成课程
+      </Button>
     </Screen>
   );
 }

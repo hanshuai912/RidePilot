@@ -5,13 +5,15 @@ import { resolve, sep } from "node:path";
 
 const SKILL_ROOT = resolve(__dirname, "../../../skills/cycling-training");
 const MAX_FILE_BYTES = 32 * 1024;
-const SKILL_VERSION = "1.1.0";
+const SKILL_VERSION = "1.2.0";
 
 @Injectable()
 export class SkillLoaderService {
   async load(
     reference:
       | "weekly-planning"
+      | "stage-planning"
+      | "range-planning"
       | "adaptive-adjustment"
       | "assessment-review"
       | "race-preparation"

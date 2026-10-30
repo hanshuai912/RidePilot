@@ -36,6 +36,7 @@ export {
   workoutActivitySchema,
 } from "./training";
 export * from "./coach";
+export * from "./stages";
 export {
   externalConnectionListSchema,
   externalConnectionSchema,

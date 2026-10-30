@@ -89,7 +89,7 @@ export function Editor({
         text={
           hasFtp
             ? "当前允许使用 %FTP 或绝对功率；每个动作都必须填写强度范围。"
-            : "当前没有可用 FTP，%FTP 不可选择，请使用绝对功率。"
+            : "请先设置 FTP，再保存训练课程。"
         }
       />
       {feedback ? (

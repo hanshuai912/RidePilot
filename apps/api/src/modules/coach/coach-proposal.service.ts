@@ -32,13 +32,17 @@ import {
 
 interface AiDraft extends AiWeekOutput {
   weekStartDate: string;
+  endDate?: string;
+  stageId?: string;
+  replacedWorkouts?: { id: string; scheduledDate: string; title: string }[];
   scene:
     | "WEEK_PLAN"
+    | "RANGE_PLAN"
     | "WORKOUT_ADJUST"
     | "PLAN_ADJUST"
     | "ASSESSMENT_REVIEW"
     | "RACE_REPLAN";
-  mode: "initial" | "empty_week" | "replace_week" | "replace_workout";
+  mode: "initial" | "empty_week" | "replace_week" | "replace_workout" | "range";
   replaceWorkoutIds: string[];
   goalId: string;
   goalVersion: number;
@@ -86,6 +90,11 @@ export class CoachProposalService {
       scene: draft.scene,
       replaceWorkoutIds: draft.replaceWorkoutIds,
       weekStartDate: draft.weekStartDate,
+      ...(draft.endDate ? { endDate: draft.endDate } : {}),
+      ...(draft.stageId ? { stageId: draft.stageId } : {}),
+      ...(draft.replacedWorkouts
+        ? { replacedWorkouts: draft.replacedWorkouts }
+        : {}),
       summary: draft.summary,
       stageSummary: draft.stageSummary,
       assessmentSuggestion: draft.assessmentSuggestion,
@@ -322,7 +331,10 @@ export class CoachProposalService {
         success: true as const,
         newPlanVersion: version.versionNo,
         affectedDates: [
-          ...new Set(draft.workouts.map((workout) => workout.scheduledDate)),
+          ...new Set([
+            ...draft.workouts.map((workout) => workout.scheduledDate),
+            ...(draft.replacedWorkouts ?? []).map((item) => item.scheduledDate),
+          ]),
         ].sort(),
       };
     });
@@ -354,6 +366,25 @@ export class CoachProposalService {
         }),
       ]);
     const blockers: string[] = [];
+    if (draft.stageId) {
+      const stage = await tx.trainingStage.findFirst({
+        where: {
+          id: draft.stageId,
+          stagePlan: {
+            userId,
+            goalId: draft.goalId,
+            status: "ACTIVE",
+            goalVersion: draft.goalVersion,
+          },
+        },
+      });
+      if (
+        !stage ||
+        dbToDate(stage.startDate) !== draft.weekStartDate ||
+        dbToDate(stage.endDate) !== draft.endDate
+      )
+        blockers.push("阶段安排已变化，请重新生成");
+    }
     if (!ftp || ftp.id !== draft.ftpMeasurementId)
       blockers.push("FTP 已变化，请重新生成");
     if (!availability || availability.version !== draft.availabilityVersion)
@@ -429,7 +460,10 @@ export class CoachProposalService {
     for (
       let day = new Date(weekStart);
       day.toISOString().slice(0, 10) < today &&
-      day.getTime() < weekStart.getTime() + 7 * 86_400_000;
+      day.getTime() <=
+        (draft.endDate
+          ? Date.parse(draft.endDate)
+          : weekStart.getTime() + 6 * 86_400_000);
       day = new Date(day.getTime() + 86_400_000)
     )
       forbiddenDates.push(day.toISOString().slice(0, 10));
@@ -443,6 +477,7 @@ export class CoachProposalService {
         }),
         {
           weekStartDate: draft.weekStartDate,
+          ...(draft.endDate ? { endDate: draft.endDate } : {}),
           ftpWatts: Number(ftp.value),
           weekdays:
             availability.weekdays as unknown as WeeklyAvailabilitySlot[],
@@ -501,7 +536,10 @@ export class CoachProposalService {
       success: true as const,
       newPlanVersion: version.versionNo,
       affectedDates: [
-        ...new Set(draft.workouts.map((item) => item.scheduledDate)),
+        ...new Set([
+          ...draft.workouts.map((item) => item.scheduledDate),
+          ...(draft.replacedWorkouts ?? []).map((item) => item.scheduledDate),
+        ]),
       ].sort(),
     };
   }

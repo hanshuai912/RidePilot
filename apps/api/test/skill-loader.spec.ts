@@ -7,7 +7,7 @@ describe("cycling skill source selection", () => {
     const weekly = await loader.load("weekly-planning");
     const adjustment = await loader.load("adaptive-adjustment");
 
-    expect(weekly.version).toBe("1.1.0");
+    expect(weekly.version).toBe("1.2.0");
     expect(weekly.content).toContain("FTP-based cycling intensity reference");
     expect(weekly.content).toContain("estruyf");
     expect(weekly.content).not.toContain("tp_create_workout");
@@ -21,5 +21,14 @@ describe("cycling skill source selection", () => {
     const explanation = await loader.load("plan-explanation");
     expect(explanation.content).toContain("read-only");
     expect(explanation.content).toContain("confirmation flow");
+  });
+
+  it("uses separate stage and range references without the seven-day constraint", async () => {
+    const stages = await loader.load("stage-planning");
+    const range = await loader.load("range-planning");
+    expect(stages.content).toContain("Return a stage roadmap only");
+    expect(range.content).toContain("Cover every calendar week");
+    expect(range.content).not.toContain("requested seven local dates");
+    expect(stages.hash).not.toBe(range.hash);
   });
 });

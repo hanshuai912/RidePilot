@@ -2,6 +2,46 @@
 
 所有路径前缀为 `/api/v1`，需要 `Authorization: Bearer <access-token>`。写入型生成和应用请求应带独立的 `Idempotency-Key`。请求体与响应结构以 `packages/contracts/src/coach.ts` 的 Zod schema 为准。
 
+## 阶段及范围生成（2026-10-30）
+
+所有训练创建/调整均要求可用 FTP，包括手动绝对功率课程；缺失返回 `400 FTP_REQUIRED`，移动端直达骑行功率区间设置。新契约见 `packages/contracts/src/stages.ts`。
+
+| 方法 | 路径                             | 行为                                                                    |
+| ---- | -------------------------------- | ----------------------------------------------------------------------- |
+| POST | `/stage-plans/generate-proposal` | `{goalId,startDate,endDate}`，带幂等键，202 返回生成任务；范围 1–365 天 |
+| GET  | `/goals/:id/stage-plan`          | `{plan: 阶段安排或 null}`；含 stale 和有序阶段                          |
+| GET  | `/stage-plans/:id`               | 当前用户的阶段草稿/正式/历史安排                                        |
+| POST | `/stage-plans/:id/activate`      | `{expectedVersion}`；事务确认阶段并归档旧安排；同一版本请求可重复提交   |
+| POST | `/plans/generate-range-proposal` | 带幂等键；按阶段或日期生成 1–84 天课程草稿，202 返回任务                |
+
+范围请求二选一：
+
+```json
+{
+  "scope": "DATES",
+  "goalId": "<uuid>",
+  "startDate": "2030-01-08",
+  "endDate": "2030-01-21",
+  "expectedBaseVersion": 3,
+  "notes": "可选补充"
+}
+```
+
+```json
+{
+  "scope": "STAGE",
+  "goalId": "<uuid>",
+  "stageId": "<uuid>",
+  "expectedBaseVersion": 3
+}
+```
+
+日期不要求周一。阶段 ID 必须属于当前用户、当前目标及有效阶段安排，日期由后端读取。旧周生成接口保持原有周一规则，不接受范围模式。范围响应 `scene=RANGE_PLAN`，新增 `endDate`、可选 `stageId` 和 `replacedWorkouts:[{id,scheduledDate,title}]`；预览、校验、应用复用 `/proposals`。`affectedDates` 包含移除课程日期。
+
+`STAGE_PLAN` 的生成任务 READY 后，`proposalId` 指向 `/stage-plans/:id`；课程任务指向 `/proposals/:id`。调用方按自己提交的任务类型读取，不混用。阶段确认不会创建课程或测试。
+
+版本冲突返回 409；过期阶段返回 `STAGE_PLAN_STALE`；不合法范围返回 `INVALID_DATE_RANGE`。每个目标最多一个 ACTIVE 阶段安排。阶段、课程生成失败不改正式安排；课程确认继续进行服务端重验与正式版本检查。
+
 | 方法               | 路径                                              | 作用                                                            |
 | ------------------ | ------------------------------------------------- | --------------------------------------------------------------- |
 | GET / POST         | `/me/ability-measurements/ftp`                    | 查询最新 FTP / 追加一次 FTP 测量                                |
@@ -78,7 +118,7 @@ Content-Type: application/json
   ],
   "warnings": [],
   "blockers": [],
-  "skillVersion": "1.1.0",
+  "skillVersion": "1.2.0",
   "model": "<configured-model>"
 }
 ```

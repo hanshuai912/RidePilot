@@ -105,7 +105,15 @@ export const activePlanStatusSchema = z.object({
 export const weekGenerationInputSchema = z.strictObject({
   weekStartDate: z.iso.date(),
   goalId: z.uuid(),
-  mode: z.enum(["initial", "empty_week", "replace_week", "replace_workout"]),
+  mode: z.enum([
+    "initial",
+    "empty_week",
+    "replace_week",
+    "replace_workout",
+    "range",
+  ]),
+  endDate: z.iso.date().optional(),
+  stageId: z.uuid().optional(),
   expectedBaseVersion: z.number().int().nonnegative(),
   reason: z
     .enum([
@@ -143,7 +151,7 @@ export const aiWorkoutDraftSchema = z.strictObject({
 });
 export const aiWeekOutputSchema = z.strictObject({
   summary: z.string().trim().min(1).max(1000),
-  workouts: z.array(aiWorkoutDraftSchema).min(1).max(14),
+  workouts: z.array(aiWorkoutDraftSchema).min(1).max(168),
   stageSummary: z.string().trim().min(1).max(1000),
   assessmentSuggestion: z.string().trim().min(1).max(500),
 });
@@ -194,6 +202,7 @@ export const aiProposalResponseSchema = z.object({
   basePlanVersion: z.number().int().nonnegative(),
   scene: z.enum([
     "WEEK_PLAN",
+    "RANGE_PLAN",
     "WORKOUT_ADJUST",
     "PLAN_ADJUST",
     "ASSESSMENT_REVIEW",
@@ -201,6 +210,17 @@ export const aiProposalResponseSchema = z.object({
   ]),
   replaceWorkoutIds: z.array(z.uuid()),
   weekStartDate: z.iso.date(),
+  endDate: z.iso.date().optional(),
+  stageId: z.uuid().optional(),
+  replacedWorkouts: z
+    .array(
+      z.object({
+        id: z.uuid(),
+        scheduledDate: z.iso.date(),
+        title: z.string(),
+      }),
+    )
+    .optional(),
   summary: z.string(),
   stageSummary: z.string(),
   assessmentSuggestion: z.string(),

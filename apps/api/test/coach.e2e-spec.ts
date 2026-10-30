@@ -173,6 +173,13 @@ describeWithDatabase("AI coach weekly plan API", () => {
         segments: unknown;
         activity: unknown;
       }[];
+    await post("me/ability-measurements/ftp")
+      .send({
+        valueWatts: 193,
+        measuredAt: new Date().toISOString(),
+        source: "MANUAL",
+      })
+      .expect(201);
     await addCourse(monday(), "目标课程", 0);
     await addCourse(monday(), "同日保留课程", 1);
     await addCourse(addDays(monday(), 7), "下周保留课程", 2);
@@ -284,8 +291,7 @@ describeWithDatabase("AI coach weekly plan API", () => {
         expectedBaseVersion: 0,
       })
       .expect(400);
-    expect(response.body.code).toBe("INSUFFICIENT_TRAINING_INPUT");
-    expect(response.body.missingFields).toContain("ftp");
+    expect(response.body.code).toBe("FTP_REQUIRED");
     expect(model.generate).not.toHaveBeenCalled();
   });
 

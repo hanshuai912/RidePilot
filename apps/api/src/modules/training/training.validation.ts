@@ -5,6 +5,11 @@ export function validateDraft(
   draft: ManualWorkoutDraft,
   hasFtp: boolean,
 ): { timeTargetMinutes: number | null; distanceTargetKm: number | null } {
+  if (!hasFtp)
+    throw new BadRequestException({
+      code: "FTP_REQUIRED",
+      message: "请先设置 FTP，再创建或调整训练",
+    });
   if (draft.segments.length === 0) {
     throw new BadRequestException({
       code: "EMPTY_SEGMENTS",
@@ -15,12 +20,6 @@ export function validateDraft(
   let distance = 0;
   for (const [index, segment] of draft.segments.entries()) {
     const repeat = segment.repeatCount ?? 1;
-    if (segment.intensity.kind === "ftp_percent" && !hasFtp) {
-      throw new BadRequestException({
-        code: "FTP_NOT_AVAILABLE",
-        message: `第 ${index + 1} 个动作不能使用 %FTP`,
-      });
-    }
     if (segment.intensity.max < segment.intensity.min) {
       throw new BadRequestException({
         code: "INVALID_INTENSITY_RANGE",

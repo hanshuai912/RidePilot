@@ -103,6 +103,7 @@ model User {
   trainingPlans        TrainingPlan[]
   proposals            ChangeProposal[]
   trainingGoals        TrainingGoal[]
+  stagePlans           TrainingStagePlan[]
   trainingAvailability TrainingAvailability?
   trainingActivities   TrainingActivity[]
   assessments          TrainingAssessment[]
@@ -250,9 +251,51 @@ model TrainingGoal {
   version     Int      @default(1)
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
+  stagePlans  TrainingStagePlan[]
 
   @@index([userId, status])
   @@map("training_goals")
+}
+
+model TrainingStagePlan {
+  id                  String   @id @default(uuid()) @db.Uuid
+  userId              String   @map("user_id") @db.Uuid
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goalId              String   @map("goal_id") @db.Uuid
+  goal                TrainingGoal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  goalVersion         Int      @map("goal_version")
+  ftpMeasurementId    String   @map("ftp_measurement_id") @db.Uuid
+  availabilityVersion Int      @map("availability_version")
+  profileVersion      Int      @map("profile_version")
+  baseStagePlanId     String?  @map("base_stage_plan_id") @db.Uuid
+  generationId        String   @unique @map("generation_id") @db.Uuid
+  status              String   @default("DRAFT") @db.VarChar(16)
+  version             Int      @default(1)
+  summary             String
+  startDate           DateTime @map("start_date") @db.Date
+  endDate             DateTime @map("end_date") @db.Date
+  model               String   @db.VarChar(128)
+  skillVersion        String   @map("skill_version") @db.VarChar(80)
+  createdAt           DateTime @default(now()) @map("created_at")
+  stages              TrainingStage[]
+
+  @@index([userId, goalId, status])
+  @@map("training_stage_plans")
+}
+
+model TrainingStage {
+  id                   String   @id @default(uuid()) @db.Uuid
+  stagePlanId          String   @map("stage_plan_id") @db.Uuid
+  stagePlan            TrainingStagePlan @relation(fields: [stagePlanId], references: [id], onDelete: Cascade)
+  position             Int
+  title                String   @db.VarChar(80)
+  purpose              String   @db.VarChar(300)
+  startDate            DateTime @map("start_date") @db.Date
+  endDate              DateTime @map("end_date") @db.Date
+  assessmentSuggestion String   @map("assessment_suggestion") @db.VarChar(300)
+
+  @@unique([stagePlanId, position])
+  @@map("training_stages")
 }
 
 model TrainingAvailability {

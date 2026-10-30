@@ -15,10 +15,15 @@ import { CoachProposalService } from "./coach-proposal.service";
 import { SkillLoaderService } from "./skill-loader.service";
 import { PlanRestoreController } from "./plan-restore.controller";
 import { PlanRestoreService } from "./plan-restore.service";
+import { StagePlansService } from "./stage-plans.service";
+import { StagePlansController } from "./stage-plans.controller";
+import { CoachGenerationContextService } from "./coach-generation-context.service";
+import { TrainingRangeService } from "./training-range.service";
 
 @Module({
   imports: [InfraModule, AiModule],
   controllers: [
+    StagePlansController,
     CoachDataController,
     CoachChatController,
     CoachEventsController,
@@ -27,6 +32,9 @@ import { PlanRestoreService } from "./plan-restore.service";
     AiProposalController,
   ],
   providers: [
+    StagePlansService,
+    TrainingRangeService,
+    CoachGenerationContextService,
     CoachDataService,
     CoachChatService,
     CoachEventsService,

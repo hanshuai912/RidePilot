@@ -56,7 +56,9 @@ export function PlanPreview({
         <AppText variant="caption" className="mt-3 text-secondary">
           {proposal.scene === "WORKOUT_ADJUST"
             ? "仅调整选中的一节训练"
-            : `训练周从 ${proposal.weekStartDate} 开始`}{" "}
+            : proposal.endDate
+              ? `${proposal.weekStartDate} 至 ${proposal.endDate}`
+              : `训练周从 ${proposal.weekStartDate} 开始`}{" "}
           · 日期：
           {[
             ...new Set(
@@ -147,9 +149,23 @@ export function PlanPreview({
           {proposal.assessmentSuggestion}
         </AppText>
         <AppText variant="caption" muted className="mt-3">
-          阶段与复评目前是建议说明，尚未建立独立阶段或测试事件。
+          此处的阶段与复评是课程建议说明。正式阶段安排请在目标详情查看；本次不会创建测试日程。
         </AppText>
       </View>
+      {proposal.replacedWorkouts?.length ? (
+        <Card>
+          <AppText variant="card">将替换的未来课程</AppText>
+          {proposal.replacedWorkouts.map((workout) => (
+            <AppText
+              key={workout.id}
+              variant="caption"
+              className="mt-2 text-secondary"
+            >
+              {workout.scheduledDate} · {workout.title || "骑行训练"}
+            </AppText>
+          ))}
+        </Card>
+      ) : null}
       <View className="gap-3">
         {proposal.workouts.map((workout, index) => (
           <View

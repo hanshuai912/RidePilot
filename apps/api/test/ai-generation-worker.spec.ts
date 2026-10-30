@@ -1,3 +1,6 @@
+import { CoachGenerationContextService } from "../src/modules/coach/coach-generation-context.service";
+import type { StagePlansService } from "../src/modules/coach/stage-plans.service";
+import type { TrainingRangeService } from "../src/modules/coach/training-range.service";
 import { Prisma } from "../src/generated/prisma/client";
 import { AiGenerationService } from "../src/modules/coach/ai-generation.service";
 import type { AiService } from "../src/ai/ai.service";
@@ -19,10 +22,15 @@ test("AI worker gives an actionable error when coach migrations are missing", as
   } as unknown as PrismaService;
   const worker = new AiGenerationService(
     prisma,
-    {} as CoachDataService,
+    new CoachGenerationContextService(
+      prisma,
+      {} as CoachDataService,
+      {} as TrainingRangeService,
+    ),
     {} as SkillLoaderService,
     {} as AiService,
     {} as CoachPlanValidator,
+    {} as StagePlansService,
   );
   await expect(worker.onModuleInit()).rejects.toThrow(
     "pnpm --filter @ridepilot/api db:deploy",
@@ -100,10 +108,11 @@ test("empty week keeps a past course and allows the remaining dates", async () =
   } as unknown as CoachDataService;
   const worker = new AiGenerationService(
     prisma,
-    data,
+    new CoachGenerationContextService(prisma, data, {} as TrainingRangeService),
     {} as SkillLoaderService,
     {} as AiService,
     {} as CoachPlanValidator,
+    {} as StagePlansService,
   );
 
   try {

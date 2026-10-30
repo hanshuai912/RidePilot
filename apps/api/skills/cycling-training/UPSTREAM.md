@@ -10,6 +10,8 @@ The runtime loads `SKILL.md`, `references/power-zones.md` and one scene referenc
 
 ## RidePilot adaptation
 
+- Adapter 1.2.0 adds local `stage-planning` and `range-planning` references using the same pinned sources. Stage roadmaps use their own schema and confirmation flow; range courses cover all eligible weeks rather than inheriting the weekly scene's seven-date constraint. This does not update upstream commits or enable upstream tools.
+
 - The original skills assume data from Strava, TrainingPeaks or Intervals.icu and may direct an agent to call tools, write files or publish workouts. RidePilot instead receives authenticated API data and emits a validated proposal that requires user confirmation.
 - The originals also cover nutrition, fueling, running, swimming or gym work. The current API stage accepts cycling workouts only and excludes nutrition and external service synchronization.
 - Source examples often rely on HRV, TSS/TSB, power curves, race routes or age. RidePilot cannot use those values unless they are actually supplied. Its first-week guidance remains conservative when training history is absent.
