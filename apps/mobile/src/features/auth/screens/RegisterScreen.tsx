@@ -55,12 +55,7 @@ export function RegisterScreen() {
     }
   });
   return (
-    <AuthLayout
-      kind="register"
-      eyebrow="开始你的训练计划"
-      sectionLabel="创建账号"
-      title="先建立你的账号"
-    >
+    <AuthLayout kind="register" eyebrow="开始你的训练计划" title="注册账号">
       <View style={styles.form}>
         <Controller
           control={control}

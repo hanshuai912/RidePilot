@@ -1,4 +1,5 @@
 import { Text } from "react-native";
+import { within } from "@testing-library/react-native";
 import { Stack, router, usePathname } from "expo-router";
 import {
   renderRouter,
@@ -16,14 +17,22 @@ import WorkoutLayout from "../../../../app/workouts/_layout";
 import { useAuth } from "../../auth/hooks/AuthProvider";
 import { coachApi } from "../../coach/services/coach.api";
 import { trainingApi } from "../services/training.api";
+import { HomeScreen } from "../../home/screens/HomeScreen";
+import { homeApi } from "../../home/services/home.api";
 import { TrainingScreen } from "../screens/TrainingScreen";
 import { NewWorkoutScreen } from "../screens/NewWorkoutScreen";
+import { WorkoutAdjustmentScreen } from "../screens/WorkoutAdjustmentScreen";
+import { WorkoutFeedbackScreen } from "../screens/WorkoutFeedbackScreen";
+import { WorkoutAdjustmentPreviewScreen } from "../screens/WorkoutAdjustmentPreviewScreen";
 import { WorkoutDetailScreen } from "../screens/WorkoutDetailScreen";
 import { WorkoutEditorScreen } from "../screens/WorkoutEditorScreen";
 import { WorkoutPreviewScreen } from "../screens/WorkoutPreviewScreen";
 import { WorkoutSegmentScreen } from "../screens/WorkoutSegmentScreen";
 import { addDays, iso } from "../model/training";
 
+jest.mock("../../home/services/home.api", () => ({
+  homeApi: { today: jest.fn() },
+}));
 jest.mock("../../auth/hooks/AuthProvider", () => ({ useAuth: jest.fn() }));
 jest.mock("../../coach/services/coach.api", () => ({
   coachApi: {
@@ -115,7 +124,7 @@ const routes = {
       </>
     );
   },
-  "(tabs)/index": () => null,
+  "(tabs)/index": HomeScreen,
   "(tabs)/nutrition": () => null,
   "(tabs)/coach": () => null,
   "(tabs)/profile": () => null,
@@ -123,6 +132,9 @@ const routes = {
   "(tabs)/training": TrainingScreen,
   "workouts/_layout": WorkoutLayout,
   "workouts/new": NewWorkoutScreen,
+  "workouts/adjust": WorkoutAdjustmentScreen,
+  "workouts/feedback": WorkoutFeedbackScreen,
+  "workouts/adjustment-preview": WorkoutAdjustmentPreviewScreen,
   "workouts/editor": WorkoutEditorScreen,
   "workouts/segment": WorkoutSegmentScreen,
   "workouts/preview": WorkoutPreviewScreen,
@@ -149,6 +161,31 @@ beforeEach(() => {
     ftpAvailable: false,
     items: [workout],
   }));
+  jest.mocked(homeApi.today).mockResolvedValue({
+    localDate: today,
+    profile: {
+      userId: "user-1",
+      displayName: "小明",
+      timezone: "Asia/Shanghai",
+    },
+    training: {
+      status: "READY",
+      data: {
+        plan: { hasActivePlan: true, planVersion: 1 },
+        calendar: {
+          from: today,
+          to: today,
+          ftpAvailable: true,
+          items: [workout],
+        },
+        nextWorkout: workout,
+      },
+    },
+    nutrition: {
+      status: "UNAVAILABLE",
+      error: { code: "UNAVAILABLE", message: "暂无饮食数据" },
+    },
+  });
   api.getWorkout.mockResolvedValue(workout);
   api.getProposal.mockResolvedValue(proposal);
   api.createManual.mockResolvedValue(proposal);
@@ -265,6 +302,10 @@ test("calendar opens independent detail and edit routes; native back returns to 
     ),
   );
   await waitFor(() => expect(screen.getByText("耐力骑行")).toBeTruthy());
+  expect(screen.getByRole("header", { name: "课程详情" })).toBeTruthy();
+  expect(
+    within(screen.getByTestId("training-page-content")).queryByRole("header"),
+  ).toBeNull();
   expect(api.getWorkout).toHaveBeenCalledWith("token", workout.id);
   expect(screen.queryByLabelText("删除第1个动作")).toBeNull();
   await fireEvent.press(screen.getByText("编辑动作"));
@@ -295,6 +336,13 @@ test("workout detail generates, previews, validates and applies an AI adjustment
     expect(screen.getByText("让 AI 调整这节课")).toBeTruthy(),
   );
   await fireEvent.press(screen.getByText("让 AI 调整这节课"));
+  await waitFor(() =>
+    expect(screen.getByRole("header", { name: "调整训练" })).toBeTruthy(),
+  );
+  expect(screen.getByTestId("current-path").props.children).toBe(
+    "/workouts/adjust",
+  );
+  await waitFor(() => expect(screen.getByText("生成调整草稿")).toBeTruthy());
   await fireEvent.press(screen.getByText("生成调整草稿"));
   await waitFor(() =>
     expect(screen.getByText("确认这节训练的新方案？")).toBeTruthy(),
@@ -327,6 +375,10 @@ test("workout detail records partial completion feedback", async () => {
   await fireEvent.press(screen.getByText("查看课程"));
   await waitFor(() => expect(screen.getByText("记录训练反馈")).toBeTruthy());
   await fireEvent.press(screen.getByText("记录训练反馈"));
+  await waitFor(() => expect(screen.getByText("保存训练反馈")).toBeTruthy());
+  expect(screen.getByTestId("current-path").props.children).toBe(
+    "/workouts/feedback",
+  );
   await fireEvent.press(screen.getByText("部分完成"));
   await fireEvent.changeText(screen.getByPlaceholderText("时长（分钟）"), "20");
   await fireEvent.changeText(screen.getByPlaceholderText("RPE 1-10"), "7");
@@ -335,6 +387,18 @@ test("workout detail records partial completion feedback", async () => {
     screen.getByPlaceholderText("例如：最后一组没有完成"),
     "最后一组没有完成",
   );
+  api.getWorkout.mockResolvedValueOnce({
+    ...workout,
+    editable: false,
+    activity: {
+      id: "activity-1",
+      status: "PARTIAL",
+      durationMin: 20,
+      rpe: 7,
+      fatigue: 6,
+      notes: "最后一组没有完成",
+    },
+  });
   await fireEvent.press(screen.getByText("保存训练反馈"));
   await waitFor(() =>
     expect(coach.recordActivity).toHaveBeenCalledWith("token", {
@@ -347,6 +411,13 @@ test("workout detail records partial completion feedback", async () => {
       notes: "最后一组没有完成",
     }),
   );
+  await waitFor(() =>
+    expect(screen.getByTestId("current-path").props.children).toBe(
+      `/workouts/${workout.id}`,
+    ),
+  );
+  await waitFor(() => expect(screen.getByText(/实际 20 分钟/)).toBeTruthy());
+  expect(screen.getByRole("button", { name: "已记录训练反馈" })).toBeDisabled();
 });
 
 test("distance-only calendar cards keep distance information and actions without a chart", async () => {
@@ -632,6 +703,11 @@ test("while saving, repeated taps and native back cannot create another course o
   await fireEvent.press(saveButton);
   await waitFor(() => expect(api.apply).toHaveBeenCalledTimes(1));
   expect(screen.getByText("正在保存课程…")).toBeTruthy();
+  expect(screen.getByRole("button", { name: "返回上一页" })).toBeDisabled();
+  await fireEvent.press(screen.getByRole("button", { name: "返回上一页" }));
+  expect(screen.getByTestId("current-path").props.children).toBe(
+    "/workouts/editor",
+  );
   expect(screen.getByPlaceholderText("例如：爬坡专项").props.editable).toBe(
     false,
   );
@@ -705,7 +781,7 @@ test("apply version conflict retains the course without claiming success", async
   );
 });
 
-test("unsaved segment confirms native back before discarding changes", async () => {
+test("unsaved segment confirms header back before discarding changes", async () => {
   await open(`/workouts/editor?workoutId=${workout.id}`);
   await waitFor(() => expect(screen.getByText("添加动作")).toBeTruthy());
   await fireEvent.press(screen.getByText("添加动作"));
@@ -715,7 +791,7 @@ test("unsaved segment confirms native back before discarding changes", async () 
     ),
   );
   await fireEvent.changeText(screen.getAllByPlaceholderText("必填")[0], "20");
-  await back();
+  await fireEvent.press(screen.getByRole("button", { name: "返回上一页" }));
   await waitFor(() =>
     expect(
       screen.getByText("当前动作尚未保存，确认返回将放弃这次动作修改。"),
@@ -758,9 +834,9 @@ test("incomplete date input remains editable without crashing or opening an edit
   ).toBeTruthy();
 });
 
-test("home feedback deep link opens the existing sheet and failed saves preserve all input", async () => {
+test("direct feedback route preserves failed input and refreshes detail after success", async () => {
   coach.recordActivity.mockRejectedValueOnce(new Error("保存超时"));
-  await open(`/workouts/${workout.id}?action=feedback`);
+  await open(`/workouts/feedback?workoutId=${workout.id}&source=detail`);
   await waitFor(() => expect(screen.getByText("保存训练反馈")).toBeTruthy());
   await fireEvent.press(screen.getByText("部分完成"));
   await fireEvent.changeText(screen.getByPlaceholderText("时长（分钟）"), "20");
@@ -799,7 +875,7 @@ test("home feedback deep link opens the existing sheet and failed saves preserve
 test("adjustment failure keeps notes, and apply timeout retries the identical write then reloads the new plan", async () => {
   coach.adjustWorkout.mockRejectedValueOnce(new Error("生成暂时失败"));
   coach.apply.mockRejectedValueOnce(new Error("应用响应超时"));
-  await open(`/workouts/${workout.id}?action=adjust`);
+  await open(`/workouts/adjust?workoutId=${workout.id}`);
   await waitFor(() => expect(screen.getByText("生成调整草稿")).toBeTruthy());
   await fireEvent.changeText(
     screen.getByPlaceholderText("例如：昨晚只睡了 5 小时"),
@@ -828,5 +904,224 @@ test("adjustment failure keeps notes, and apply timeout retries the identical wr
   expect(coach.validate).toHaveBeenCalledTimes(1);
   expect(coach.apply.mock.calls[1]).toEqual(coach.apply.mock.calls[0]);
   expect(screen.getByText("保存成功")).toBeTruthy();
-  expect(api.getWorkout).toHaveBeenCalledTimes(1);
+  expect(api.getWorkout).toHaveBeenCalledTimes(2);
+});
+
+test.each([
+  ["调整这节训练", "/workouts/adjust", "调整训练"],
+  ["记录完成情况", "/workouts/feedback", "记录完成"],
+] as const)(
+  "home %s opens one action route and cancel returns directly to home",
+  async (label, path, title) => {
+    await open("/");
+    await waitFor(() => expect(screen.getByText(label)).toBeTruthy());
+    await fireEvent.press(screen.getByText(label));
+    await waitFor(() =>
+      expect(screen.getByRole("header", { name: title })).toBeTruthy(),
+    );
+    expect(screen.getByTestId("current-path").props.children).toBe(path);
+    expect(screen.queryByRole("header", { name: "课程详情" })).toBeNull();
+    await waitFor(() => expect(screen.getByText("取消")).toBeTruthy());
+    await fireEvent.press(screen.getByText("取消"));
+    await waitFor(() =>
+      expect(screen.getByTestId("current-path").props.children).toBe("/"),
+    );
+    expect(api.getWorkout).toHaveBeenCalledTimes(1);
+    expect(coach.apply).not.toHaveBeenCalled();
+    expect(coach.recordActivity).not.toHaveBeenCalled();
+  },
+);
+
+test("home feedback saves once, blocks native back during save and refreshes home on return", async () => {
+  let resolveSave!: (
+    value: Awaited<ReturnType<typeof coachApi.recordActivity>>,
+  ) => void;
+  coach.recordActivity.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        resolveSave = resolve;
+      }),
+  );
+  await open("/");
+  await waitFor(() => expect(screen.getByText("记录完成情况")).toBeTruthy());
+  await fireEvent.press(screen.getByText("记录完成情况"));
+  await waitFor(() => expect(screen.getByText("保存训练反馈")).toBeTruthy());
+  await fireEvent.changeText(screen.getByPlaceholderText("时长（分钟）"), "25");
+  const reads = jest.mocked(homeApi.today).mock.calls.length;
+  await fireEvent.press(screen.getByText("保存训练反馈"));
+  expect(screen.getByRole("button", { name: "返回上一页" })).toBeDisabled();
+  await back();
+  expect(screen.getByTestId("current-path").props.children).toBe(
+    "/workouts/feedback",
+  );
+  expect(coach.recordActivity).toHaveBeenCalledTimes(1);
+  await act(async () =>
+    resolveSave({
+      id: "feedback-id",
+      workoutId: workout.id,
+      localDate: today,
+      status: "COMPLETED",
+      durationMin: 25,
+    }),
+  );
+  await waitFor(() =>
+    expect(screen.getByTestId("current-path").props.children).toBe("/"),
+  );
+  await waitFor(() =>
+    expect(jest.mocked(homeApi.today).mock.calls.length).toBeGreaterThan(reads),
+  );
+});
+
+test.each(["adjust", "feedback"] as const)(
+  "%s form confirms unsaved native back and keeps input when staying",
+  async (action) => {
+    await open("/");
+    await waitFor(() => expect(screen.getByText("记录完成情况")).toBeTruthy());
+    await fireEvent.press(
+      screen.getByText(action === "adjust" ? "调整这节训练" : "记录完成情况"),
+    );
+    const placeholder =
+      action === "adjust"
+        ? "例如：昨晚只睡了 5 小时"
+        : "例如：最后一组没有完成";
+    await waitFor(() =>
+      expect(screen.getByPlaceholderText(placeholder)).toBeTruthy(),
+    );
+    await fireEvent.changeText(
+      screen.getByPlaceholderText(placeholder),
+      "保留的输入",
+    );
+    await back();
+    await waitFor(() =>
+      expect(screen.getByText("返回将放弃本次输入，确认离开？")).toBeTruthy(),
+    );
+    await fireEvent.press(screen.getByText("关闭"));
+    expect(screen.getByPlaceholderText(placeholder).props.value).toBe(
+      "保留的输入",
+    );
+    await fireEvent.press(screen.getByText("取消"));
+    await waitFor(() => expect(screen.getByText("确认返回")).toBeTruthy());
+    await fireEvent.press(screen.getByText("确认返回"));
+    await waitFor(() =>
+      expect(screen.getByTestId("current-path").props.children).toBe("/"),
+    );
+  },
+);
+
+test("home adjustment previews on its own route, preserves inputs on back and refreshes home after apply", async () => {
+  await open("/");
+  await waitFor(() => expect(screen.getByText("调整这节训练")).toBeTruthy());
+  await fireEvent.press(screen.getByText("调整这节训练"));
+  await waitFor(() => expect(screen.getByText("生成调整草稿")).toBeTruthy());
+  await fireEvent.changeText(
+    screen.getByPlaceholderText("例如：昨晚只睡了 5 小时"),
+    "今天只有二十分钟",
+  );
+  await fireEvent.press(screen.getByText("生成调整草稿"));
+  await waitFor(() =>
+    expect(screen.getByRole("header", { name: "调整预览" })).toBeTruthy(),
+  );
+  expect(screen.getByTestId("current-path").props.children).toBe(
+    "/workouts/adjustment-preview",
+  );
+  await waitFor(() => expect(screen.getByText("继续修改")).toBeTruthy());
+  await fireEvent.press(screen.getByText("继续修改"));
+  await waitFor(() =>
+    expect(screen.getByTestId("current-path").props.children).toBe(
+      "/workouts/adjust",
+    ),
+  );
+  expect(
+    screen.getByPlaceholderText("例如：昨晚只睡了 5 小时").props.value,
+  ).toBe("今天只有二十分钟");
+  await fireEvent.press(screen.getByText("生成调整草稿"));
+  await waitFor(() =>
+    expect(screen.getByText("确认应用这节训练")).toBeTruthy(),
+  );
+  const reads = jest.mocked(homeApi.today).mock.calls.length;
+  await fireEvent.press(screen.getByText("确认应用这节训练"));
+  await waitFor(() =>
+    expect(screen.getByTestId("current-path").props.children).toBe("/"),
+  );
+  await waitFor(() =>
+    expect(jest.mocked(homeApi.today).mock.calls.length).toBeGreaterThan(reads),
+  );
+  expect(coach.apply).toHaveBeenCalledTimes(1);
+  expect(screen.queryByRole("header", { name: "课程详情" })).toBeNull();
+});
+
+test.each(["adjust", "feedback"] as const)(
+  "%s route handles unavailable courses and retry",
+  async (action) => {
+    api.getWorkout.mockRejectedValueOnce(new Error("课程暂时无法读取"));
+    await open(`/workouts/${action}?workoutId=${workout.id}`);
+    await waitFor(() =>
+      expect(screen.getByText("课程暂时无法读取")).toBeTruthy(),
+    );
+    expect(screen.getByRole("button", { name: "返回上一页" })).toBeTruthy();
+    await fireEvent.press(screen.getByText("重试"));
+    await waitFor(() =>
+      expect(
+        screen.getByText(action === "adjust" ? "生成调整草稿" : "保存训练反馈"),
+      ).toBeTruthy(),
+    );
+  },
+);
+
+test("feedback rejects invalid numbers without discarding input or submitting", async () => {
+  await open(`/workouts/feedback?workoutId=${workout.id}`);
+  await waitFor(() => expect(screen.getByText("保存训练反馈")).toBeTruthy());
+  await fireEvent.changeText(screen.getByPlaceholderText("RPE 1-10"), "11");
+  await fireEvent.press(screen.getByText("保存训练反馈"));
+  expect(coach.recordActivity).not.toHaveBeenCalled();
+  expect(screen.getByText(/请检查实际时长/)).toBeTruthy();
+  expect(screen.getByPlaceholderText("RPE 1-10").props.value).toBe("11");
+});
+
+test.each(["adjust", "feedback"] as const)(
+  "recorded courses cannot open the %s form",
+  async (action) => {
+    api.getWorkout.mockResolvedValueOnce({
+      ...workout,
+      editable: false,
+      activity: {
+        id: "activity-1",
+        status: "COMPLETED",
+        durationMin: 30,
+        rpe: null,
+        fatigue: null,
+        notes: null,
+      },
+    });
+    await open(`/workouts/${action}?workoutId=${workout.id}`);
+    await waitFor(() =>
+      expect(
+        screen.getByText(
+          action === "adjust"
+            ? "当前课程已记录或不可调整，请返回刷新计划。"
+            : "已记录训练反馈，无需重复提交。",
+        ),
+      ).toBeTruthy(),
+    );
+    expect(
+      screen.queryByText(action === "adjust" ? "生成调整草稿" : "保存训练反馈"),
+    ).toBeNull();
+  },
+);
+
+test("adjustment preview rejects a draft for another workout", async () => {
+  coach.proposal.mockResolvedValueOnce({
+    ...aiProposal,
+    replaceWorkoutIds: ["another-workout"],
+  });
+  await open(
+    `/workouts/adjustment-preview?workoutId=${workout.id}&proposalId=${aiProposal.proposalId}`,
+  );
+  await waitFor(() =>
+    expect(
+      screen.getByText("调整草稿与当前课程不匹配，请返回重新生成"),
+    ).toBeTruthy(),
+  );
+  expect(screen.queryByText("确认应用这节训练")).toBeNull();
+  expect(coach.apply).not.toHaveBeenCalled();
 });

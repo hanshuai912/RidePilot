@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { usePathname, useRouter } from "expo-router";
 import { Modal, View } from "react-native";
 
+import { NavigationHeader } from "../../../components/layout/NavigationHeader";
 import { Screen } from "../../../components/layout/Screen";
 import { AppText, Button, Card, Spinner } from "../../../components/ui";
 import {
@@ -71,6 +72,7 @@ export function CoachScreen() {
                         ? "success"
                         : null;
   const stage = routeStage ?? flowStage;
+  const backToCoach = () => router.replace("/(tabs)/coach");
   useEffect(() => {
     const stageChanged = previousFlowStage.current !== flowStage;
     previousFlowStage.current = flowStage;
@@ -101,21 +103,32 @@ export function CoachScreen() {
 
   if (!flow.token)
     return (
-      <Screen className="justify-center px-5">
-        <AppText>请先登录后使用 AI 教练。</AppText>
+      <Screen>
+        {stage !== "entry" ? (
+          <NavigationHeader title="AI 教练" onBack={backToCoach} />
+        ) : null}
+        <View className="flex-1 justify-center px-5">
+          <AppText>请先登录后使用 AI 教练。</AppText>
+        </View>
       </Screen>
     );
   if (flow.loading && !resources)
     return (
-      <Screen className="items-center justify-center">
-        <Spinner accessibilityLabel="读取 AI 教练资料" />
+      <Screen>
+        {stage !== "entry" ? (
+          <NavigationHeader title="AI 教练" onBack={backToCoach} />
+        ) : null}
+        <View className="flex-1 items-center justify-center">
+          <Spinner accessibilityLabel="读取 AI 教练资料" />
+        </View>
       </Screen>
     );
   if (!resources)
     return (
       <CoachPage
         eyebrow="AI 教练"
-        title="暂时无法读取资料"
+        title="读取失败"
+        onBack={stage !== "entry" ? backToCoach : undefined}
         description="请检查网络或 API 服务状态。"
         primary="重试"
         onPrimary={() => void flow.refresh()}
@@ -167,6 +180,7 @@ export function CoachScreen() {
       <CoachPage
         eyebrow={`正式计划 v${resources.planStatus.planVersion}`}
         title="计划已建立"
+        onBack={backToCoach}
         compactHeader
         description=""
         primary="查看训练日历"
@@ -291,7 +305,7 @@ export function CoachScreen() {
     return (
       <CoachPage
         eyebrow={`AI 教练 · ${copy.eyebrow}`}
-        title={copy.title}
+        title={copy.eyebrow}
         description={copy.description}
         primary={copy.primary}
         actionsInScroll
@@ -343,7 +357,7 @@ export function CoachScreen() {
           hasActivePlan ? "补全训练资料 · 第 1 步" : "新用户引导 · 第 1 步"
         }
         title="骑行基础"
-        description="先确认训练经验和可用 FTP，AI 计划会按实际测量值计算功率范围。"
+        description="确认骑行经验与 FTP，用于计算训练功率。"
         primary="下一步"
         actionsInScroll
         onPrimary={() => {
@@ -388,7 +402,7 @@ export function CoachScreen() {
           hasActivePlan ? "补全训练资料 · 第 2 步" : "新用户引导 · 第 2 步"
         }
         title="训练目标"
-        description="确定训练方向与目标日期；目标差距是参考，不代表保证达到。"
+        description="设置目标和日期，达成情况以实际训练为准。"
         primary="下一步"
         actionsInScroll
         onPrimary={() => {
@@ -442,7 +456,7 @@ export function CoachScreen() {
           hasActivePlan ? "补全训练资料 · 第 3 步" : "新用户引导 · 第 3 步"
         }
         title="时间安排"
-        description="选择比较稳定的骑行日和单次可用时长，计划会保留恢复空间。"
+        description="选择训练日与单次时长，预留恢复时间。"
         primary={hasActivePlan ? "保存并返回 AI 教练" : "下一步"}
         actionsInScroll
         onPrimary={() => {
@@ -480,7 +494,7 @@ export function CoachScreen() {
       <CoachPage
         eyebrow="新用户引导 · 第 4 步"
         title="饮食与禁忌"
-        description="先记录饮食限制和偏好。当前只保存在本次引导，不提交后端接口。"
+        description="记录饮食偏好与禁忌，仅在本次引导中保留。"
         primary="生成计划草稿"
         actionsInScroll
         onPrimary={() => {
@@ -519,8 +533,14 @@ export function CoachScreen() {
     return (
       <CoachPage
         eyebrow="AI 训练草稿"
-        title={hasActivePlan ? "正在准备训练调整" : "正在准备你的第一份计划"}
-        description="服务端生成并校验后，才会提供可预览的草稿。"
+        title="生成草稿"
+        onBack={() => {
+          flow.leaveLoading();
+          if (flow.task) router.replace(coachRoute("planning"));
+          else if (hasActivePlan) backToCoach();
+          else router.replace(coachRoute("nutrition"));
+        }}
+        description="生成并校验草稿后即可预览。"
         primary={flow.jobStatus === "FAILED" ? "重新生成" : undefined}
         onPrimary={() => {
           flow.retryGeneration();
@@ -542,8 +562,8 @@ export function CoachScreen() {
     return (
       <CoachPage
         eyebrow="候选草稿 · 尚未应用"
-        title="选择计划方向"
-        description="先查看推荐草稿，再检查日期、训练量和应用影响。正式计划不会自动改变。"
+        title="选择方案"
+        description="选择草稿并预览，确认后才会应用。"
         primary="预览所选方案"
         onPrimary={() => {
           flow.goTo("diff");
@@ -578,8 +598,8 @@ export function CoachScreen() {
     <>
       <CoachPage
         eyebrow="草稿 → 正式计划 · 尚未应用"
-        title="计划差异预览"
-        description="请核对训练安排、阶段建议和本次饮食信息状态，再决定是否校验并应用。"
+        title="差异预览"
+        description="核对训练与阶段变化，校验后确认应用。"
         primary="校验并继续"
         onPrimary={() => void flow.validate()}
         secondary="继续修改"

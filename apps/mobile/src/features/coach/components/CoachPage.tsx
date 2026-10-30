@@ -3,6 +3,7 @@ import { Pressable, ScrollView, View } from "react-native";
 
 import { BottomActionBar } from "../../../components/layout/BottomActionBar";
 import { AppHeader } from "../../../components/layout/AppHeader";
+import { NavigationHeader } from "../../../components/layout/NavigationHeader";
 import { Screen } from "../../../components/layout/Screen";
 import { AppText, Button } from "../../../components/ui";
 
@@ -81,18 +82,23 @@ export function CoachPage({
 
   return (
     <Screen>
+      {onBack ? (
+        <NavigationHeader title={title} onBack={onBack} disabled={busy} />
+      ) : null}
       <ScrollView
+        testID="coach-page-content"
         className="flex-1"
         contentContainerClassName="px-5 pb-8"
         keyboardShouldPersistTaps="handled"
       >
-        <AppHeader
-          eyebrow={eyebrow}
-          title={title}
-          onBack={onBack}
-          compact={compactHeader || Boolean(onBack)}
-          className="mt-2"
-        />
+        {!onBack ? (
+          <AppHeader
+            eyebrow={eyebrow}
+            title={title}
+            compact={compactHeader}
+            className="mt-2"
+          />
+        ) : null}
         {progressStep ? (
           <View className="mt-5">
             <View className="flex-row items-center justify-between">

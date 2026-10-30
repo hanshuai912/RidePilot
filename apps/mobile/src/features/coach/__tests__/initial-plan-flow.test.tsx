@@ -4,6 +4,7 @@ import {
   render,
   renderHook,
   waitFor,
+  within,
 } from "@testing-library/react-native";
 import type { AiProposalResponse, ProfileResponse } from "@ridepilot/contracts";
 
@@ -619,7 +620,13 @@ test("existing plan screen opens the missing goal form instead of trapping the u
     expect(view.getByText("训练目标、每周可训练时间")).toBeTruthy(),
   );
   await fireEvent.press(view.getByText("补全训练资料"));
-  expect(view.getByText(/确定训练方向与目标日期/)).toBeTruthy();
+  expect(view.getByRole("header", { name: "训练目标" })).toBeTruthy();
+  expect(
+    within(view.getByTestId("coach-page-content")).queryByRole("header"),
+  ).toBeNull();
+  expect(view.getByText(/设置目标和日期/)).toBeTruthy();
+  await fireEvent.press(view.getByRole("button", { name: "返回上一页" }));
+  expect(mockNavigate).toHaveBeenLastCalledWith("/(tabs)/coach");
 });
 
 test("existing plan task cards open the planning route without a render loop", async () => {
@@ -636,8 +643,12 @@ test("existing plan task cards open the planning route without a render loop", a
     fireEvent.press(view.getByText("重新规划"));
   });
   await waitFor(() =>
-    expect(view.getAllByText("告诉我接下来要怎么变").length).toBeGreaterThan(0),
+    expect(view.getByRole("header", { name: "重新规划" })).toBeTruthy(),
   );
+  expect(
+    within(view.getByTestId("coach-page-content")).queryByRole("header"),
+  ).toBeNull();
+  expect(view.getByText("告诉我接下来要怎么变")).toBeTruthy();
 });
 
 test("a failed AI task keeps the formal plan unchanged and offers a retry state", async () => {
@@ -760,3 +771,26 @@ test("a changed plan version blocks generation and preserves the selected scope 
   expect(result.current.taskNote).toBe("新安排");
   expect(api.adjustWorkout).not.toHaveBeenCalled();
 });
+
+test.each([
+  ["loading", "生成草稿", "/(tabs)/coach/nutrition"],
+  ["success", "计划已建立", "/(tabs)/coach"],
+] as const)(
+  "%s route keeps the short navigation title fixed and supports back",
+  async (stage, title, destination) => {
+    mockPathname = `/coach/${stage}`;
+    const view = await render(
+      <CoachFlowProvider>
+        <CoachScreen />
+      </CoachFlowProvider>,
+    );
+    await waitFor(() =>
+      expect(view.getByRole("header", { name: title })).toBeTruthy(),
+    );
+    expect(
+      within(view.getByTestId("coach-page-content")).queryByRole("header"),
+    ).toBeNull();
+    await fireEvent.press(view.getByRole("button", { name: "返回上一页" }));
+    expect(mockNavigate).toHaveBeenLastCalledWith(destination);
+  },
+);

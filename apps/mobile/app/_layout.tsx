@@ -75,7 +75,10 @@ function AuthenticatedStack() {
           name="third-party-apps"
           options={{ headerShown: false, title: "第三方 App" }}
         />
-        <Stack.Screen name="showcase" options={{ title: "UI Showcase" }} />
+        <Stack.Screen
+          name="showcase"
+          options={{ headerShown: false, title: "组件预览" }}
+        />
         <Stack.Screen name="coros-callback" options={{ headerShown: false }} />
       </Stack.Protected>
       <Stack.Protected guard={status === "guest"}>

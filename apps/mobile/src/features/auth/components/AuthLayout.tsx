@@ -6,25 +6,22 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
-import { ChevronLeft } from "lucide-react-native";
+import { NavigationHeader } from "../../../components/layout/NavigationHeader";
 
 import { authColors as colors } from "./auth-theme";
 import { PrivacySheet } from "./PrivacySheet";
 
 export function AuthLayout({
   eyebrow,
-  sectionLabel,
   title,
   subtitle,
   kind,
   children,
 }: {
   eyebrow: string;
-  sectionLabel: string;
   title: string;
   subtitle?: string;
   kind: "login" | "register";
@@ -37,23 +34,17 @@ export function AuthLayout({
         style={styles.root}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
+        <NavigationHeader
+          title={title}
+          backLabel="返回欢迎页"
+          onBack={() => router.replace("/welcome")}
+        />
         <ScrollView
+          testID="auth-page-content"
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={styles.content}
         >
-          <View style={styles.top}>
-            <Pressable
-              onPress={() => router.replace("/welcome")}
-              accessibilityRole="button"
-              accessibilityLabel="返回欢迎页"
-              style={styles.back}
-            >
-              <ChevronLeft color={colors.textPrimary} size={20} />
-            </Pressable>
-            <Text style={styles.eyebrow}>{eyebrow}</Text>
-          </View>
-          <Text style={styles.eyebrow}>{sectionLabel}</Text>
-          <Text style={styles.title}>{title}</Text>
+          <Text style={styles.eyebrow}>{eyebrow}</Text>
           {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
           {children}
           <Pressable
@@ -83,24 +74,8 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     width: "100%",
     paddingHorizontal: 20,
+    paddingTop: 20,
     paddingBottom: 28,
-  },
-  top: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    marginTop: 8,
-    marginBottom: 19,
-  },
-  back: {
-    width: 44,
-    height: 44,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 13,
-    backgroundColor: colors.surface1,
-    alignItems: "center",
-    justifyContent: "center",
   },
   eyebrow: {
     color: colors.brand,
@@ -108,15 +83,6 @@ const styles = StyleSheet.create({
     lineHeight: 15,
     fontWeight: "700",
     letterSpacing: 1.3,
-  },
-  title: {
-    color: colors.textPrimary,
-    fontSize: 30,
-    lineHeight: 37,
-    fontWeight: "700",
-    letterSpacing: -1,
-    marginTop: 7,
-    marginBottom: 7,
   },
   subtitle: { color: colors.textSecondary, fontSize: 13, lineHeight: 20 },
   privacy: {

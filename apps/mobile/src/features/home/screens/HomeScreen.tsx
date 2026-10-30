@@ -28,8 +28,13 @@ function HomeContent({ token }: { token: string }) {
     action?: "adjust" | "feedback",
   ) =>
     router.push({
-      pathname: "/workouts/[workoutId]",
-      params: { workoutId: workout.id, ...(action ? { action } : {}) },
+      pathname:
+        action === "adjust"
+          ? "/workouts/adjust"
+          : action === "feedback"
+            ? "/workouts/feedback"
+            : "/workouts/[workoutId]",
+      params: { workoutId: workout.id, ...(action ? { source: "home" } : {}) },
     });
   return (
     <Screen

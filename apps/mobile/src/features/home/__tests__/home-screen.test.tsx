@@ -177,8 +177,13 @@ test("one home request shows real meals and training, with detail, adjustment an
   ] as const) {
     await fireEvent.press(screen.getByText(label));
     expect(router.push).toHaveBeenLastCalledWith({
-      pathname: "/workouts/[workoutId]",
-      params: { workoutId: workout.id, ...(action ? { action } : {}) },
+      pathname:
+        action === "adjust"
+          ? "/workouts/adjust"
+          : action === "feedback"
+            ? "/workouts/feedback"
+            : "/workouts/[workoutId]",
+      params: { workoutId: workout.id, ...(action ? { source: "home" } : {}) },
     });
   }
   await fireEvent.press(screen.getByText("查看与调整餐食 / 补给"));
@@ -263,8 +268,8 @@ test("multiple courses keep independent completion states and actions", async ()
   expect(screen.getAllByText("记录完成情况")).toHaveLength(1);
   await fireEvent.press(screen.getByText("记录完成情况"));
   expect(router.push).toHaveBeenLastCalledWith({
-    pathname: "/workouts/[workoutId]",
-    params: { workoutId: "course-2", action: "feedback" },
+    pathname: "/workouts/feedback",
+    params: { workoutId: "course-2", source: "home" },
   });
 });
 

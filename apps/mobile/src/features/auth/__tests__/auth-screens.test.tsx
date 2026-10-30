@@ -1,4 +1,9 @@
-import { fireEvent, render, waitFor } from "@testing-library/react-native";
+import {
+  fireEvent,
+  render,
+  waitFor,
+  within,
+} from "@testing-library/react-native";
 
 import { LoginScreen } from "../screens/LoginScreen";
 import { RegisterScreen } from "../screens/RegisterScreen";
@@ -138,3 +143,19 @@ test("empty login password shows a Chinese validation message", async () => {
   expect(await screen.findByText("请输入密码")).toBeTruthy();
   expect(login).not.toHaveBeenCalled();
 });
+
+test.each([
+  ["登录账号", LoginScreen],
+  ["注册账号", RegisterScreen],
+] as const)(
+  "%s keeps navigation outside the form and returns to welcome",
+  async (title, Page) => {
+    const screen = await render(<Page />);
+    expect(screen.getByRole("header", { name: title })).toBeTruthy();
+    expect(
+      within(screen.getByTestId("auth-page-content")).queryByRole("header"),
+    ).toBeNull();
+    await fireEvent.press(screen.getByRole("button", { name: "返回欢迎页" }));
+    expect(router.replace).toHaveBeenCalledWith("/welcome");
+  },
+);

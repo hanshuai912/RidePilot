@@ -17,6 +17,12 @@ export default function WorkoutLayout() {
         <Stack.Screen name="editor" options={{ title: "手动课程" }} />
         <Stack.Screen name="segment" options={{ title: "编辑训练动作" }} />
         <Stack.Screen name="preview" options={{ title: "保存当天课程" }} />
+        <Stack.Screen name="adjust" options={{ title: "调整训练" }} />
+        <Stack.Screen name="feedback" options={{ title: "记录完成" }} />
+        <Stack.Screen
+          name="adjustment-preview"
+          options={{ title: "调整预览" }}
+        />
         <Stack.Screen name="[workoutId]" options={{ title: "课程详情" }} />
       </Stack>
     </TrainingDraftProvider>

@@ -46,7 +46,8 @@ export function WorkoutPreviewScreen() {
   const applied = proposal?.status === "APPLIED";
   return (
     <TrainingPage
-      title="保存当天课程"
+      title="课程预览"
+      busy={busy}
       onBack={back}
       loading={!state.entry && state.loading}
       error={

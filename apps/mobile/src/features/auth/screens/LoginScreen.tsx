@@ -39,12 +39,7 @@ export function LoginScreen() {
     }
   });
   return (
-    <AuthLayout
-      kind="login"
-      eyebrow="继续你的骑行计划"
-      sectionLabel="欢迎回来"
-      title="登录账号"
-    >
+    <AuthLayout kind="login" eyebrow="继续你的骑行计划" title="登录账号">
       <View style={styles.form}>
         <Controller
           control={control}

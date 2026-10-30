@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import { router } from "expo-router";
-import { AppHeader } from "../../../components/layout/AppHeader";
+import { KeyboardAvoidingView, Platform, ScrollView } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { NavigationHeader } from "../../../components/layout/NavigationHeader";
 import { Screen } from "../../../components/layout/Screen";
 import { AppText, Button, Spinner } from "../../../components/ui";
 import { styles } from "./training.styles";
@@ -15,6 +17,7 @@ export function TrainingPage({
   retry,
   title,
   onBack,
+  busy = false,
   children,
 }: {
   loading?: boolean;
@@ -22,36 +25,52 @@ export function TrainingPage({
   retry?: () => void;
   title?: string;
   onBack?: () => void;
+  busy?: boolean;
   children?: ReactNode;
 }) {
   return (
-    <Screen
-      scroll
-      scrollProps={{
-        contentContainerStyle: {
-          ...styles.content,
-          paddingBottom: 36,
-          gap: 12,
-        },
-      }}
-    >
-      {title ? <AppHeader title={title} compact onBack={onBack} /> : null}
-      {loading ? (
-        <Spinner accessibilityLabel="正在加载训练数据" />
-      ) : error ? (
-        <>
-          <AppText style={styles.error}>{error}</AppText>
-          {retry ? <Button onPress={retry}>重试</Button> : null}
-          <Button
-            variant="secondary"
-            onPress={() => router.dismissTo("/(tabs)/training")}
+    <Screen>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <SafeAreaView edges={["bottom"]} style={{ flex: 1 }}>
+          {title ? (
+            <NavigationHeader
+              title={title}
+              onBack={onBack ?? backToTraining}
+              disabled={busy}
+            />
+          ) : null}
+          <ScrollView
+            testID="training-page-content"
+            style={{ flex: 1 }}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={{
+              ...styles.content,
+              paddingBottom: 36,
+              gap: 12,
+            }}
           >
-            返回训练
-          </Button>
-        </>
-      ) : (
-        <>{children}</>
-      )}
+            {loading ? (
+              <Spinner accessibilityLabel="正在加载训练数据" />
+            ) : error ? (
+              <>
+                <AppText style={styles.error}>{error}</AppText>
+                {retry ? <Button onPress={retry}>重试</Button> : null}
+                <Button
+                  variant="secondary"
+                  onPress={() => router.dismissTo("/(tabs)/training")}
+                >
+                  返回训练
+                </Button>
+              </>
+            ) : (
+              <>{children}</>
+            )}
+          </ScrollView>
+        </SafeAreaView>
+      </KeyboardAvoidingView>
     </Screen>
   );
 }
