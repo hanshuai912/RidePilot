@@ -24,7 +24,7 @@ const envSchema = z
     AI_BASE_URL: z.string().url().optional(),
     AI_API_KEY: z.string().min(1).optional(),
     AI_MODEL: z.string().min(1).optional(),
-    AI_TIMEOUT_MS: z.coerce.number().int().positive().default(30000),
+    AI_TIMEOUT_MS: z.coerce.number().int().positive().default(120000),
     AI_GUARD_MODE: z.enum(["noop"]).default("noop"),
     COROS_MCP_URL: z.string().url().default("https://mcp.coros.com/mcp"),
     COROS_OAUTH_SCOPE: z.string().default("openid offline_access mcp.tools"),

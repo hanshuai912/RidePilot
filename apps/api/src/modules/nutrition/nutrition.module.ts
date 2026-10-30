@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { AiModule } from "../../ai/ai.module";
 import { InfraModule } from "../../infra/infra.module";
 import { NutritionPlanController } from "./nutrition-plan.controller";
 import { NutritionPlanService } from "./nutrition-plan.service";
@@ -12,7 +13,7 @@ import { NutritionGenerationService } from "./nutrition-generation.service";
 import { NutritionSkillLoaderService } from "./nutrition-skill-loader.service";
 
 @Module({
-  imports: [InfraModule],
+  imports: [InfraModule, AiModule],
   controllers: [
     NutritionProfileController,
     NutritionPlanController,

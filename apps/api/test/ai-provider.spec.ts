@@ -74,6 +74,27 @@ describe("OpenAiCompatibleProvider", () => {
     );
   });
 
+  it("forwards a JSON response format when requested", async () => {
+    fetchMock.mockResolvedValue(
+      response({
+        model: "deepseek-flash",
+        choices: [{ message: { content: "{}" } }],
+      }),
+    );
+
+    await provider.generate({
+      messages: [{ role: "user", content: "question" }],
+      responseFormat: { type: "json_object" },
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.deepseek.com/chat/completions",
+      expect.objectContaining({
+        body: expect.stringContaining('"response_format":{"type":"json_object"}'),
+      }),
+    );
+  });
+
   it("maps an abort to a retryable timeout error", async () => {
     fetchMock.mockRejectedValue(new DOMException("aborted", "AbortError"));
 
@@ -108,6 +129,21 @@ describe("OpenAiCompatibleProvider", () => {
     ).rejects.toMatchObject({
       code: "AI_PROVIDER_INVALID_RESPONSE",
       retryable: false,
+    });
+  });
+
+  it("preserves a response-body timeout as a retryable timeout", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: jest.fn().mockRejectedValue(new DOMException("aborted", "AbortError")),
+    } as unknown as Response);
+
+    await expect(
+      provider.generate({ messages: [{ role: "user", content: "question" }] }),
+    ).rejects.toMatchObject({
+      code: "AI_PROVIDER_TIMEOUT",
+      retryable: true,
     });
   });
 });

@@ -197,6 +197,7 @@ export class NutritionGenerationService
         requestId: job.requestId ?? job.id,
         temperature: 0.2,
         maxTokens: 7000,
+        responseFormat: { type: "json_object" },
         metadata: {
           feature: "nutrition-plan",
           generationId: job.id,
@@ -213,6 +214,8 @@ export class NutritionGenerationService
             role: "user",
             content: JSON.stringify({
               task: "Generate a conservative cycling nutrition draft for the requested date range.",
+              outputContract:
+                "Return one top-level JSON object with exactly these keys: summary, assumptions, draft, warnings, blockers, sourceRefs, confidence. Put all dates and meals inside draft; never put startDate, endDate, dailyTarget, or items at the top level. draft must contain startDate, endDate, dailyTarget (null or {energyKcal, carbohydrateG, proteinG, fatG, basis: ESTIMATE|USER_ENTERED|LABEL, confidence: HIGH|MEDIUM|LOW}), and items. Every item must contain localDate, mealType (BREAKFAST|LUNCH|DINNER|SNACK|PRE_WORKOUT|DURING_WORKOUT|POST_WORKOUT), scheduledLocalTime in HH:mm, title, foods, nutrients, nutritionSource (CURATED|LABEL|USER_ENTERED|AI_ESTIMATE), confidence (HIGH|MEDIUM|LOW), linkedWorkoutId (UUID or null), and notes (string or null). Every food must contain name, amount (positive number), unit (g|ml|piece|serving), allergenTags as an array containing only the exact enum values MILK|EGG|PEANUT|TREE_NUT|WHEAT|SOY|FISH|SHELLFISH|SESAME (use [] when no exact enum applies; never use words such as milk, egg, gluten, or 麸质), and ingredientStatus (KNOWN|PARTIAL|UNKNOWN). nutrients must contain energyKcal, carbohydrateG, proteinG, fatG, fluidMl, sodiumMg; use null when data is missing. Never return HYDRATION as a meal type and never return null scheduledLocalTime; use only times present in mealSchedule. If the profile only has one meal time, return at least that meal.",
               input,
               context,
               outputSchema: z.toJSONSchema(nutritionAiOutputSchema),

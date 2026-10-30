@@ -1,5 +1,5 @@
-import { PlaceholderScreen } from '../../src/components/layout/PlaceholderScreen';
+import { NutritionScreen as NutritionFeatureScreen } from '../../src/features/nutrition/screens/NutritionScreen';
 
 export default function NutritionScreen() {
-  return <PlaceholderScreen title="饮食" description="饮食与补给模块将在后续产品功能阶段接入。" />;
+  return <NutritionFeatureScreen />;
 }

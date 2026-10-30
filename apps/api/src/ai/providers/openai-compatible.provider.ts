@@ -55,6 +55,9 @@ export class OpenAiCompatibleProvider implements AiProvider {
           ...(request.maxTokens === undefined
             ? {}
             : { max_tokens: request.maxTokens }),
+          ...(request.responseFormat === undefined
+            ? {}
+            : { response_format: request.responseFormat }),
         }),
         signal: controller.signal,
       });
@@ -106,11 +109,17 @@ export class OpenAiCompatibleProvider implements AiProvider {
   }
 
   private async readJson(response: Response): Promise<unknown> {
+    const text = await response.text();
     try {
-      const text = await response.text();
       return JSON.parse(text) as unknown;
     } catch (error) {
-      return undefined;
+      if (!response.ok) return undefined;
+      throw new AiException(
+        "AI_PROVIDER_INVALID_RESPONSE",
+        "AI provider returned invalid JSON",
+        false,
+        { cause: error },
+      );
     }
   }
 

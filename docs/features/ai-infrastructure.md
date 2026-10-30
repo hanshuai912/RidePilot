@@ -24,11 +24,11 @@ AI_PROVIDER=openai-compatible
 AI_BASE_URL=https://api.deepseek.com
 AI_API_KEY=<local-secret>
 AI_MODEL=deepseek-flash
-AI_TIMEOUT_MS=30000
+AI_TIMEOUT_MS=120000
 AI_GUARD_MODE=noop
 ```
 
-用户提供的 DeepSeek 配置可用于本地手动联调；本仓库不保存该密钥。`AI_BASE_URL` 会在 Provider 内部补上 `/chat/completions`，也可以直接填写完整的兼容端点。
+用户提供的 DeepSeek 配置可用于本地手动联调；本仓库不保存该密钥。`AI_BASE_URL` 会在 Provider 内部补上 `/chat/completions`，也可以直接填写完整的兼容端点。营养生成会请求 JSON 响应模式；Provider 读取响应体超时时会保留为可重试的 `AI_PROVIDER_TIMEOUT`，不会误报为无效 JSON。
 
 开发和测试环境当前使用 `NoopGuardAdapter`。生产环境禁止使用 NoopGuard；接入真实 Guard 前，生产配置不能启动 AI 模块。
 

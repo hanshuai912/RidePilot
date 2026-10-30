@@ -10,6 +10,7 @@ export interface AiRequest {
   model?: string;
   temperature?: number;
   maxTokens?: number;
+  responseFormat?: { type: "json_object" };
   requestId?: string;
   metadata?: Readonly<Record<string, unknown>>;
 }
