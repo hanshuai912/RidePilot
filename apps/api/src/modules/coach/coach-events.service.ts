@@ -1,3 +1,4 @@
+import { activityWorkoutId } from "../training/workout-activity";
 import {
   BadRequestException,
   ConflictException,
@@ -24,53 +25,59 @@ export class CoachEventsService {
   ) {}
 
   async recordActivity(userId: string, input: ActivityInput) {
-    const workout = await this.prisma.workout.findFirst({
-      where: { id: input.workoutId, planVersion: { plan: { userId } } },
-    });
-    if (!workout)
-      throw new NotFoundException({
-        code: "WORKOUT_NOT_FOUND",
-        message: "课程不存在",
-      });
-    if (dbToDate(workout.scheduledDate) !== input.localDate)
-      throw new BadRequestException({
-        code: "ACTIVITY_DATE_MISMATCH",
-        message: "记录日期与课程日期不一致",
-      });
-    const existing = await this.prisma.trainingActivity.findFirst({
-      where: { userId, workoutId: input.workoutId },
-    });
-    if (existing)
-      throw new ConflictException({
-        code: "ACTIVITY_ALREADY_RECORDED",
-        message: "该课程已有训练记录",
-      });
-    let record;
-    try {
-      record = await this.prisma.trainingActivity.create({
-        data: {
-          userId,
-          workoutId: input.workoutId,
-          localDate: dateToDb(input.localDate),
-          status: input.status,
-          durationMin: input.durationMin ?? null,
-          rpe: input.rpe ?? null,
-          fatigue: input.fatigue ?? null,
-          notes: input.notes ?? null,
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT "id" FROM "users" WHERE "id" = ${userId}::uuid FOR UPDATE`;
+      const workout = await tx.workout.findFirst({
+        where: {
+          id: input.workoutId,
+          planVersion: { activeForPlan: { userId, status: "ACTIVE" } },
         },
       });
-    } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === "P2002"
-      )
+      if (!workout)
+        throw new NotFoundException({
+          code: "WORKOUT_NOT_FOUND",
+          message: "课程不存在",
+        });
+      if (dbToDate(workout.scheduledDate) !== input.localDate)
+        throw new BadRequestException({
+          code: "ACTIVITY_DATE_MISMATCH",
+          message: "记录日期与课程日期不一致",
+        });
+      const existing = await tx.trainingActivity.findFirst({
+        where: { userId, workoutId: activityWorkoutId(workout) },
+      });
+      if (existing)
         throw new ConflictException({
           code: "ACTIVITY_ALREADY_RECORDED",
           message: "该课程已有训练记录",
         });
-      throw error;
-    }
-    return this.activityResponse(record);
+      let record;
+      try {
+        record = await tx.trainingActivity.create({
+          data: {
+            userId,
+            workoutId: activityWorkoutId(workout),
+            localDate: dateToDb(input.localDate),
+            status: input.status,
+            durationMin: input.durationMin ?? null,
+            rpe: input.rpe ?? null,
+            fatigue: input.fatigue ?? null,
+            notes: input.notes ?? null,
+          },
+        });
+      } catch (error) {
+        if (
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === "P2002"
+        )
+          throw new ConflictException({
+            code: "ACTIVITY_ALREADY_RECORDED",
+            message: "该课程已有训练记录",
+          });
+        throw error;
+      }
+      return this.activityResponse(record);
+    });
   }
 
   async listActivities(userId: string) {

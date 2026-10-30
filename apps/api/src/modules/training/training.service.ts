@@ -89,6 +89,11 @@ export class TrainingService {
       });
     const timezone = await this.userTimezone(userId);
     assertEditableDate(dbToDate(workout.scheduledDate), timezone);
+    if ((await this.repository.activities(userId, [workout])).size)
+      throw new ConflictException({
+        code: "WORKOUT_ALREADY_RECORDED",
+        message: "课程已有训练记录，不可修改计划",
+      });
     assertPlanVersion(input.expectedPlanVersion, workout.planVersion.versionNo);
     const hasFtp = await this.hasFtp(userId);
     const totals = validateDraft(input, hasFtp);
@@ -280,7 +285,14 @@ export class TrainingService {
         code: "WORKOUT_NOT_FOUND",
         message: "训练课程不存在",
       });
-    return toSummary(workout);
+    const activities = await this.repository.activities(userId, [workout]);
+    const today = this.today(await this.userTimezone(userId));
+    return toSummary({
+      ...workout,
+      activity: activities.get(workout.id) ?? null,
+      editable:
+        dbToDate(workout.scheduledDate) >= today && !activities.has(workout.id),
+    });
   }
 
   async getCalendar(
@@ -293,20 +305,11 @@ export class TrainingService {
       dateToDb(from),
       dateToDb(to),
     );
-    const [timezone, recordedWorkoutIds] = await Promise.all([
+    const [timezone, activities] = await Promise.all([
       this.userTimezone(userId),
-      this.repository.findRecordedWorkoutIds(
-        userId,
-        items.map((item) => item.id),
-      ),
+      this.repository.activities(userId, items),
     ]);
-    const currentDate = new Intl.DateTimeFormat("en-CA", {
-      timeZone: timezone,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(new Date());
-    const recordedIds = new Set(recordedWorkoutIds);
+    const currentDate = this.today(timezone);
     return {
       from,
       to,
@@ -314,12 +317,33 @@ export class TrainingService {
       items: items.map((item) =>
         toSummary({
           ...item,
+          activity: activities.get(item.id) ?? null,
           editable:
             dbToDate(item.scheduledDate) >= currentDate &&
-            !recordedIds.has(item.id),
+            !activities.has(item.id),
         }),
       ),
     };
+  }
+
+  async nextWorkout(userId: string) {
+    const today = this.today(await this.userTimezone(userId));
+    const workouts = await this.repository.futureWorkouts(
+      userId,
+      dateToDb(today),
+    );
+    const activities = await this.repository.activities(userId, workouts);
+    const next = workouts.find((workout) => !activities.has(workout.id));
+    return next ? toSummary({ ...next, editable: true, activity: null }) : null;
+  }
+
+  private today(timezone: string) {
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone: timezone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
   }
 
   private async hasFtp(userId: string): Promise<boolean> {

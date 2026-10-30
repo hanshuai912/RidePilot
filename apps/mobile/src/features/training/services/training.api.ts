@@ -1,6 +1,7 @@
 import {
   applyProposalResponseSchema,
   calendarResponseSchema,
+  nextWorkoutResponseSchema,
   proposalResponseSchema,
   type ApplyProposalResponse,
   type CalendarResponse,
@@ -80,6 +81,10 @@ async function request<T>(
 }
 
 export const trainingApi = {
+  async getNextWorkout(accessToken: string) {
+    const data = await request<unknown>("workouts/next", accessToken);
+    return nextWorkoutResponseSchema.parse(data).workout;
+  },
   async getProposal(
     accessToken: string,
     proposalId: string,

@@ -135,6 +135,145 @@ describeWithDatabase("AI coach weekly plan API", () => {
     await app?.close();
   });
 
+  it("single and weekly adjustments preserve all courses outside their exact editable scope", async () => {
+    const addDays = (date: string, days: number) =>
+      new Date(new Date(`${date}T00:00:00Z`).getTime() + days * 86400000)
+        .toISOString()
+        .slice(0, 10);
+    const addCourse = async (date: string, title: string, base: number) => {
+      const draft = await post("workouts/manual-proposals")
+        .send({
+          scheduledDate: date,
+          title,
+          segments: [
+            {
+              type: "work",
+              target: { kind: "duration", value: 20, unit: "min" },
+              intensity: { kind: "power_watt", min: 100, max: 130 },
+            },
+          ],
+        })
+        .expect(201);
+      await post(`proposals/${draft.body.proposalId}/validate`).expect(201);
+      await post(`proposals/${draft.body.proposalId}/apply`)
+        .set("Idempotency-Key", randomUUID())
+        .send({ expectedBaseVersion: base })
+        .expect(201);
+    };
+    const calendar = async () =>
+      (
+        await get(
+          `calendar?from=${monday()}&to=${addDays(monday(), 13)}`,
+        ).expect(200)
+      ).body.items as {
+        id: string;
+        title: string;
+        scheduledDate: string;
+        dayOrder: number;
+        segments: unknown;
+        activity: unknown;
+      }[];
+    await addCourse(monday(), "目标课程", 0);
+    await addCourse(monday(), "同日保留课程", 1);
+    await addCourse(addDays(monday(), 7), "下周保留课程", 2);
+    await post("me/ability-measurements/ftp")
+      .send({
+        valueWatts: 193,
+        measuredAt: new Date().toISOString(),
+        source: "MANUAL",
+      })
+      .expect(201);
+    await request(app.getHttpServer())
+      .put("/api/v1/me/availability")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        timezone: "Asia/Shanghai",
+        weekdays: [{ weekday: 1, availableMinutes: 90 }],
+        maxSessionMinutes: 90,
+      })
+      .expect(200);
+    const goal = await post("goals")
+      .send({
+        type: "ENDURANCE",
+        targetDate: "2030-12-31",
+        priority: "PRIMARY",
+      })
+      .expect(201);
+    const before = await calendar();
+    const target = before.find((item) => item.title === "目标课程")!;
+    const pending = await post(`workouts/${target.id}/ai-adjust-proposal`)
+      .set("Idempotency-Key", randomUUID())
+      .send({
+        weekStartDate: monday(),
+        goalId: goal.body.id,
+        mode: "replace_workout",
+        expectedBaseVersion: 3,
+      })
+      .expect(202);
+    const job = await waitForGeneration(pending.body.generationId);
+    expect(job.status).toBe("READY");
+    expect(
+      (await get(`proposals/${job.proposalId}`).expect(200)).body
+        .replaceWorkoutIds,
+    ).toEqual([target.id]);
+    expect(await calendar()).toEqual(before);
+    await post(`proposals/${job.proposalId}/apply`)
+      .set("Idempotency-Key", randomUUID())
+      .send({ expectedBaseVersion: 3 })
+      .expect(201);
+    const after = await calendar();
+    expect(after).toHaveLength(3);
+    expect(after.find((item) => item.title === "耐力骑行")?.dayOrder).toBe(
+      target.dayOrder,
+    );
+    for (const retained of before.filter((item) => item.id !== target.id))
+      expect(after.find((item) => item.title === retained.title)).toMatchObject(
+        {
+          scheduledDate: retained.scheduledDate,
+          dayOrder: retained.dayOrder,
+          segments: retained.segments,
+        },
+      );
+    const recorded = after.find((item) => item.title === "同日保留课程")!;
+    await post("activities")
+      .send({
+        workoutId: recorded.id,
+        localDate: recorded.scheduledDate,
+        status: "PARTIAL",
+        durationMin: 10,
+      })
+      .expect(201);
+    const weekly = await post("plans/adjust-proposal")
+      .set("Idempotency-Key", randomUUID())
+      .send({
+        weekStartDate: monday(),
+        goalId: goal.body.id,
+        mode: "replace_week",
+        expectedBaseVersion: 4,
+      })
+      .expect(202);
+    const weekJob = await waitForGeneration(weekly.body.generationId);
+    expect(weekJob.status).toBe("READY");
+    const proposal = (await get(`proposals/${weekJob.proposalId}`).expect(200))
+      .body;
+    expect(proposal.replaceWorkoutIds).toEqual([
+      after.find((item) => item.title === "耐力骑行")!.id,
+    ]);
+    await post(`proposals/${weekJob.proposalId}/apply`)
+      .set("Idempotency-Key", randomUUID())
+      .send({ expectedBaseVersion: 4 })
+      .expect(201);
+    const final = await calendar();
+    expect(final).toHaveLength(3);
+    expect(final.find((item) => item.title === "同日保留课程")).toMatchObject({
+      activity: { status: "PARTIAL", durationMin: 10 },
+    });
+    expect(final.find((item) => item.title === "下周保留课程")).toMatchObject({
+      scheduledDate: addDays(monday(), 7),
+      segments: before[2].segments,
+    });
+  });
+
   it("rejects missing FTP before invoking the model", async () => {
     const response = await post("plans/generate-proposal")
       .set("Idempotency-Key", randomUUID())

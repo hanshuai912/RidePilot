@@ -4,6 +4,7 @@ import {
   authResponseSchema,
   applyProposalResponseSchema,
   calendarResponseSchema,
+  homeTodayResponseSchema,
   proposalResponseSchema,
   type ManualWorkoutDraft,
   type ProposalResponse,
@@ -125,6 +126,170 @@ describeWithDatabase("manual training plan API", () => {
       await prisma.user.deleteMany({ where: { id: { in: userIds } } });
     }
     await app?.close();
+  });
+
+  it("home aggregates the current user's day in one authenticated response", async () => {
+    await request(app.getHttpServer()).get("/api/v1/home/today").expect(401);
+    const empty = homeTodayResponseSchema.parse(
+      (await get("home/today").expect(200)).body,
+    );
+    expect(empty.localDate).toBe(today());
+    expect(empty.profile.userId).toBe(userId);
+    expect(empty.training).toMatchObject({
+      status: "READY",
+      data: {
+        plan: { hasActivePlan: false, planVersion: 0 },
+        calendar: { items: [] },
+        nextWorkout: null,
+      },
+    });
+    expect(empty.nutrition).toMatchObject({
+      status: "READY",
+      data: { from: today(), to: today(), status: "NOT_GENERATED" },
+    });
+    const first = await create();
+    await ready(first);
+    await apply(first).expect(201);
+    const result = homeTodayResponseSchema.parse(
+      (await get("home/today").expect(200)).body,
+    );
+    expect(result.training).toMatchObject({
+      status: "READY",
+      data: {
+        plan: { hasActivePlan: true, planVersion: 1 },
+        calendar: { items: [{ title: "人工骑行", planVersion: 1 }] },
+        nextWorkout: { title: "人工骑行", planVersion: 1 },
+      },
+    });
+    const other = await register();
+    const isolated = homeTodayResponseSchema.parse(
+      (
+        await get(
+          `home/today?userId=${userId}&date=2099-01-01`,
+          other.tokens.accessToken,
+        ).expect(200)
+      ).body,
+    );
+    expect(isolated.profile.userId).toBe(other.user.id);
+    expect(isolated.localDate).toBe(today());
+    expect(isolated.training).toMatchObject({
+      status: "READY",
+      data: { plan: { hasActivePlan: false }, calendar: { items: [] } },
+    });
+  });
+
+  it("returns an authenticated, owner-scoped next course or null, ordered by date and day order", async () => {
+    await request(app.getHttpServer()).get("/api/v1/workouts/next").expect(401);
+    expect((await get("workouts/next").expect(200)).body.workout).toBeNull();
+    const first = await create();
+    await ready(first);
+    await apply(first).expect(201);
+    const second = await create(draft({ title: "第二节" }));
+    await ready(second);
+    await apply(second).expect(201);
+    const items = (await calendar()).items;
+    const next = (await get("workouts/next").expect(200)).body.workout;
+    expect(next).toMatchObject({
+      id: items[0].id,
+      dayOrder: 1,
+      editable: true,
+      activity: null,
+    });
+    const other = await register();
+    expect(
+      (await get("workouts/next", other.tokens.accessToken).expect(200)).body
+        .workout,
+    ).toBeNull();
+    await post("activities")
+      .send({ workoutId: next.id, localDate: today(), status: "SKIPPED" })
+      .expect(201);
+    expect((await get("workouts/next").expect(200)).body.workout.id).toBe(
+      items[1].id,
+    );
+    await post("activities")
+      .send({
+        workoutId: items[1].id,
+        localDate: today(),
+        status: "COMPLETED",
+        durationMin: 30,
+      })
+      .expect(201);
+    expect((await get("workouts/next").expect(200)).body.workout).toBeNull();
+  });
+
+  it("preserves actual records across plan snapshots and rejects repeated feedback or editing recorded courses", async () => {
+    const first = await create();
+    await ready(first);
+    await apply(first).expect(201);
+    const original = (await calendar()).items[0];
+    await post("activities")
+      .send({
+        workoutId: original.id,
+        localDate: today(),
+        status: "PARTIAL",
+        durationMin: 20,
+        rpe: 7,
+        fatigue: 6,
+        notes: "最后一组未完成",
+      })
+      .expect(201);
+    const second = await create(draft({ title: "第二节" }));
+    await ready(second);
+    await apply(second).expect(201);
+    const copied = (await calendar()).items[0];
+    expect(copied.id).not.toBe(original.id);
+    expect(copied).toMatchObject({
+      editable: false,
+      activity: {
+        status: "PARTIAL",
+        durationMin: 20,
+        rpe: 7,
+        notes: "最后一组未完成",
+      },
+    });
+    expect(
+      (await get(`workouts/${copied.id}`).expect(200)).body.activity,
+    ).toEqual(copied.activity);
+    await get(`workouts/${original.id}`).expect(404);
+    await post("activities")
+      .send({ workoutId: copied.id, localDate: today(), status: "COMPLETED" })
+      .expect(409);
+    await post(`workouts/${copied.id}/edit-proposal`)
+      .send({ ...draft(), expectedPlanVersion: 2 })
+      .expect(409);
+    expect(await prisma.trainingActivity.count({ where: { userId } })).toBe(1);
+    expect((await get("workouts/next").expect(200)).body.workout.dayOrder).toBe(
+      2,
+    );
+  });
+
+  it("feedback submitted after draft validation prevents publication without changing the active plan", async () => {
+    const first = await create();
+    await ready(first);
+    await apply(first).expect(201);
+    const original = (await calendar()).items[0];
+    const edit = proposalResponseSchema.parse(
+      (
+        await post(`workouts/${original.id}/edit-proposal`)
+          .send({ ...draft({ title: "待确认修改" }), expectedPlanVersion: 1 })
+          .expect(201)
+      ).body,
+    );
+    await ready(edit);
+    await post("activities")
+      .send({ workoutId: original.id, localDate: today(), status: "COMPLETED" })
+      .expect(201);
+    await apply(edit).expect(409);
+    const current = (await calendar()).items[0];
+    expect(current).toMatchObject({
+      id: original.id,
+      title: "人工骑行",
+      planVersion: 1,
+      activity: { status: "COMPLETED" },
+    });
+    expect(
+      await prisma.planVersion.count({ where: { plan: { userId } } }),
+    ).toBe(1);
   });
 
   it("saves, reads, edits and validates the first draft without publishing until confirmation", async () => {

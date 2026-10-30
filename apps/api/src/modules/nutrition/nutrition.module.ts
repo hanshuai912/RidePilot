@@ -28,6 +28,6 @@ import { NutritionSkillLoaderService } from "./nutrition-skill-loader.service";
     NutritionGenerationService,
     NutritionSkillLoaderService,
   ],
-  exports: [NutritionProposalService],
+  exports: [NutritionProposalService, NutritionPlanService],
 })
 export class NutritionModule {}

@@ -28,9 +28,11 @@ export function WorkoutAdjustmentPreview({
           调整草稿 · 尚未应用
         </AppText>
         <AppText variant="section" className="mt-2">
-          确认今天的新课程？
+          确认这节训练的新方案？
         </AppText>
-        <AppText className="mt-2 text-secondary">{proposal.summary}</AppText>
+        <AppText className="mt-2 text-secondary">
+          {original.scheduledDate} · {proposal.summary}
+        </AppText>
         <Card className="mt-4 bg-surface-2">
           <View className="flex-row items-center justify-between border-b border-divider pb-3">
             <AppText variant="label" muted>
@@ -45,8 +47,8 @@ export function WorkoutAdjustmentPreview({
               调整后
             </AppText>
             <AppText variant="caption" className="text-brand">
-              {replacement?.title ?? "骑行训练"} ·{" "}
-              {replacement?.segments.length ?? 0} 个动作
+              {replacement?.scheduledDate} · {replacement?.title ?? "骑行训练"}{" "}
+              · {replacement?.segments.length ?? 0} 个动作
             </AppText>
           </View>
           <AppText variant="caption" muted className="mt-3">
@@ -68,7 +70,7 @@ export function WorkoutAdjustmentPreview({
           </AppText>
         ) : null}
         <Button size="lg" className="mt-5" loading={loading} onPress={onApply}>
-          确认应用到今天
+          确认应用这节训练
         </Button>
         <Button
           variant="secondary"

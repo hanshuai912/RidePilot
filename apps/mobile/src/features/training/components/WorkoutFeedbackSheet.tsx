@@ -43,7 +43,7 @@ export function WorkoutFeedbackSheet({
           训练反馈
         </AppText>
         <AppText variant="section" className="mt-2">
-          记录今天实际完成情况
+          记录这节训练实际完成情况
         </AppText>
         <Card className="mt-5">
           <AppText variant="card">完成状态</AppText>
@@ -57,6 +57,7 @@ export function WorkoutFeedbackSheet({
             ).map(([value, label]) => (
               <Pressable
                 key={value}
+                disabled={loading}
                 accessibilityRole="radio"
                 accessibilityState={{ selected: status === value }}
                 className={`min-h-11 flex-1 rounded-[13px] border px-2 py-3 ${status === value ? "border-brand bg-brand-subtle" : "border-border bg-surface-2"}`}
@@ -77,6 +78,7 @@ export function WorkoutFeedbackSheet({
           <AppText variant="card">实际训练（选填）</AppText>
           <View className="mt-3 flex-row gap-2">
             <Input
+              editable={!loading}
               className="flex-1"
               accessibilityLabel="实际时长"
               value={duration}
@@ -85,6 +87,7 @@ export function WorkoutFeedbackSheet({
               placeholder="时长（分钟）"
             />
             <Input
+              editable={!loading}
               className="flex-1"
               accessibilityLabel="主观用力程度"
               value={rpe}
@@ -94,6 +97,7 @@ export function WorkoutFeedbackSheet({
             />
           </View>
           <Input
+            editable={!loading}
             className="mt-3"
             accessibilityLabel="疲劳程度"
             value={fatigue}
@@ -102,6 +106,7 @@ export function WorkoutFeedbackSheet({
             placeholder="疲劳 1-10"
           />
           <Input
+            editable={!loading}
             className="mt-3"
             accessibilityLabel="训练反馈备注"
             value={notes}

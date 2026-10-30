@@ -57,7 +57,16 @@ export const applyProposalSchema = z.object({
   expectedBaseVersion: z.number().int().nonnegative(),
 });
 
-const workoutSummarySchema = z.object({
+export const workoutActivitySchema = z.object({
+  id: z.uuid(),
+  status: z.enum(["COMPLETED", "PARTIAL", "SKIPPED"]),
+  durationMin: z.number().nullable(),
+  rpe: z.number().nullable(),
+  fatigue: z.number().nullable(),
+  notes: z.string().nullable(),
+});
+
+export const workoutSummarySchema = z.object({
   id: z.uuid(),
   planVersion: z.number().int().positive(),
   sportType: z.literal("cycling"),
@@ -71,6 +80,11 @@ const workoutSummarySchema = z.object({
   segments: z.array(workoutSegmentSchema),
   /** Whether this workout can still be changed by a plan adjustment. */
   editable: z.boolean().optional(),
+  activity: workoutActivitySchema.nullable().optional(),
+});
+
+export const nextWorkoutResponseSchema = z.object({
+  workout: workoutSummarySchema.nullable(),
 });
 
 export const proposalResponseSchema = z.object({

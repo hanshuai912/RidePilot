@@ -1,4 +1,8 @@
 import {
+  activityWorkoutId,
+  workoutActivities,
+} from "../training/workout-activity";
+import {
   BadRequestException,
   ConflictException,
   Injectable,
@@ -21,6 +25,7 @@ import {
 } from "../training/training.validation";
 
 interface StoredWorkout {
+  activityWorkoutId?: string;
   scheduledDate: string;
   dayOrder: number;
   title: string | null;
@@ -134,14 +139,11 @@ export class PlanRestoreService {
     const currentFuture = plan.activeVersion.workouts.filter(
       (item) => dbToDate(item.scheduledDate) >= today,
     );
-    const recorded = await this.prisma.trainingActivity.findMany({
-      where: {
-        userId,
-        workoutId: { in: currentFuture.map((item) => item.id) },
-      },
-      select: { workoutId: true },
-    });
-    const recordedIds = new Set(recorded.map((item) => item.workoutId));
+    const recordedIds = await workoutActivities(
+      this.prisma,
+      userId,
+      currentFuture,
+    );
     const recordedDates = new Set(
       currentFuture
         .filter((item) => recordedIds.has(item.id))
@@ -363,13 +365,14 @@ export class PlanRestoreService {
     );
     if (draft.replaceWorkoutIds.some((id) => !currentIds.has(id)))
       blockers.push("原课程已变化");
-    const recorded = await tx.trainingActivity.count({
-      where: {
-        userId: proposal.userId,
-        workoutId: { in: draft.replaceWorkoutIds },
-      },
-    });
-    if (recorded) blockers.push("已有训练记录的课程不可恢复覆盖");
+    const recorded = await workoutActivities(
+      tx,
+      proposal.userId,
+      (plan?.activeVersion?.workouts ?? []).filter((item) =>
+        draft.replaceWorkoutIds.includes(item.id),
+      ),
+    );
+    if (recorded.size) blockers.push("已有训练记录的课程不可恢复覆盖");
     const recordedDates = await tx.trainingActivity.findMany({
       where: {
         userId: proposal.userId,
@@ -456,7 +459,12 @@ export class PlanRestoreService {
         timeTargetMin: totals.timeTargetMinutes,
         distanceTargetKm: totals.distanceTargetKm,
         source: item.source,
-        structure: { segments: parsed.segments },
+        structure: {
+          segments: parsed.segments,
+          ...(item.activityWorkoutId
+            ? { activityWorkoutId: item.activityWorkoutId }
+            : {}),
+        },
       },
     });
     await tx.planItem.create({
@@ -472,6 +480,7 @@ export class PlanRestoreService {
 
   private toStored(item: Workout): StoredWorkout {
     return {
+      activityWorkoutId: activityWorkoutId(item),
       scheduledDate: dbToDate(item.scheduledDate),
       dayOrder: item.dayOrder,
       title: item.title,

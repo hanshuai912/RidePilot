@@ -20,6 +20,7 @@ import {
   applyProposalSchema,
   applyProposalResponseSchema,
   calendarResponseSchema,
+  nextWorkoutResponseSchema,
   createManualWorkoutProposalSchema,
   editWorkoutProposalSchema,
   proposalResponseSchema,
@@ -131,6 +132,13 @@ export class TrainingController {
       input,
       idempotencyKey,
     );
+  }
+
+  @Get("workouts/next")
+  @ApiOperation({ summary: "读取当前用户当地今天起下一节尚未记录的正式课程" })
+  @ApiOkResponse({ schema: toOpenApiSchema(nextWorkoutResponseSchema) })
+  async nextWorkout(@CurrentPrincipal() principal: AuthPrincipal) {
+    return { workout: await this.service.nextWorkout(principal.userId) };
   }
 
   @Get("workouts/:workoutId")

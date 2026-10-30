@@ -10,6 +10,7 @@ import { HeartRateService } from "./heart-rate.service";
 @Module({
   imports: [InfraModule],
   controllers: [ProfileController, HeartRateController],
+  exports: [ProfileService],
   providers: [
     ProfileRepository,
     ProfileService,

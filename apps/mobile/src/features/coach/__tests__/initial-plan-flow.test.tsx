@@ -42,7 +42,7 @@ jest.mock("../../profile/services/profile.api", () => ({
   patchProfile: jest.fn(),
 }));
 jest.mock("../../training/services/training.api", () => ({
-  trainingApi: { getCalendar: jest.fn() },
+  trainingApi: { getCalendar: jest.fn(), getNextWorkout: jest.fn() },
 }));
 jest.mock("../services/coach.api", () => ({
   coachApi: {
@@ -56,6 +56,7 @@ jest.mock("../services/coach.api", () => ({
     updateGoal: jest.fn(),
     generate: jest.fn(),
     adjustPlan: jest.fn(),
+    adjustWorkout: jest.fn(),
     generation: jest.fn(),
     proposal: jest.fn(),
     validate: jest.fn(),
@@ -659,4 +660,103 @@ test("a failed AI task keeps the formal plan unchanged and offers a retry state"
   expect(result.current.error).toContain("AI_OUTPUT_INVALID");
   expect(result.current.resources?.planStatus.hasActivePlan).toBe(false);
   expect(api.apply).not.toHaveBeenCalled();
+});
+
+test("NEXT_WORKOUT targets only the actual next course and retains the scope on retry", async () => {
+  api.planStatus.mockResolvedValue({ hasActivePlan: true, planVersion: 7 });
+  api.goals.mockResolvedValue([goal]);
+  api.adjustWorkout.mockResolvedValue({
+    generationId: "job-next",
+    status: "READY",
+    proposalId: proposal.proposalId,
+    errorCode: null,
+    requestId: "next",
+  });
+  calendarApi.getNextWorkout.mockResolvedValue({
+    id: "next-course",
+    planVersion: 7,
+    sportType: "cycling",
+    source: "ai",
+    title: "下次训练",
+    purpose: null,
+    scheduledDate: "2030-01-08",
+    dayOrder: 2,
+    timeTargetMinutes: 40,
+    distanceTargetKm: null,
+    segments: [],
+    editable: true,
+  });
+  const { result } = await renderHook(() => useInitialPlan());
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  await act(async () => {
+    result.current.beginTask("REPLAN");
+    result.current.setPlanningScope("NEXT_WORKOUT");
+    result.current.setTaskNote("只调整下一节");
+  });
+  await act(async () => result.current.submitTask());
+  expect(api.adjustWorkout).toHaveBeenCalledWith(
+    "token",
+    "next-course",
+    expect.objectContaining({
+      mode: "replace_workout",
+      targetWorkoutId: "next-course",
+      expectedBaseVersion: 7,
+      weekStartDate: "2030-01-07",
+      notes: expect.stringContaining("只调整下一节"),
+    }),
+    expect.any(String),
+  );
+  expect(api.adjustPlan).not.toHaveBeenCalled();
+  expect(api.generate).not.toHaveBeenCalled();
+  await act(async () => result.current.retryGeneration());
+  expect(api.adjustWorkout).toHaveBeenCalledTimes(2);
+  expect(api.adjustWorkout.mock.calls[1][2]).toEqual(
+    api.adjustWorkout.mock.calls[0][2],
+  );
+});
+
+test("missing next course keeps planning scope and user notes instead of generating another range", async () => {
+  api.planStatus.mockResolvedValue({ hasActivePlan: true, planVersion: 7 });
+  calendarApi.getNextWorkout.mockResolvedValue(null);
+  const { result } = await renderHook(() => useInitialPlan());
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  await act(async () => {
+    result.current.beginTask("REPLAN");
+    result.current.setPlanningScope("NEXT_WORKOUT");
+    result.current.setTaskNote("保留输入");
+  });
+  await act(async () => result.current.submitTask());
+  expect(result.current.stage).toBe("planning");
+  expect(result.current.error).toContain("暂无可调整");
+  expect(result.current.taskNote).toBe("保留输入");
+  expect(api.generate).not.toHaveBeenCalled();
+  expect(api.adjustPlan).not.toHaveBeenCalled();
+});
+
+test("a changed plan version blocks generation and preserves the selected scope and notes", async () => {
+  api.planStatus.mockResolvedValue({ hasActivePlan: true, planVersion: 8 });
+  calendarApi.getNextWorkout.mockResolvedValue({
+    id: "old-next",
+    planVersion: 7,
+    sportType: "cycling",
+    source: "ai",
+    title: "旧课程",
+    purpose: null,
+    scheduledDate: "2030-01-08",
+    dayOrder: 1,
+    timeTargetMinutes: 40,
+    distanceTargetKm: null,
+    segments: [],
+  });
+  const { result } = await renderHook(() => useInitialPlan());
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  await act(async () => {
+    result.current.beginTask("REPLAN");
+    result.current.setPlanningScope("NEXT_WORKOUT");
+    result.current.setTaskNote("新安排");
+  });
+  await act(async () => result.current.submitTask());
+  expect(result.current.error).toContain("正式计划已变化");
+  expect(result.current.taskNote).toBe("新安排");
+  expect(api.adjustWorkout).not.toHaveBeenCalled();
 });

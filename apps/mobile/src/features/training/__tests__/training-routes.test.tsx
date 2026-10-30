@@ -297,7 +297,7 @@ test("workout detail generates, previews, validates and applies an AI adjustment
   await fireEvent.press(screen.getByText("让 AI 调整这节课"));
   await fireEvent.press(screen.getByText("生成调整草稿"));
   await waitFor(() =>
-    expect(screen.getByText("确认今天的新课程？")).toBeTruthy(),
+    expect(screen.getByText("确认这节训练的新方案？")).toBeTruthy(),
   );
   expect(coach.adjustWorkout).toHaveBeenCalledWith(
     "token",
@@ -309,7 +309,7 @@ test("workout detail generates, previews, validates and applies an AI adjustment
     }),
     expect.any(String),
   );
-  await fireEvent.press(screen.getByText("确认应用到今天"));
+  await fireEvent.press(screen.getByText("确认应用这节训练"));
   await waitFor(() =>
     expect(coach.validate).toHaveBeenCalledWith("token", aiProposal.proposalId),
   );
@@ -756,4 +756,77 @@ test("incomplete date input remains editable without crashing or opening an edit
   expect(
     screen.getByText("请选择当天或未来的有效日期（YYYY-MM-DD）"),
   ).toBeTruthy();
+});
+
+test("home feedback deep link opens the existing sheet and failed saves preserve all input", async () => {
+  coach.recordActivity.mockRejectedValueOnce(new Error("保存超时"));
+  await open(`/workouts/${workout.id}?action=feedback`);
+  await waitFor(() => expect(screen.getByText("保存训练反馈")).toBeTruthy());
+  await fireEvent.press(screen.getByText("部分完成"));
+  await fireEvent.changeText(screen.getByPlaceholderText("时长（分钟）"), "20");
+  await fireEvent.changeText(
+    screen.getByPlaceholderText("例如：最后一组没有完成"),
+    "保留这条反馈",
+  );
+  await fireEvent.press(screen.getByText("保存训练反馈"));
+  await waitFor(() =>
+    expect(screen.getAllByText("保存超时").length).toBeGreaterThan(0),
+  );
+  expect(screen.getByPlaceholderText("时长（分钟）").props.value).toBe("20");
+  expect(
+    screen.getByPlaceholderText("例如：最后一组没有完成").props.value,
+  ).toBe("保留这条反馈");
+  expect(coach.apply).not.toHaveBeenCalled();
+  api.getWorkout.mockResolvedValueOnce({
+    ...workout,
+    editable: false,
+    activity: {
+      id: "record-1",
+      status: "PARTIAL",
+      durationMin: 20,
+      rpe: null,
+      fatigue: null,
+      notes: "保留这条反馈",
+    },
+  });
+  await fireEvent.press(screen.getByText("保存训练反馈"));
+  await waitFor(() => expect(screen.getByText("已记录训练反馈")).toBeTruthy());
+  expect(screen.getByText(/实际 20 分钟/)).toBeTruthy();
+  expect(screen.getByRole("button", { name: "已记录训练反馈" })).toBeDisabled();
+  expect(api.getWorkout).toHaveBeenCalledTimes(2);
+});
+
+test("adjustment failure keeps notes, and apply timeout retries the identical write then reloads the new plan", async () => {
+  coach.adjustWorkout.mockRejectedValueOnce(new Error("生成暂时失败"));
+  coach.apply.mockRejectedValueOnce(new Error("应用响应超时"));
+  await open(`/workouts/${workout.id}?action=adjust`);
+  await waitFor(() => expect(screen.getByText("生成调整草稿")).toBeTruthy());
+  await fireEvent.changeText(
+    screen.getByPlaceholderText("例如：昨晚只睡了 5 小时"),
+    "只能训练二十分钟",
+  );
+  await fireEvent.press(screen.getByText("生成调整草稿"));
+  await waitFor(() =>
+    expect(screen.getAllByText("生成暂时失败").length).toBeGreaterThan(0),
+  );
+  expect(
+    screen.getByPlaceholderText("例如：昨晚只睡了 5 小时").props.value,
+  ).toBe("只能训练二十分钟");
+  await fireEvent.press(screen.getByText("生成调整草稿"));
+  await waitFor(() =>
+    expect(screen.getByText("确认这节训练的新方案？")).toBeTruthy(),
+  );
+  await fireEvent.press(screen.getByText("确认应用这节训练"));
+  await waitFor(() =>
+    expect(screen.getAllByText("应用响应超时").length).toBeGreaterThan(0),
+  );
+  expect(screen.getByText("确认这节训练的新方案？")).toBeTruthy();
+  await fireEvent.press(screen.getByText("确认应用这节训练"));
+  await waitFor(() =>
+    expect(screen.getByTestId("current-path").props.children).toBe("/training"),
+  );
+  expect(coach.validate).toHaveBeenCalledTimes(1);
+  expect(coach.apply.mock.calls[1]).toEqual(coach.apply.mock.calls[0]);
+  expect(screen.getByText("保存成功")).toBeTruthy();
+  expect(api.getWorkout).toHaveBeenCalledTimes(1);
 });

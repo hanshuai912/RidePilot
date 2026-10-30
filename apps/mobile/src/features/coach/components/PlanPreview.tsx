@@ -36,7 +36,9 @@ export function PlanPreview({
       workout.segments.reduce(
         (segmentTotal, segment) =>
           segmentTotal +
-          (segment.target.unit === "min" ? segment.target.value : 0),
+          (segment.target.unit === "min"
+            ? segment.target.value * (segment.repeatCount ?? 1)
+            : 0),
         0,
       ),
     0,
@@ -50,6 +52,19 @@ export function PlanPreview({
         </AppText>
         <AppText variant="section" className="mt-2">
           {proposal.summary}
+        </AppText>
+        <AppText variant="caption" className="mt-3 text-secondary">
+          {proposal.scene === "WORKOUT_ADJUST"
+            ? "仅调整选中的一节训练"
+            : `训练周从 ${proposal.weekStartDate} 开始`}{" "}
+          · 日期：
+          {[
+            ...new Set(
+              proposal.workouts.map((workout) => workout.scheduledDate),
+            ),
+          ]
+            .sort()
+            .join("、")}
         </AppText>
         <View className="mt-4 flex-row gap-2">
           <View className="flex-1 rounded-xl bg-surface-2 p-3">
@@ -82,7 +97,7 @@ export function PlanPreview({
         <View className="flex-row items-center justify-between">
           <AppText variant="card">计划变化</AppText>
           <AppText variant="label" muted>
-            首个训练周期
+            本次调整范围
           </AppText>
         </View>
         <View className="mt-3 rounded-xl bg-surface-2 px-3">

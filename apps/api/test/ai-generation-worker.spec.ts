@@ -57,7 +57,9 @@ test("empty week keeps a past course and allows the remaining dates", async () =
       }),
     },
     user: {
-      findUniqueOrThrow: jest.fn().mockResolvedValue({ profileVersion: 1 }),
+      findUniqueOrThrow: jest
+        .fn()
+        .mockResolvedValue({ profileVersion: 1, timezone: "UTC" }),
     },
     trainingRace: { findMany: jest.fn().mockResolvedValue([]) },
     trainingAssessment: { findMany: jest.fn().mockResolvedValue([]) },

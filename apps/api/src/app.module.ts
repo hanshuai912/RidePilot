@@ -1,3 +1,4 @@
+import { HomeModule } from "./modules/home/home.module";
 import { Module } from "@nestjs/common";
 import { AiModule } from "./ai/ai.module";
 import { AuthModule } from "./modules/auth/auth.module";
@@ -10,6 +11,7 @@ import { NutritionModule } from "./modules/nutrition/nutrition.module";
 
 @Module({
   imports: [
+    HomeModule,
     AiModule,
     AuthModule,
     HealthModule,

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Modal, Pressable, ScrollView, View } from "react-native";
 import type { NutritionProfileInput } from "@ridepilot/contracts";
 
@@ -12,7 +12,9 @@ import {
 } from "../model/nutrition";
 
 function toggle<T>(values: T[], value: T): T[] {
-  return values.includes(value) ? values.filter((item) => item !== value) : [...values, value];
+  return values.includes(value)
+    ? values.filter((item) => item !== value)
+    : [...values, value];
 }
 
 function Choice<T extends string>({
@@ -33,14 +35,17 @@ function Choice<T extends string>({
       className={`rounded-full border px-3 py-2 ${selected ? "border-brand bg-brand-subtle" : "border-border bg-surface-2"}`}
       onPress={() => onPress(value)}
     >
-      <AppText variant="label" className={selected ? "text-brand" : "text-secondary"}>
+      <AppText
+        variant="label"
+        className={selected ? "text-brand" : "text-secondary"}
+      >
         {label}
       </AppText>
     </Pressable>
   );
 }
 
-export function NutritionProfileSheet({
+function NutritionProfileEditor({
   visible,
   profile,
   saving,
@@ -53,17 +58,24 @@ export function NutritionProfileSheet({
   onClose: () => void;
   onSave: (input: NutritionProfileInput) => Promise<void>;
 }) {
-  const [form, setForm] = useState<NutritionProfileInput>(profile ?? defaultNutritionProfile);
+  const [form, setForm] = useState<NutritionProfileInput>(
+    profile ?? defaultNutritionProfile,
+  );
 
-  useEffect(() => {
-    if (visible) setForm(profile ?? defaultNutritionProfile);
-  }, [profile, visible]);
-
-  const set = <K extends keyof NutritionProfileInput>(key: K, value: NutritionProfileInput[K]) =>
-    setForm((current) => ({ ...current, [key]: value }));
+  const set = <K extends keyof NutritionProfileInput>(
+    key: K,
+    value: NutritionProfileInput[K],
+  ) => setForm((current) => ({ ...current, [key]: value }));
 
   return (
-    <Modal animationType="slide" transparent visible={visible} onRequestClose={onClose}>
+    <Modal
+      animationType="slide"
+      transparent
+      visible={visible}
+      onRequestClose={() => {
+        if (!saving) onClose();
+      }}
+    >
       <View className="flex-1 justify-end bg-black/70">
         <View className="max-h-[92%] rounded-t-[24px] border-t border-border bg-background px-5 pb-5 pt-4">
           <View className="mb-4 flex-row items-center justify-between">
@@ -73,49 +85,105 @@ export function NutritionProfileSheet({
                 只用于生成建议，正式计划仍需你确认后应用
               </AppText>
             </View>
-            <Pressable accessibilityRole="button" accessibilityLabel="关闭饮食档案" onPress={onClose}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="关闭饮食档案"
+              disabled={saving}
+              onPress={onClose}
+            >
               <AppText className="text-brand">关闭</AppText>
             </Pressable>
           </View>
-          <ScrollView keyboardShouldPersistTaps="handled" contentContainerClassName="gap-5 pb-5">
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            contentContainerClassName="gap-5 pb-5"
+          >
             <View>
-              <AppText variant="label" muted className="mb-2">饮食方式</AppText>
+              <AppText variant="label" muted className="mb-2">
+                饮食方式
+              </AppText>
               <View className="flex-row flex-wrap gap-2">
-                {(Object.entries(dietStyleLabels) as [NutritionProfileInput["dietStyle"], string][]).map(
-                  ([value, label]) => (
-                    <Choice key={value} value={value} label={label} selected={form.dietStyle === value} onPress={(next) => set("dietStyle", next)} />
-                  ),
-                )}
+                {(
+                  Object.entries(dietStyleLabels) as [
+                    NutritionProfileInput["dietStyle"],
+                    string,
+                  ][]
+                ).map(([value, label]) => (
+                  <Choice
+                    key={value}
+                    value={value}
+                    label={label}
+                    selected={form.dietStyle === value}
+                    onPress={(next) => set("dietStyle", next)}
+                  />
+                ))}
               </View>
             </View>
             <View>
-              <AppText variant="label" muted className="mb-2">日常习惯（可多选）</AppText>
+              <AppText variant="label" muted className="mb-2">
+                日常习惯（可多选）
+              </AppText>
               <View className="flex-row flex-wrap gap-2">
-                {(Object.entries(habitLabels) as [NutritionProfileInput["habits"][number], string][]).map(
-                  ([value, label]) => (
-                    <Choice key={value} value={value} label={label} selected={form.habits.includes(value)} onPress={(next) => set("habits", toggle(form.habits, next))} />
-                  ),
-                )}
+                {(
+                  Object.entries(habitLabels) as [
+                    NutritionProfileInput["habits"][number],
+                    string,
+                  ][]
+                ).map(([value, label]) => (
+                  <Choice
+                    key={value}
+                    value={value}
+                    label={label}
+                    selected={form.habits.includes(value)}
+                    onPress={(next) => set("habits", toggle(form.habits, next))}
+                  />
+                ))}
               </View>
             </View>
             <View>
-              <AppText variant="label" muted className="mb-2">过敏原</AppText>
+              <AppText variant="label" muted className="mb-2">
+                过敏原
+              </AppText>
               <View className="flex-row flex-wrap gap-2">
-                {(Object.entries(allergenLabels) as [NutritionProfileInput["allergens"][number], string][]).map(
-                  ([value, label]) => (
-                    <Choice key={value} value={value} label={label} selected={form.allergens.includes(value)} onPress={(next) => set("allergens", toggle(form.allergens, next))} />
-                  ),
-                )}
+                {(
+                  Object.entries(allergenLabels) as [
+                    NutritionProfileInput["allergens"][number],
+                    string,
+                  ][]
+                ).map(([value, label]) => (
+                  <Choice
+                    key={value}
+                    value={value}
+                    label={label}
+                    selected={form.allergens.includes(value)}
+                    onPress={(next) =>
+                      set("allergens", toggle(form.allergens, next))
+                    }
+                  />
+                ))}
               </View>
             </View>
             <View>
-              <AppText variant="label" muted className="mb-2">饮食限制</AppText>
+              <AppText variant="label" muted className="mb-2">
+                饮食限制
+              </AppText>
               <View className="flex-row flex-wrap gap-2">
-                {(Object.entries(restrictionLabels) as [NutritionProfileInput["restrictions"][number], string][]).map(
-                  ([value, label]) => (
-                    <Choice key={value} value={value} label={label} selected={form.restrictions.includes(value)} onPress={(next) => set("restrictions", toggle(form.restrictions, next))} />
-                  ),
-                )}
+                {(
+                  Object.entries(restrictionLabels) as [
+                    NutritionProfileInput["restrictions"][number],
+                    string,
+                  ][]
+                ).map(([value, label]) => (
+                  <Choice
+                    key={value}
+                    value={value}
+                    label={label}
+                    selected={form.restrictions.includes(value)}
+                    onPress={(next) =>
+                      set("restrictions", toggle(form.restrictions, next))
+                    }
+                  />
+                ))}
               </View>
               {form.restrictions.includes("OTHER") ? (
                 <Input
@@ -139,4 +207,10 @@ export function NutritionProfileSheet({
       </View>
     </Modal>
   );
+}
+
+export function NutritionProfileSheet(
+  props: React.ComponentProps<typeof NutritionProfileEditor>,
+) {
+  return props.visible ? <NutritionProfileEditor {...props} /> : null;
 }

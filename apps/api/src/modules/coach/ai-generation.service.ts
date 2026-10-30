@@ -1,3 +1,4 @@
+import { workoutActivities } from "../training/workout-activity";
 import {
   BadRequestException,
   ConflictException,
@@ -425,7 +426,7 @@ export class AiGenerationService implements OnModuleInit, OnModuleDestroy {
         this.prisma.athleteProfile.findUnique({ where: { userId } }),
         this.prisma.user.findUniqueOrThrow({
           where: { id: userId },
-          select: { profileVersion: true },
+          select: { profileVersion: true, timezone: true },
         }),
         this.data.activePlan(userId),
         this.prisma.trainingRace.findMany({
@@ -472,7 +473,7 @@ export class AiGenerationService implements OnModuleInit, OnModuleDestroy {
         message: "请选择周一作为开始日期",
       });
     const localToday = new Intl.DateTimeFormat("en-CA", {
-      timeZone: availability.timezone,
+      timeZone: user.timezone,
       year: "numeric",
       month: "2-digit",
       day: "2-digit",
@@ -497,16 +498,11 @@ export class AiGenerationService implements OnModuleInit, OnModuleDestroy {
         const day = workout.scheduledDate.toISOString().slice(0, 10);
         return day >= input.weekStartDate && day <= end;
       }) ?? [];
-    const activityRecords = existingWorkouts.length
-      ? await this.prisma.trainingActivity.findMany({
-          where: {
-            userId,
-            workoutId: { in: existingWorkouts.map((item) => item.id) },
-          },
-          select: { workoutId: true },
-        })
-      : [];
-    const recordedIds = new Set(activityRecords.map((item) => item.workoutId));
+    const recordedIds = await workoutActivities(
+      this.prisma,
+      userId,
+      existingWorkouts,
+    );
     const editable = existingWorkouts.filter(
       (item) =>
         dbToDate(item.scheduledDate) >= localToday && !recordedIds.has(item.id),

@@ -3,7 +3,7 @@ import { Pressable, View } from "react-native";
 import { AppText, Card, Input } from "../../../components/ui";
 import type { CoachTask, PlanningScope } from "../hooks/useInitialPlan";
 import type { CoachPlanStatus } from "../services/coach.api";
-import { ChoicePill, InfoStrip } from "./CoachPage";
+import { ChoicePill } from "./CoachPage";
 
 const taskCopy: Record<
   CoachTask,
@@ -90,7 +90,11 @@ export function PlanningBrief({
             <Pressable
               key={option.value}
               accessibilityRole="radio"
-              accessibilityState={{ selected: planningScope === option.value }}
+              accessibilityState={{
+                selected: planningScope === option.value,
+                disabled: option.value === "CYCLE",
+              }}
+              disabled={option.value === "CYCLE"}
               className={`flex-row items-center justify-between rounded-xl border px-3 py-3 ${planningScope === option.value ? "border-brand bg-brand-subtle" : "border-border bg-surface-2"}`}
               onPress={() => setPlanningScope(option.value)}
             >
@@ -103,7 +107,9 @@ export function PlanningBrief({
                   {option.label}
                 </AppText>
                 <AppText variant="caption" muted className="mt-1">
-                  {option.note}
+                  {option.value === "CYCLE"
+                    ? "暂未开放，请选择下一节或按周调整"
+                    : option.note}
                 </AppText>
               </View>
               <AppText

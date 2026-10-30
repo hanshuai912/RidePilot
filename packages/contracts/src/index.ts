@@ -31,6 +31,9 @@ export {
   workoutSegmentSchema,
   workoutSegmentTypeSchema,
   workoutTargetSchema,
+  workoutSummarySchema,
+  nextWorkoutResponseSchema,
+  workoutActivitySchema,
 } from "./training";
 export * from "./coach";
 export {
@@ -105,3 +108,5 @@ export type {
   UpdateProposal,
   WorkoutSegment,
 } from "./training";
+export { homeTodayResponseSchema, homeTrainingSchema } from "./home";
+export type { HomeTodayResponse, HomeTraining } from "./home";

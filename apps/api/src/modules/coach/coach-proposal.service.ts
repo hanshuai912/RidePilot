@@ -1,4 +1,8 @@
 import {
+  copiedWorkoutStructure,
+  workoutActivities,
+} from "../training/workout-activity";
+import {
   BadRequestException,
   ConflictException,
   Injectable,
@@ -251,7 +255,16 @@ export class CoachProposalService {
           ),
         );
       for (const workout of draft.workouts) {
-        const order = (dayOrder.get(workout.scheduledDate) ?? 0) + 1;
+        const original =
+          draft.mode === "replace_workout"
+            ? base?.workouts.find(
+                (item) =>
+                  replacing.has(item.id) &&
+                  dbToDate(item.scheduledDate) === workout.scheduledDate,
+              )
+            : undefined;
+        const order =
+          original?.dayOrder ?? (dayOrder.get(workout.scheduledDate) ?? 0) + 1;
         dayOrder.set(workout.scheduledDate, order);
         const totals = validateDraft(workout, true);
         const created = await tx.workout.create({
@@ -375,12 +388,19 @@ export class CoachProposalService {
     if (draft.replaceWorkoutIds.some((id) => !activeIds.has(id)))
       blockers.push("受影响课程已变化，请重新生成");
     if (draft.replaceWorkoutIds.length) {
-      const recorded = await tx.trainingActivity.count({
-        where: { userId, workoutId: { in: draft.replaceWorkoutIds } },
-      });
-      if (recorded) blockers.push("课程已有实际训练记录，不可覆盖");
+      const recorded = await workoutActivities(
+        tx,
+        userId,
+        (plan?.activeVersion?.workouts ?? []).filter((item) =>
+          draft.replaceWorkoutIds.includes(item.id),
+        ),
+      );
+      if (recorded.size) blockers.push("课程已有实际训练记录，不可覆盖");
     }
-    if (draft.mode === "replace_workout" && draft.workouts.length !== 1)
+    if (
+      draft.mode === "replace_workout" &&
+      (draft.workouts.length !== 1 || draft.replaceWorkoutIds.length !== 1)
+    )
       blockers.push("单节调整只能生成一节课程");
     if (blockers.length) return blockers;
     const retainedMinutes = Object.fromEntries(
@@ -454,7 +474,7 @@ export class CoachProposalService {
         timeTargetMin: old.timeTargetMin,
         distanceTargetKm: old.distanceTargetKm,
         source: old.source,
-        structure: old.structure as Prisma.InputJsonValue,
+        structure: copiedWorkoutStructure(old),
       },
     });
     await tx.planItem.create({

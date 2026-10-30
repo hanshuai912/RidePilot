@@ -20,7 +20,7 @@ export function HomeStatusCard() {
         </View>
         <View className="flex-1">
           <AppText variant="label" muted>
-            尚无今日主观反馈
+            身体状态尚未综合评估
           </AppText>
           <AppText variant="card" className="mt-1">
             状态待评估

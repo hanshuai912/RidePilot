@@ -1,8 +1,12 @@
 import {
   proposalResponseSchema,
   type ProposalResponse,
+  workoutActivitySchema,
 } from "@ridepilot/contracts";
-import type { ChangeProposal } from "../../generated/prisma/client";
+import type {
+  ChangeProposal,
+  TrainingActivity,
+} from "../../generated/prisma/client";
 import type { DraftPayload } from "./training.types";
 import { dbToDate } from "./training.validation";
 
@@ -39,6 +43,7 @@ export function toSummary(workout: {
   structure: unknown;
   planVersion?: { versionNo: number };
   editable?: boolean;
+  activity?: TrainingActivity | null;
 }) {
   const structure = workout.structure as {
     segments: DraftPayload["segments"];
@@ -60,6 +65,13 @@ export function toSummary(workout: {
         : Number(workout.distanceTargetKm),
     segments: structure.segments,
     ...(workout.editable === undefined ? {} : { editable: workout.editable }),
+    ...(workout.activity === undefined
+      ? {}
+      : {
+          activity: workout.activity
+            ? workoutActivitySchema.parse(workout.activity)
+            : null,
+        }),
   };
 }
 

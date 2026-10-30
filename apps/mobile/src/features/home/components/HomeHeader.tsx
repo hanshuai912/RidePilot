@@ -14,20 +14,31 @@ export function HomeHeader({
   displayName,
   onProfilePress,
   now = new Date(),
+  timezone,
 }: {
   displayName: string;
   onProfilePress: () => void;
   now?: Date;
+  timezone?: string;
 }) {
   const date = new Intl.DateTimeFormat("zh-CN", {
     month: "long",
     day: "numeric",
     weekday: "short",
+    timeZone: timezone,
   }).format(now);
 
   return (
     <AppHeader
-      title={greeting(now.getHours())}
+      title={greeting(
+        Number(
+          new Intl.DateTimeFormat("en-GB", {
+            timeZone: timezone,
+            hour: "2-digit",
+            hourCycle: "h23",
+          }).format(now),
+        ),
+      )}
       subtitle={`${displayName} · ${date}`}
       compact
       right={

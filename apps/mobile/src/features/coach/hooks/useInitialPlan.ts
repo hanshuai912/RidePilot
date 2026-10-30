@@ -15,7 +15,14 @@ import { addDays, localDateInTimezone, nextMonday } from "../model/plan-dates";
 import { firstMissingStep, missingTrainingData } from "../model/readiness";
 import { coachApi, type CoachPlanStatus } from "../services/coach.api";
 import { waitForCoachProposal } from "../services/generation-task";
+import {
+  resolveAdjustmentScope,
+  type AdjustmentScope,
+  type PlanningScope,
+} from "../services/adjustment-scope";
 import type { Experience, GoalType } from "../components/InitialPlanSteps";
+
+export type { PlanningScope } from "../services/adjustment-scope";
 
 export type InitialPlanStage =
   | "entry"
@@ -31,8 +38,6 @@ export type InitialPlanStage =
   | "success";
 
 export type CoachTask = "REPLAN" | "RECOVERY" | "RACE";
-export type PlanningScope =
-  "NEXT_WORKOUT" | "THIS_WEEK" | "NEXT_WEEK" | "CYCLE";
 
 type Resources = {
   profile: ProfileResponse;
@@ -94,6 +99,8 @@ export function useInitialPlan() {
   const generationRequest = useRef<{
     mode: WeekGenerationInput["mode"];
     weekStartDate?: string;
+    targetWorkoutId?: string;
+    expectedPlanVersion?: number;
   } | null>(null);
 
   const refresh = useCallback(async () => {
@@ -324,6 +331,7 @@ export function useInitialPlan() {
   const generate = async (
     mode: WeekGenerationInput["mode"] = "initial",
     weekStartDate?: string,
+    scope?: Pick<AdjustmentScope, "targetWorkoutId" | "expectedPlanVersion">,
   ) => {
     if (!token) return;
     if (symptomFlags.length) {
@@ -336,7 +344,7 @@ export function useInitialPlan() {
       setStage("nutrition");
       return;
     }
-    generationRequest.current = { mode, weekStartDate };
+    generationRequest.current = { mode, weekStartDate, ...scope };
     const currentOperation = ++operation.current;
     setError(null);
     setJobStatus("QUEUED");
@@ -345,6 +353,11 @@ export function useInitialPlan() {
     try {
       const latest = await refresh();
       if (!latest) return;
+      if (
+        scope?.expectedPlanVersion !== undefined &&
+        scope.expectedPlanVersion !== latest.planStatus.planVersion
+      )
+        throw new Error("正式计划已变化，请返回重新选择调整范围");
       if (!latest.readiness.ready) {
         setError(
           `请先补全训练资料：${missingTrainingData(latest.readiness.missingFields)}`,
@@ -364,6 +377,9 @@ export function useInitialPlan() {
         goalId: goal.id,
         mode,
         expectedBaseVersion: latest.planStatus.planVersion,
+        ...(scope?.targetWorkoutId
+          ? { targetWorkoutId: scope.targetWorkoutId }
+          : {}),
         notes: [
           `当前状态：${bodyStatus === "TIRED" ? "有些疲劳" : bodyStatus === "RECOVERY" ? "需要恢复" : "状态正常"}`,
           `计划周期：${cycleWeeks} 周`,
@@ -377,9 +393,16 @@ export function useInitialPlan() {
         ...(symptomFlags.length ? { symptomFlags } : {}),
       } as const;
       const job =
-        mode === "replace_week"
-          ? await coachApi.adjustPlan(token, input, key())
-          : await coachApi.generate(token, input, key());
+        mode === "replace_workout" && scope?.targetWorkoutId
+          ? await coachApi.adjustWorkout(
+              token,
+              scope.targetWorkoutId,
+              input,
+              key(),
+            )
+          : mode === "replace_week"
+            ? await coachApi.adjustPlan(token, input, key())
+            : await coachApi.generate(token, input, key());
       const draft = await waitForCoachProposal(
         token,
         job,
@@ -403,19 +426,12 @@ export function useInitialPlan() {
     setError(null);
     try {
       const today = localDateInTimezone(new Date(), resources.profile.timezone);
-      const nextWeekStart = nextMonday(today);
-      const weekStartDate =
-        week === "current" ? addDays(nextWeekStart, -7) : nextWeekStart;
-      const calendar = await trainingApi.getCalendar(
+      const scope = await resolveAdjustmentScope(
         token,
-        weekStartDate,
-        addDays(weekStartDate, 6),
+        week === "current" ? "THIS_WEEK" : "NEXT_WEEK",
+        today,
       );
-      const editableItems = calendar.items.filter(
-        (item) => item.editable ?? item.scheduledDate >= today,
-      );
-      const mode = editableItems.length ? "replace_week" : "empty_week";
-      await generate(mode, weekStartDate);
+      await generate(scope.mode, scope.weekStartDate, scope);
     } catch (cause) {
       setError(errorMessage(cause, "读取训练日历失败，请重试"));
     } finally {
@@ -447,13 +463,24 @@ export function useInitialPlan() {
   };
 
   const submitTask = async () => {
-    const week = planningScope === "THIS_WEEK" ? "current" : "next";
-    await generateActiveWeek(week);
+    if (!token || !resources || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const today = localDateInTimezone(new Date(), resources.profile.timezone);
+      const scope = await resolveAdjustmentScope(token, planningScope, today);
+      await generate(scope.mode, scope.weekStartDate, scope);
+    } catch (cause) {
+      setError(errorMessage(cause, "读取调整范围失败，请重试"));
+    } finally {
+      setBusy(false);
+    }
   };
 
   const retryGeneration = () => {
     const previous = generationRequest.current;
-    if (previous) void generate(previous.mode, previous.weekStartDate);
+    if (previous)
+      void generate(previous.mode, previous.weekStartDate, previous);
   };
 
   const upcomingWorkoutDate = async (): Promise<string | null | undefined> => {

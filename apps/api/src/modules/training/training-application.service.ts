@@ -1,3 +1,4 @@
+import { copiedWorkoutStructure, workoutActivities } from "./workout-activity";
 import {
   ConflictException,
   Injectable,
@@ -131,6 +132,16 @@ export class TrainingApplicationService {
           appliedAt: new Date(),
         },
       });
+      if (proposal.targetWorkoutId) {
+        const target = baseVersion?.workouts.find(
+          (item) => item.id === proposal.targetWorkoutId,
+        );
+        if (!target || (await workoutActivities(tx, userId, [target])).size)
+          throw new ConflictException({
+            code: "WORKOUT_ALREADY_RECORDED",
+            message: "课程已变化或已有训练记录，不可修改计划",
+          });
+      }
       const retained = (baseVersion?.workouts ?? []).filter(
         (old) => old.id !== proposal.targetWorkoutId,
       );
@@ -202,7 +213,7 @@ export class TrainingApplicationService {
         timeTargetMin: old.timeTargetMin,
         distanceTargetKm: old.distanceTargetKm,
         source: old.source,
-        structure: old.structure as Prisma.InputJsonValue,
+        structure: copiedWorkoutStructure(old),
       },
     });
     await this.createPlanItem(tx, created);

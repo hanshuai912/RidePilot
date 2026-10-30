@@ -1,12 +1,11 @@
 import { CalendarDays } from "lucide-react-native";
 import { View } from "react-native";
-import { useRouter } from "expo-router";
+import { router } from "expo-router";
 
 import { colors } from "../../../theme/colors";
 import { AppText, Badge, Button, Card } from "../../../components/ui";
 
-export function HomeEmptyPlanCard() {
-  const router = useRouter();
+export function HomeEmptyPlanCard({ onCreate }: { onCreate: () => void }) {
   return (
     <Card className="overflow-hidden rounded-card p-0">
       <View className="border-b border-divider bg-surface-2 px-5 pb-5 pt-5">
@@ -24,6 +23,9 @@ export function HomeEmptyPlanCard() {
       <View className="px-5 pb-5 pt-4">
         <Button onPress={() => router.push("/(tabs)/coach")}>
           开始建立训练计划
+        </Button>
+        <Button className="mt-2" variant="ghost" onPress={onCreate}>
+          先手动创建一节训练
         </Button>
       </View>
     </Card>

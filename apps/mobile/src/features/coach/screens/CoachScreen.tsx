@@ -75,6 +75,20 @@ export function CoachScreen() {
     const stageChanged = previousFlowStage.current !== flowStage;
     previousFlowStage.current = flowStage;
     if (!stageChanged) return;
+    if (
+      (routeStage === "planning" || routeStage === "entry") &&
+      flowStage === "loading"
+    ) {
+      router.push(coachRoute("loading"));
+      return;
+    }
+    if (
+      (routeStage === "planning" || routeStage === "loading") &&
+      ["basics", "goal", "schedule", "nutrition"].includes(flowStage)
+    ) {
+      router.replace(coachRoute(flowStage));
+      return;
+    }
     if (routeStage === "loading" && flowStage === "proposals") {
       router.replace(coachRoute("proposals"));
     } else if (
@@ -142,7 +156,6 @@ export function CoachScreen() {
   };
   const startWeekGeneration = (week: "current" | "next") => {
     void flow.generateActiveWeek(week);
-    router.push(coachRoute("loading"));
   };
   const openAppliedDates = () =>
     router.push({
@@ -284,7 +297,6 @@ export function CoachScreen() {
         actionsInScroll
         onPrimary={() => {
           void flow.submitTask();
-          router.push(coachRoute("loading"));
         }}
         secondary="返回 AI 教练"
         onSecondary={() => {
@@ -596,7 +608,9 @@ export function CoachScreen() {
         visible={flow.confirmOpen}
         animationType="slide"
         presentationStyle="pageSheet"
-        onRequestClose={() => flow.setConfirmOpen(false)}
+        onRequestClose={() => {
+          if (!busy) flow.setConfirmOpen(false);
+        }}
       >
         <Screen className="justify-end px-5 pb-8">
           <View className="rounded-t-[24px] border border-border bg-surface px-4 pb-5 pt-4">
@@ -605,7 +619,8 @@ export function CoachScreen() {
               {hasActivePlan ? "确认更新正式计划？" : "确认建立正式计划？"}
             </AppText>
             <AppText variant="caption" className="mt-2 text-secondary">
-              确认后会把当前一周草稿应用为正式计划。
+              确认后会应用预览中的 {flow.proposal?.workouts.length ?? 0}{" "}
+              节课程。
               {flow.proposal?.replaceWorkoutIds.length
                 ? `将替换 ${flow.proposal.replaceWorkoutIds.length} 节未来课程。`
                 : hasActivePlan

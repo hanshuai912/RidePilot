@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { router, useLocalSearchParams } from "expo-router";
 import { Modal } from "react-native";
 import { useAuth } from "../../auth/hooks/AuthProvider";
@@ -11,7 +11,7 @@ import { WorkoutAdjustmentPreview } from "../components/WorkoutAdjustmentPreview
 import { WorkoutAdjustmentSheet } from "../components/WorkoutAdjustmentSheet";
 import { WorkoutFeedbackSheet } from "../components/WorkoutFeedbackSheet";
 import { useTrainingResource } from "../hooks/useTrainingResource";
-import { addDays, iso } from "../model/training";
+import { addDays } from "../model/training";
 import { trainingApi } from "../services/training.api";
 
 function weekStart(value: string) {
@@ -30,33 +30,40 @@ export function WorkoutDetailScreen() {
     action?: string;
   }>();
   const { session } = useAuth();
-  const token = session?.accessToken;
-  const [adjustOpen, setAdjustOpen] = useState(false);
-  const [feedbackOpen, setFeedbackOpen] = useState(false);
+  return (
+    <WorkoutDetailContent
+      key={`${session?.user.id}-${workoutId}`}
+      workoutId={workoutId}
+      action={action}
+      token={session?.accessToken}
+    />
+  );
+}
+
+function WorkoutDetailContent({
+  workoutId,
+  action,
+  token,
+}: {
+  workoutId: string;
+  action?: string;
+  token?: string;
+}) {
+  const [adjustOpen, setAdjustOpen] = useState(action === "adjust");
+  const [feedbackOpen, setFeedbackOpen] = useState(action === "feedback");
   const [preview, setPreview] = useState<Awaited<
     ReturnType<typeof coachApi.proposal>
   > | null>(null);
   const [loadingAction, setLoadingAction] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [feedbackSaved, setFeedbackSaved] = useState(false);
-  const autoOpened = useRef(false);
+  const applyAttempt = useRef<{ id: string; key: string } | null>(null);
+  const actionBusy = useRef(false);
   const load = useCallback(async () => {
     if (!token || !workoutId) throw new Error("课程不存在或尚未登录");
     return trainingApi.getWorkout(token, workoutId);
   }, [token, workoutId]);
   const resource = useTrainingResource(load);
-  useEffect(() => {
-    if (
-      resource.data &&
-      resource.data.scheduledDate >= iso(new Date()) &&
-      action === "adjust" &&
-      !autoOpened.current
-    ) {
-      autoOpened.current = true;
-      setAdjustOpen(true);
-    }
-  }, [action, resource.data]);
-
   const requestAdjustment = async (
     reason: Parameters<
       NonNullable<
@@ -65,7 +72,8 @@ export function WorkoutDetailScreen() {
     >[0],
     notes: string,
   ) => {
-    if (!token || !resource.data) return;
+    if (!token || !resource.data || actionBusy.current) return;
+    actionBusy.current = true;
     setLoadingAction(true);
     setActionError(null);
     try {
@@ -97,39 +105,59 @@ export function WorkoutDetailScreen() {
       );
       if (!draft) throw new Error("调整任务已停止，请重试");
       setPreview(draft);
+      applyAttempt.current = null;
       setAdjustOpen(false);
     } catch (cause) {
       setActionError(
         cause instanceof Error ? cause.message : "生成调整草稿失败",
       );
     } finally {
+      actionBusy.current = false;
       setLoadingAction(false);
     }
   };
 
   const applyAdjustment = async () => {
-    if (!token || !preview || !resource.data) return;
+    if (!token || !preview || !resource.data || actionBusy.current) return;
+    actionBusy.current = true;
     setLoadingAction(true);
     setActionError(null);
     try {
-      const validated = await coachApi.validate(token, preview.proposalId);
-      if (validated.status !== "READY" || validated.blockers.length) {
-        throw new Error(validated.blockers[0] ?? "草稿未通过校验，请返回修改");
+      // After an uncertain response retry the same write, without revalidating an
+      // already-applied proposal or allocating another idempotency key.
+      if (applyAttempt.current?.id !== preview.proposalId) {
+        const validated = await coachApi.validate(token, preview.proposalId);
+        if (validated.status !== "READY" || validated.blockers.length)
+          throw new Error(
+            validated.blockers[0] ?? "草稿未通过校验，请返回修改",
+          );
+        applyAttempt.current = {
+          id: preview.proposalId,
+          key: requestKey("apply-adjustment", preview.proposalId),
+        };
       }
-      await coachApi.apply(
+      const applied = await coachApi.apply(
         token,
         preview.proposalId,
         preview.basePlanVersion,
-        requestKey("apply-adjustment", preview.proposalId),
+        applyAttempt.current.key,
       );
       setPreview(null);
-      setActionError(null);
-      resource.retry();
+      // Published snapshots allocate new workout IDs. The calendar reloads the
+      // new snapshot on focus; reloading this old detail would show stale data.
+      router.replace({
+        pathname: "/(tabs)/training",
+        params: {
+          date: applied.affectedDates[0] ?? resource.data.scheduledDate,
+          savedAt: String(Date.now()),
+        },
+      });
     } catch (cause) {
       setActionError(
         cause instanceof Error ? cause.message : "应用调整失败，请重试",
       );
     } finally {
+      actionBusy.current = false;
       setLoadingAction(false);
     }
   };
@@ -141,7 +169,8 @@ export function WorkoutDetailScreen() {
     fatigue: number | null;
     notes: string;
   }) => {
-    if (!token || !resource.data) return;
+    if (!token || !resource.data || actionBusy.current) return;
+    actionBusy.current = true;
     setLoadingAction(true);
     setActionError(null);
     try {
@@ -153,11 +182,13 @@ export function WorkoutDetailScreen() {
       });
       setFeedbackSaved(true);
       setFeedbackOpen(false);
+      resource.retry();
     } catch (cause) {
       setActionError(
         cause instanceof Error ? cause.message : "保存训练反馈失败",
       );
     } finally {
+      actionBusy.current = false;
       setLoadingAction(false);
     }
   };
@@ -165,7 +196,9 @@ export function WorkoutDetailScreen() {
   return (
     <TrainingPage
       title="课程详情"
-      onBack={backToTraining}
+      onBack={() => {
+        if (!actionBusy.current) backToTraining();
+      }}
       loading={resource.loading}
       error={resource.error}
       retry={resource.retry}
@@ -182,6 +215,7 @@ export function WorkoutDetailScreen() {
             setFeedbackOpen(true);
           }}
           feedbackSaved={feedbackSaved}
+          busy={loadingAction}
           onEdit={() =>
             router.push({ pathname: "/workouts/editor", params: { workoutId } })
           }
@@ -189,19 +223,27 @@ export function WorkoutDetailScreen() {
       ) : null}
       {resource.data ? (
         <WorkoutAdjustmentSheet
-          visible={adjustOpen}
+          visible={
+            adjustOpen &&
+            !resource.data.activity &&
+            resource.data.editable !== false
+          }
           loading={loadingAction}
           error={actionError}
-          onClose={() => setAdjustOpen(false)}
+          onClose={() => {
+            if (!actionBusy.current) setAdjustOpen(false);
+          }}
           onSubmit={(reason, notes) => void requestAdjustment(reason, notes)}
         />
       ) : null}
       {resource.data ? (
         <WorkoutFeedbackSheet
-          visible={feedbackOpen}
+          visible={feedbackOpen && !resource.data.activity}
           loading={loadingAction}
           error={actionError}
-          onClose={() => setFeedbackOpen(false)}
+          onClose={() => {
+            if (!actionBusy.current) setFeedbackOpen(false);
+          }}
           onSubmit={(input) => void recordFeedback(input)}
         />
       ) : null}
@@ -210,7 +252,9 @@ export function WorkoutDetailScreen() {
           visible
           transparent
           animationType="fade"
-          onRequestClose={() => setPreview(null)}
+          onRequestClose={() => {
+            if (!actionBusy.current) setPreview(null);
+          }}
         >
           <WorkoutAdjustmentPreview
             original={resource.data}
@@ -218,7 +262,9 @@ export function WorkoutDetailScreen() {
             loading={loadingAction}
             error={actionError}
             onApply={() => void applyAdjustment()}
-            onClose={() => setPreview(null)}
+            onClose={() => {
+              if (!actionBusy.current) setPreview(null);
+            }}
           />
         </Modal>
       ) : null}

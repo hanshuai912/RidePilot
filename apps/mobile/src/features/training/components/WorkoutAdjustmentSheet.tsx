@@ -7,7 +7,7 @@ import { AppText, Button, Card, Input } from "../../../components/ui";
 type Reason = NonNullable<WeekGenerationInput["reason"]>;
 
 const reasons: [Reason, string][] = [
-  ["TIME_SHORT", "今天时间不够"],
+  ["TIME_SHORT", "可用时间不够"],
   ["FATIGUE", "疲劳或睡眠不足"],
   ["WEATHER", "天气不适合"],
   ["SCHEDULE", "临时有事"],
@@ -55,6 +55,7 @@ export function WorkoutAdjustmentSheet({
             {reasons.map(([value, label]) => (
               <Pressable
                 key={value}
+                disabled={loading}
                 accessibilityRole="radio"
                 accessibilityState={{ selected: reason === value }}
                 className={`min-h-11 rounded-[13px] border px-3 py-3 ${reason === value ? "border-brand bg-brand-subtle" : "border-border bg-surface-2"}`}
@@ -72,6 +73,7 @@ export function WorkoutAdjustmentSheet({
         <Card className="mt-4">
           <AppText variant="card">补充说明（选填）</AppText>
           <Input
+            editable={!loading}
             className="mt-3"
             accessibilityLabel="调整原因补充说明"
             value={notes}

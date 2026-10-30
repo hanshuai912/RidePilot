@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../../infra/prisma/prisma.service";
+import { workoutActivities } from "./workout-activity";
 
 @Injectable()
 export class TrainingRepository {
@@ -46,20 +47,18 @@ export class TrainingRepository {
     });
   }
 
-  findRecordedWorkoutIds(userId: string, workoutIds: string[]) {
-    if (workoutIds.length === 0) return Promise.resolve([] as string[]);
-    return this.prisma.trainingActivity
-      .findMany({
-        where: {
-          userId,
-          workoutId: { in: workoutIds },
-        },
-        select: { workoutId: true },
-      })
-      .then((activities) =>
-        activities.flatMap((activity) =>
-          activity.workoutId ? [activity.workoutId] : [],
-        ),
-      );
+  activities(userId: string, workouts: { id: string; structure: unknown }[]) {
+    return workoutActivities(this.prisma, userId, workouts);
+  }
+
+  futureWorkouts(userId: string, from: Date) {
+    return this.prisma.workout.findMany({
+      where: {
+        scheduledDate: { gte: from },
+        planVersion: { activeForPlan: { userId, status: "ACTIVE" } },
+      },
+      include: { planVersion: { select: { versionNo: true } } },
+      orderBy: [{ scheduledDate: "asc" }, { dayOrder: "asc" }],
+    });
   }
 }

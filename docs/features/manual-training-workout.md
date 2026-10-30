@@ -139,3 +139,7 @@
 - `apps/mobile`：`./node_modules/.bin/expo export --platform web --output-dir /tmp/ridepilot-manual-save-web`、`./node_modules/.bin/expo export --platform android --output-dir /tmp/ridepilot-manual-save-android` 均通过。
 
 本次无数据库迁移或新增依赖。未进行真机操作验收；移动端导航测试 mock API，后端原子发布实现沿用已有接口。
+
+## 首页入口与反馈刷新（2026-10-30）
+
+首页通过 `action=adjust|feedback` 复用课程详情已有表单。反馈失败保留状态、数字和备注，成功重新读取详情展示服务端记录；已有记录的课程禁止重复反馈、编辑和 AI 调整。单节调整预览展示原日期与候选日期，明确仅替换一节；失败保留草稿，应用响应超时重试原提案与幂等键，成功返回训练日历读取新版本，不再读取失效的旧课程 ID。无训练日支持从首页手动创建当天课程。

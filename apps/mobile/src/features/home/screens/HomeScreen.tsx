@@ -1,90 +1,100 @@
-import { useCallback, useState } from "react";
-import { router, useFocusEffect } from "expo-router";
+import { router } from "expo-router";
+import { RefreshControl } from "react-native";
+import type { CalendarResponse } from "@ridepilot/contracts";
 
 import { Screen } from "../../../components/layout/Screen";
-import { AppText, Spinner } from "../../../components/ui";
+import { AppText } from "../../../components/ui";
+import { colors } from "../../../theme/colors";
 import { useAuth } from "../../auth/hooks/AuthProvider";
-import { getProfile } from "../../profile/services/profile.api";
-import { coachApi, type CoachPlanStatus } from "../../coach/services/coach.api";
-import { HomeActivePlanCard } from "../components/HomeActivePlanCard";
-import { HomeEmptyPlanCard } from "../components/HomeEmptyPlanCard";
 import { HomeHeader } from "../components/HomeHeader";
 import { HomeStatusCard } from "../components/HomeStatusCard";
+import { HomeTrainingSection } from "../components/HomeTrainingSection";
+import { HomeNutritionSection } from "../components/HomeNutritionSection";
+import { HomeResourceFeedback } from "../components/HomeResourceFeedback";
+import { useHomeData } from "../hooks/useHomeData";
 
-export function HomeScreen() {
-  const { session } = useAuth();
-  const [displayName, setDisplayName] = useState("骑行者");
-  const [profileState, setProfileState] = useState<
-    "loading" | "ready" | "error"
-  >("loading");
-  const [planStatus, setPlanStatus] = useState<CoachPlanStatus | null>(null);
-  const [planState, setPlanState] = useState<"loading" | "ready" | "error">(
-    "loading",
-  );
-
-  useFocusEffect(
-    useCallback(() => {
-      if (!session?.accessToken) return;
-      let active = true;
-      setPlanState("loading");
-      void getProfile(session.accessToken)
-        .then((profile) => {
-          if (!active) return;
-          setDisplayName(profile.displayName || "骑行者");
-          setProfileState("ready");
-        })
-        .catch(() => {
-          if (active) setProfileState("error");
-        });
-      void coachApi
-        .planStatus(session.accessToken)
-        .then((status) => {
-          if (!active) return;
-          setPlanStatus(status);
-          setPlanState("ready");
-        })
-        .catch(() => {
-          if (active) setPlanState("error");
-        });
-      return () => {
-        active = false;
-      };
-    }, [session]),
-  );
-
+function HomeContent({ token }: { token: string }) {
+  const home = useHomeData(token);
+  const refresh = () => void home.refresh();
+  const refreshing = [
+    home.profile,
+    home.plan,
+    home.training,
+    home.nutrition,
+    home.next,
+  ].some((resource) => resource.loading);
+  const openWorkout = (
+    workout: CalendarResponse["items"][number],
+    action?: "adjust" | "feedback",
+  ) =>
+    router.push({
+      pathname: "/workouts/[workoutId]",
+      params: { workoutId: workout.id, ...(action ? { action } : {}) },
+    });
   return (
     <Screen
       scroll
-      scrollProps={{ contentContainerClassName: "grow px-4 pb-10" }}
+      scrollProps={{
+        contentContainerClassName: "grow gap-5 px-4 pb-10",
+        refreshControl: (
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={refresh}
+            accessibilityLabel="刷新首页"
+            tintColor={colors.brand}
+            colors={[colors.brand]}
+            progressBackgroundColor={colors.surface1}
+          />
+        ),
+      }}
     >
       <HomeHeader
-        displayName={displayName}
+        displayName={home.profile.data?.displayName || "骑行者"}
+        timezone={home.profile.data?.timezone}
         onProfilePress={() => router.push("/(tabs)/profile")}
       />
-      {profileState === "loading" ? (
-        <Spinner accessibilityLabel="正在加载个人档案" />
-      ) : null}
-      {profileState === "error" ? (
-        <AppText variant="caption" className="mb-3 text-secondary">
-          个人档案暂时无法加载，当前使用默认称呼。
-        </AppText>
-      ) : null}
-      {planState === "loading" ? (
-        <Spinner accessibilityLabel="正在加载正式计划" />
-      ) : null}
-      {planState === "error" ? (
-        <AppText variant="caption" className="mb-3 text-warning">
-          暂时无法确认正式计划状态，请稍后重试。
-        </AppText>
-      ) : null}
-      {planState === "ready" && planStatus ? (
-        planStatus.hasActivePlan ? (
-          <HomeActivePlanCard version={planStatus.planVersion} />
-        ) : (
-          <HomeEmptyPlanCard />
-        )
-      ) : null}
+      <HomeResourceFeedback
+        {...home.profile}
+        cached={!!home.profile.data}
+        label="首页"
+        onRetry={refresh}
+      />
+      <HomeTrainingSection
+        training={home.training}
+        hasPlan={home.plan.data?.hasActivePlan}
+        next={home.next}
+        onRetry={refresh}
+        onWorkout={openWorkout}
+        onCalendar={() =>
+          router.push({
+            pathname: "/(tabs)/training",
+            params: home.date ? { date: home.date } : {},
+          })
+        }
+        onCreate={() =>
+          router.push({
+            pathname: "/workouts/new",
+            params: home.date ? { date: home.date } : {},
+          })
+        }
+      />
       <HomeStatusCard />
+      <HomeNutritionSection
+        resource={home.nutrition}
+        onRetry={refresh}
+        onOpen={() => router.push("/(tabs)/nutrition")}
+      />
+    </Screen>
+  );
+}
+
+export function HomeScreen() {
+  const { session } = useAuth();
+  return session ? (
+    <HomeContent key={session.user.id} token={session.accessToken} />
+  ) : (
+    <Screen>
+      <AppText>请先登录后查看今日安排。</AppText>
     </Screen>
   );
 }

@@ -8,16 +8,17 @@ AI 教练新增的计划生成、调整、历史恢复及相关资料接口见 [
 
 ## 接口
 
-| 方法  | 路径                                      | 说明                         |
-| ----- | ----------------------------------------- | ---------------------------- |
-| POST  | `/workouts/manual-proposals`              | 创建手动骑行课程草稿         |
-| POST  | `/workouts/:workoutId/edit-proposal`      | 创建当天或未来课程编辑草稿   |
-| GET   | `/proposals/:proposalId`                  | 查询提案和校验状态           |
-| PATCH | `/proposals/:proposalId`                  | 保存草稿动作                 |
-| POST  | `/proposals/:proposalId/validate`         | 服务端校验草稿               |
-| POST  | `/proposals/:proposalId/apply`            | 幂等应用并创建新正式计划版本 |
-| GET   | `/workouts/:workoutId`                    | 查询课程详情                 |
-| GET   | `/calendar?from=YYYY-MM-DD&to=YYYY-MM-DD` | 查询当前正式版本课程         |
+| 方法  | 路径                                      | 说明                                                 |
+| ----- | ----------------------------------------- | ---------------------------------------------------- |
+| POST  | `/workouts/manual-proposals`              | 创建手动骑行课程草稿                                 |
+| POST  | `/workouts/:workoutId/edit-proposal`      | 创建当天或未来课程编辑草稿                           |
+| GET   | `/proposals/:proposalId`                  | 查询提案和校验状态                                   |
+| PATCH | `/proposals/:proposalId`                  | 保存草稿动作                                         |
+| POST  | `/proposals/:proposalId/validate`         | 服务端校验草稿                                       |
+| POST  | `/proposals/:proposalId/apply`            | 幂等应用并创建新正式计划版本                         |
+| GET   | `/workouts/next`                          | 当地今天起下一节未记录课程，返回 `{ workout: summary | null }` |
+| GET   | `/workouts/:workoutId`                    | 查询课程详情                                         |
+| GET   | `/calendar?from=YYYY-MM-DD&to=YYYY-MM-DD` | 查询当前正式版本课程                                 |
 
 ## 关键规则
 
@@ -35,3 +36,13 @@ AI 教练新增的计划生成、调整、历史恢复及相关资料接口见 [
 - 未校验返回 `409 PROPOSAL_NOT_READY`；已应用提案禁止编辑/重新校验。READY 草稿修改后恢复 DRAFT，需重新校验。
 - 同一个幂等键用于另一份提案返回 `409 IDEMPOTENCY_KEY_CONFLICT`。
 - 日历和课程详情只返回当前正式版本，历史副本返回 `404 WORKOUT_NOT_FOUND`；人工来源不影响正式计划资格。
+
+## 课程读取与反馈状态
+
+首页统一使用 [首页聚合接口](./home.md)；`GET /workouts/next` 保留给 AI 范围选择及其他独立课程入口。
+
+`GET /workouts/next` 按账号时区确定今天，仅查询当前用户 ACTIVE 计划的当前正式版本，按 `scheduledDate`、`dayOrder` 升序跳过所有已有反馈的课程（包含部分完成与跳过），返回 `{ workout: <课程摘要> }`；无计划/无待执行课程返回 `{ workout: null }`。没有固定未来日期上限；未登录返回 401。使用对象封装保证空结果仍是合法 JSON。
+
+日历、课程详情和下一课程共享 `workoutSummarySchema`。日历/详情新增 `activity: null | { id, status, durationMin, rpe, fatigue, notes }`；状态为 `COMPLETED | PARTIAL | SKIPPED`，其余实际指标可空。`editable` 同时校验当地日期和实际记录。客户端不从计划目标推断已完成数据。
+
+反馈写入与计划发布共享用户事务锁；只接受当前正式版本、本人所属且日期匹配的课程。已记录返回 `409 ACTIVITY_ALREADY_RECORDED`。人工编辑和最终应用遇到已有反馈返回 `409 WORKOUT_ALREADY_RECORDED`，事务回滚，正式计划保持不变。未改动课程跨版本通过内部稳定引用继续关联原记录。

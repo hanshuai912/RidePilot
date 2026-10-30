@@ -1,7 +1,7 @@
 import { View } from "react-native";
 import { AppText, Button, Card } from "../../../components/ui";
 import type { Workout } from "../model/training";
-import { dateLabel, iso } from "../model/training";
+import { dateLabel } from "../model/training";
 import { WorkoutSegmentList, segmentTotals } from "./WorkoutSegmentList";
 import { WorkoutProfileChart } from "./WorkoutProfileChart";
 import { Total } from "./TrainingParts";
@@ -13,15 +13,18 @@ export function Detail({
   onAdjust,
   onFeedback,
   feedbackSaved,
+  busy = false,
 }: {
   workout: Workout;
   onEdit: () => void;
   onAdjust: () => void;
   onFeedback: () => void;
   feedbackSaved: boolean;
+  busy?: boolean;
 }) {
   const totals = segmentTotals(workout.segments);
-  const canAdjust = workout.scheduledDate >= iso(new Date());
+  const recorded = !!workout.activity || feedbackSaved;
+  const canAdjust = workout.editable !== false && !recorded;
   return (
     <View style={styles.page}>
       <AppText variant="caption" muted>
@@ -55,13 +58,53 @@ export function Detail({
         </AppText>
       </View>
       <WorkoutSegmentList segments={workout.segments} />
-      <Button onPress={onFeedback} variant="secondary">
-        {feedbackSaved ? "已记录训练反馈" : "记录训练反馈"}
+      {workout.activity ? (
+        <Card>
+          <AppText variant="card">
+            {
+              { COMPLETED: "已完成", PARTIAL: "部分完成", SKIPPED: "已跳过" }[
+                workout.activity.status
+              ]
+            }
+          </AppText>
+          <AppText variant="caption" muted>
+            {[
+              workout.activity.durationMin !== null
+                ? `实际 ${workout.activity.durationMin} 分钟`
+                : null,
+              workout.activity.rpe !== null
+                ? `RPE ${workout.activity.rpe}`
+                : null,
+              workout.activity.fatigue !== null
+                ? `疲劳 ${workout.activity.fatigue}`
+                : null,
+              workout.activity.notes,
+            ]
+              .filter(Boolean)
+              .join(" · ") || "已保存实际训练记录"}
+          </AppText>
+        </Card>
+      ) : null}
+      <Button
+        onPress={onFeedback}
+        variant="secondary"
+        disabled={recorded || busy}
+      >
+        {recorded ? "已记录训练反馈" : "记录训练反馈"}
       </Button>
-      <Button onPress={onAdjust} className="mt-2" disabled={!canAdjust}>
-        {canAdjust ? "让 AI 调整这节课" : "历史课程不可调整"}
+      <Button onPress={onAdjust} className="mt-2" disabled={!canAdjust || busy}>
+        {canAdjust
+          ? "让 AI 调整这节课"
+          : recorded
+            ? "已记录课程不可调整"
+            : "历史课程不可调整"}
       </Button>
-      <Button onPress={onEdit} variant="ghost" className="mt-2">
+      <Button
+        onPress={onEdit}
+        variant="ghost"
+        className="mt-2"
+        disabled={!canAdjust || busy}
+      >
         编辑动作
       </Button>
     </View>
