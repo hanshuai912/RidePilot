@@ -44,6 +44,8 @@ export const rangeGenerationSchema = z.discriminatedUnion("scope", [
     goalId: z.uuid(),
     stageId: z.uuid(),
     expectedBaseVersion: z.number().int().nonnegative(),
+    assessmentId: z.uuid().optional(),
+    assessmentVersion: z.number().int().positive().optional(),
     notes: z.string().trim().max(200).optional(),
   }),
   z.strictObject({
@@ -52,6 +54,8 @@ export const rangeGenerationSchema = z.discriminatedUnion("scope", [
     startDate: z.iso.date(),
     endDate: z.iso.date(),
     expectedBaseVersion: z.number().int().nonnegative(),
+    assessmentId: z.uuid().optional(),
+    assessmentVersion: z.number().int().positive().optional(),
     notes: z.string().trim().max(200).optional(),
   }),
 ]);

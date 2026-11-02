@@ -49,7 +49,7 @@
 | GET / POST / PATCH | `/goals`、`/goals/:id`                            | 目标列表、创建、查看和版本化修改                                |
 | GET                | `/ai-coach/readiness`、`/plans/active/status`     | AI 输入缺失项及当前正式版本                                     |
 | GET / POST         | `/activities`                                     | 查询 / 记录已发布课程的完成状态、RPE 与疲劳                     |
-| GET / POST / PATCH | `/assessments`、`/assessments/:id`                | 测试安排及结果；更新传 `expectedVersion`                        |
+| GET / POST / PATCH | `/assessments`、`/assessments/:id`                | 测试安排及结果；需预览、幂等键和版本，见下文阶段测试 API        |
 | GET / POST / PATCH | `/races`、`/races/:id`                            | 赛事及状态；更新传 `expectedVersion`                            |
 | POST               | `/plans/generate-proposal`                        | 首份或空白未来周计划，返回异步任务                              |
 | POST               | `/workouts/:id/ai-adjust-proposal`                | 调整一节未来课程                                                |
@@ -118,7 +118,7 @@ Content-Type: application/json
   ],
   "warnings": [],
   "blockers": [],
-  "skillVersion": "1.2.0",
+  "skillVersion": "1.3.0",
   "model": "<configured-model>"
 }
 ```
@@ -147,3 +147,5 @@ Content-Type: application/json
 课程详情的“让 AI 调整这节课”使用 `POST /workouts/:id/ai-adjust-proposal`，默认请求体为 `mode=replace_workout`，并传入课程的 `planVersion`、目标、周一日期、快捷原因和可选说明。客户端读取异步任务关联的提案后，显示原课程和新课程差异；只有提案重新校验为 `READY`，并经用户确认，才调用 `/proposals/:id/apply`。
 
 课程详情的“记录训练反馈”使用 `POST /activities`，保存完成状态、实际时长、RPE、疲劳和备注。训练记录与正式计划版本独立保存，已记录课程不再作为可调整课程覆盖。响应结构包含 `id`、`workoutId`、`localDate`、`status`、`durationMin`、`rpe`、`fatigue` 和 `notes`。
+
+阶段测试安排、结果及 FTP 独立确认已升级，字段、预览、幂等和迁移见 [阶段测试 API](assessments.md)。范围生成可携带 assessmentId / assessmentVersion，课程应用前重查证据版本。

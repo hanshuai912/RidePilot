@@ -493,21 +493,38 @@ describeWithDatabase("AI coach weekly plan API", () => {
     expect(adjustedCalendar.body.items).toHaveLength(1);
     expect(adjustedCalendar.body.items[0].planVersion).toBe(2);
 
+    const assessmentInput = {
+      goalId: goal.body.id,
+      localDate: new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Shanghai",
+      }).format(new Date()),
+      protocol: "FTP_TEST",
+      kind: "FTP",
+    };
+    const assessmentPreview = await post("assessments/schedule-preview")
+      .send(assessmentInput)
+      .expect(201);
     const assessment = await post("assessments")
+      .set("Idempotency-Key", randomUUID())
       .send({
-        goalId: goal.body.id,
-        localDate: new Date().toISOString().slice(0, 10),
-        protocol: "FTP_TEST",
+        ...assessmentInput,
+        previewToken: assessmentPreview.body.token,
+        acknowledgeConflicts: true,
       })
       .expect(201);
     await request(app.getHttpServer())
       .patch(`/api/v1/assessments/${assessment.body.id}`)
       .set("Authorization", `Bearer ${token}`)
+      .set("Idempotency-Key", randomUUID())
       .send({
         expectedVersion: 1,
         status: "COMPLETED",
         resultWatts: 255,
         conditions: "室内骑行台",
+        protocol: "FTP_TEST",
+        actualDate: assessmentInput.localDate,
+        source: "TRAINER",
+        rpe: 8,
       })
       .expect(200);
     const review = await post(

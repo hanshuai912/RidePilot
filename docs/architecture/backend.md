@@ -11,3 +11,5 @@
 `AuthModule` 注册全局认证守卫。所有 Nest Controller 路由默认要求 Access Token；只有显式标记 `@Public()` 的健康检查、注册、登录和刷新接口公开。守卫校验 JWT 类型、签名和数据库会话状态，退出后访问立即失效。后续涉及用户数据的服务还需按当前 `userId` 检查资源归属，不能把登录态验证当作归属校验。
 
 设计取舍见 [ADR 0001](../adr/0001-backend-foundation.md)和[ADR 0002](../adr/0002-authentication.md)，运行命令见 [README](../../README.md)。
+
+阶段测试服务位于 CoachModule，按日程冲突、状态与幂等写入、复评证据拆分，原 CoachEvents 仅保留活动和赛事。范围 AI 上下文读取服务端复评证据，正式课程应用复用原版本事务。见 [阶段测试](../features/stage-assessments.md)。

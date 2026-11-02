@@ -8,6 +8,7 @@ export function useUnsavedTraining(
   dirty: boolean,
   description = "返回后本次修改仍保留在当前训练流程内，退出应用后无法恢复。",
   busy = false,
+  title = "还有未保存的课程修改",
 ) {
   const navigation = useNavigation();
   const [leave, setLeave] = useState<(() => void) | null>(null);
@@ -17,7 +18,7 @@ export function useUnsavedTraining(
   });
   const props: ComponentProps<typeof Dialog> = {
     visible: leave !== null,
-    title: "还有未保存的课程修改",
+    title,
     description,
     onClose: () => setLeave(null),
     children: (

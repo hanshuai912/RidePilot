@@ -7,11 +7,13 @@ export function StageTimeline({
   selectedId,
   onSelect,
   today,
+  onAssessment,
 }: {
   plan: StagePlanResponse;
   selectedId?: string;
   onSelect?: (id: string) => void;
   today?: string;
+  onAssessment?: (stageId: string, date: string) => void;
 }) {
   return (
     <>
@@ -45,6 +47,21 @@ export function StageTimeline({
           <AppText variant="caption" muted className="mt-3">
             复评建议：{stage.assessmentSuggestion}
           </AppText>
+          {onAssessment ? (
+            <Button
+              className="mt-3"
+              variant="secondary"
+              disabled={plan.stale}
+              onPress={() =>
+                onAssessment(
+                  stage.id,
+                  today && stage.endDate < today ? today : stage.endDate,
+                )
+              }
+            >
+              安排阶段测试
+            </Button>
+          ) : null}
           {onSelect ? (
             <Button
               className="mt-3"
@@ -58,7 +75,7 @@ export function StageTimeline({
         </Card>
       ))}
       <AppText variant="caption" muted>
-        复评建议尚未创建测试日程；阶段安排确认后，仍需另行生成并确认具体课程。
+        阶段复评建议需另行安排为测试日程；具体课程也需生成草稿并确认。
       </AppText>
     </>
   );

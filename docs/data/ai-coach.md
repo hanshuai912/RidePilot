@@ -27,3 +27,5 @@ FTP 使用现有 `AbilityMeasurement` 的 `metricType=FTP`、`unit=W`。课程�
 复用 AiGeneration 的 `scene=STAGE_PLAN` 和现有 Worker，不增加队列依赖。阶段生成成功先持久化 DRAFT，AiGeneration.proposalId 在此场景指向阶段计划 UUID；其他课程场景继续指向 ChangeProposal。阶段选择生成课程时在草稿中记录不可变 stageId 和解析日期，校验/应用重查当前有效阶段与目标版本。
 
 迁移仅新增表，不改写既有课程。验证先在隔离 `_test` 库执行 `prisma migrate deploy`，再执行集成测试。部署前运行 `pnpm --filter @ridepilot/api db:generate` 和 `db:deploy`。回退应用版本可保留新增表；需要物理回滚时须先备份阶段数据并确认没有引用，再单独制定删除表迁移，本任务不执行删除。
+
+阶段测试新增类型、实际日期、来源/RPE、阶段关联及幂等日志，见 [阶段测试数据](assessments.md)。旧版测试保留为 LEGACY，不可自动用来更新 FTP。

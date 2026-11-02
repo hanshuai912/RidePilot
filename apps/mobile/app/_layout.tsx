@@ -64,6 +64,7 @@ function AuthenticatedStack() {
         />
         <Stack.Screen name="workouts" options={{ headerShown: false }} />
         <Stack.Screen name="goals" options={{ headerShown: false }} />
+        <Stack.Screen name="assessments" options={{ headerShown: false }} />
         <Stack.Screen
           name="heart-rate-zones"
           options={{ headerShown: false, title: "心率区间" }}

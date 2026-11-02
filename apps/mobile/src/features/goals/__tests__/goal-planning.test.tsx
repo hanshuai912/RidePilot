@@ -21,6 +21,9 @@ import type {
   StagePlanResponse,
 } from "@ridepilot/contracts";
 
+jest.mock("../../assessments/services/assessments.api", () => ({
+  assessmentsApi: { list: jest.fn().mockResolvedValue([]) },
+}));
 jest.mock("../../auth/hooks/AuthProvider", () => ({ useAuth: jest.fn() }));
 jest.mock("../../profile/services/profile.api", () => ({
   getProfile: jest.fn(),

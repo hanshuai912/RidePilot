@@ -111,3 +111,5 @@ export type {
 } from "./training";
 export { homeTodayResponseSchema, homeTrainingSchema } from "./home";
 export type { HomeTodayResponse, HomeTraining } from "./home";
+
+export * from "./assessments";

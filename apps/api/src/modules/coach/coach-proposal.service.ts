@@ -362,7 +362,7 @@ export class CoachProposalService {
         }),
         tx.trainingRace.findMany({ where: { userId, status: "CONFIRMED" } }),
         tx.trainingAssessment.findMany({
-          where: { userId, status: "SCHEDULED" },
+          where: { userId, status: { in: ["SCHEDULED", "POSTPONED"] } },
         }),
       ]);
     const blockers: string[] = [];

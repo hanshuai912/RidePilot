@@ -1,6 +1,8 @@
+import { assessmentsApi } from "../../assessments/services/assessments.api";
+import { AssessmentList } from "../../assessments/components/AssessmentList";
 import { useCallback, useState } from "react";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
-import type { CalendarResponse } from "@ridepilot/contracts";
+import type { CalendarResponse, Assessment } from "@ridepilot/contracts";
 import { Screen } from "../../../components/layout/Screen";
 import { AppText, Button } from "../../../components/ui";
 import { useAuth } from "../../auth/hooks/AuthProvider";
@@ -38,6 +40,8 @@ function TrainingCalendar({
     ),
   );
   const [calendar, setCalendar] = useState<CalendarResponse | null>(null);
+  const [assessments, setAssessments] = useState<Assessment[]>([]);
+  const [assessmentError, setAssessmentError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
@@ -53,22 +57,29 @@ function TrainingCalendar({
       let active = true;
       setLoading(true);
       setFeedback(null);
-      trainingApi
-        .getCalendar(token, weekStart, weekEnd)
-        .then((data) => {
-          if (active) setCalendar(data);
-        })
-        .catch((error: unknown) => {
-          if (active) {
-            setCalendar(null);
-            setFeedback(
-              error instanceof Error ? error.message : "训练日历加载失败",
-            );
-          }
-        })
-        .finally(() => {
-          if (active) setLoading(false);
-        });
+      Promise.allSettled([
+        trainingApi.getCalendar(token, weekStart, weekEnd),
+        assessmentsApi.list(token, { from: weekStart, to: weekEnd }),
+      ]).then(([courses, tests]) => {
+        if (!active) return;
+        if (courses.status === "fulfilled") setCalendar(courses.value);
+        else
+          setFeedback(
+            courses.reason instanceof Error
+              ? courses.reason.message
+              : "训练日历加载失败",
+          );
+        if (tests.status === "fulfilled") {
+          setAssessments(tests.value);
+          setAssessmentError(null);
+        } else
+          setAssessmentError(
+            tests.reason instanceof Error
+              ? tests.reason.message
+              : "测试日程加载失败",
+          );
+        setLoading(false);
+      });
       return () => {
         active = false;
       };
@@ -97,6 +108,7 @@ function TrainingCalendar({
       ) : null}
       <Home
         days={days}
+        assessmentDates={assessments.map((item) => item.localDate)}
         selectedDate={selectedDate}
         workouts={calendar?.items ?? []}
         selectedWorkouts={
@@ -130,6 +142,32 @@ function TrainingCalendar({
         }
         onEdit={edit}
       />
+      <AppText variant="section">当日阶段测试</AppText>
+      {assessments.some(
+        (item) =>
+          item.localDate === selectedDate &&
+          ["SCHEDULED", "POSTPONED"].includes(item.status),
+      ) &&
+      calendar?.items.some((item) => item.scheduledDate === selectedDate) ? (
+        <AppText muted>
+          当天同时安排了课程和测试，请检查是否需要改期或另行调整课程。
+        </AppText>
+      ) : null}
+      <AssessmentList
+        items={assessments.filter((item) => item.localDate === selectedDate)}
+        empty="当天没有测试安排"
+      />
+      {assessmentError ? (
+        <>
+          <AppText style={styles.error}>{assessmentError}</AppText>
+          <Button
+            variant="secondary"
+            onPress={() => setAttempt((value) => value + 1)}
+          >
+            重试读取日程
+          </Button>
+        </>
+      ) : null}
       <Button variant="secondary" onPress={() => router.push("/goals")}>
         目标与阶段 · 生成课程
       </Button>

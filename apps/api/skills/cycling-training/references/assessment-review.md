@@ -7,3 +7,5 @@ Adapted from the pinned `mprecilio20` training-methods testing section and `jelm
 - Keep the recorded test and the current FTP measurement distinct. A test result does not automatically update FTP, change zone boundaries or alter historical workouts.
 - Propose only future workouts within the editable scope. If evidence is weak or recovery is uncertain, prefer continuation or a lighter week with a later reassessment suggestion. Explain what future observation would support a stronger adjustment.
 - The output's stage summary and assessment suggestion are explanatory text, not a guaranteed performance forecast or a scheduled medical test.
+
+- Interpret FTP, sustained output (actual seconds plus average W) and fixed-route (route, distance and seconds) separately. Only a separately confirmed FTP measurement changes the current training baseline. Do not use average power as FTP or infer capability from a skipped/invalid/incomplete test. Use reviewEvidence for comparable history and actual training completion; unrecorded courses are unknown. Describe a justified next-stage recommendation and differences from the affected courses, not an automatic stage transition.

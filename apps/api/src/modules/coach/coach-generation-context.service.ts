@@ -1,3 +1,4 @@
+import { AssessmentReviewService } from "./assessment-review.service";
 import {
   BadRequestException,
   ConflictException,
@@ -19,6 +20,7 @@ export class CoachGenerationContextService {
     private readonly prisma: PrismaService,
     private readonly data: CoachDataService,
     private readonly ranges: TrainingRangeService,
+    private readonly reviews: AssessmentReviewService,
   ) {}
   async load(
     userId: string,
@@ -127,7 +129,7 @@ export class CoachGenerationContextService {
           where: { userId, status: "CONFIRMED" },
         }),
         this.prisma.trainingAssessment.findMany({
-          where: { userId, status: "SCHEDULED" },
+          where: { userId, status: { in: ["SCHEDULED", "POSTPONED"] } },
         }),
       ]);
     if (!ftp || !availability || !profile?.experienceLevel)
@@ -231,30 +233,43 @@ export class CoachGenerationContextService {
         message: "该范围没有可调整的未来课程",
       });
     let relatedEvent: Record<string, unknown> | null = null;
-    if (scene === "ASSESSMENT_REVIEW") {
-      const assessment = await this.prisma.trainingAssessment.findFirst({
-        where: { id: input.relatedId, userId },
-      });
-      if (!assessment)
-        throw new NotFoundException({
-          code: "ASSESSMENT_NOT_FOUND",
-          message: "测试不存在",
+    if (
+      scene === "ASSESSMENT_REVIEW" ||
+      (scene === "RANGE_PLAN" && input.relatedId)
+    ) {
+      const review = await this.reviews.review(userId, input.relatedId!);
+      const assessment = review.assessment;
+      if (assessment.goalId && assessment.goalId !== input.goalId)
+        throw new ConflictException({
+          code: "ASSESSMENT_GOAL_MISMATCH",
+          message: "测试与所选目标不一致",
         });
-      if (!["COMPLETED", "POSTPONED"].includes(assessment.status))
+      if (input.relatedVersion && input.relatedVersion !== assessment.version)
+        throw new ConflictException({
+          code: "ASSESSMENT_VERSION_CONFLICT",
+          message: "测试已变化，请重新复评",
+        });
+      if (
+        ![
+          "COMPLETED",
+          "POSTPONED",
+          "INCOMPLETE",
+          "SKIPPED",
+          "INVALID",
+        ].includes(assessment.status)
+      )
         throw new ConflictException({
           code: "ASSESSMENT_NOT_REVIEWABLE",
           message: "测试结果尚不可复评",
         });
       relatedEvent = {
-        id: assessment.id,
-        version: assessment.version,
-        protocol: assessment.protocol,
-        status: assessment.status,
-        resultWatts: assessment.resultWatts
-          ? Number(assessment.resultWatts)
-          : null,
-        conditions: assessment.conditions,
-        localDate: dbToDate(assessment.localDate),
+        ...assessment,
+        reviewEvidence: {
+          previous: review.previous,
+          comparison: review.comparison,
+          training: review.training,
+          messages: review.messages,
+        },
       };
     }
     if (scene === "RACE_REPLAN") {

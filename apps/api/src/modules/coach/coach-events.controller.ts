@@ -2,13 +2,9 @@ import { Body, Controller, Get, Param, Patch, Post } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import {
   activityInputSchema,
-  assessmentInputSchema,
-  assessmentPatchSchema,
   raceInputSchema,
   racePatchSchema,
   type ActivityInput,
-  type AssessmentInput,
-  type AssessmentPatch,
   type RaceInput,
   type RacePatch,
 } from "@ridepilot/contracts";
@@ -34,46 +30,6 @@ export class CoachEventsController {
     @Body(new ZodBodyPipe(activityInputSchema)) input: ActivityInput,
   ) {
     return this.events.recordActivity(user.userId, input);
-  }
-
-  @Get("assessments")
-  assessments(@CurrentPrincipal() user: AuthPrincipal) {
-    return this.events.listAssessments(user.userId);
-  }
-
-  @Post("assessments")
-  assessment(
-    @CurrentPrincipal() user: AuthPrincipal,
-    @Body(new ZodBodyPipe(assessmentInputSchema)) input: AssessmentInput,
-  ) {
-    return this.events.createAssessment(user.userId, input);
-  }
-
-  @Get("assessments/:id")
-  async getAssessment(
-    @CurrentPrincipal() user: AuthPrincipal,
-    @Param("id") id: string,
-  ) {
-    const item = await this.events.getAssessment(user.userId, id);
-    return {
-      id: item.id,
-      goalId: item.goalId,
-      localDate: item.localDate.toISOString().slice(0, 10),
-      protocol: item.protocol,
-      status: item.status,
-      resultWatts: item.resultWatts ? Number(item.resultWatts) : null,
-      conditions: item.conditions,
-      version: item.version,
-    };
-  }
-
-  @Patch("assessments/:id")
-  patchAssessment(
-    @CurrentPrincipal() user: AuthPrincipal,
-    @Param("id") id: string,
-    @Body(new ZodBodyPipe(assessmentPatchSchema)) input: AssessmentPatch,
-  ) {
-    return this.events.patchAssessment(user.userId, id, input);
   }
 
   @Get("races")

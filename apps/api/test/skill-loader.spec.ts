@@ -7,7 +7,7 @@ describe("cycling skill source selection", () => {
     const weekly = await loader.load("weekly-planning");
     const adjustment = await loader.load("adaptive-adjustment");
 
-    expect(weekly.version).toBe("1.2.0");
+    expect(weekly.version).toBe("1.3.0");
     expect(weekly.content).toContain("FTP-based cycling intensity reference");
     expect(weekly.content).toContain("estruyf");
     expect(weekly.content).not.toContain("tp_create_workout");

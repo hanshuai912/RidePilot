@@ -1,3 +1,4 @@
+import { GoalAssessments } from "../../assessments/components/GoalAssessments";
 import { router, useIsFocused, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { View } from "react-native";
@@ -11,8 +12,11 @@ import { StageTimeline } from "../components/StageTimeline";
 import { goalLabels } from "./GoalsScreen";
 
 export function GoalDetailScreen() {
-  const { goalId = "" } = useLocalSearchParams<{ goalId?: string }>();
-  const flow = useGoalPlanning(goalId);
+  const { goalId = "", assessmentId } = useLocalSearchParams<{
+    goalId?: string;
+    assessmentId?: string;
+  }>();
+  const flow = useGoalPlanning(goalId, assessmentId);
   const focused = useIsFocused();
   const [dirty, setDirty] = useState(false);
   const guard = useUnsavedTraining(
@@ -50,6 +54,20 @@ export function GoalDetailScreen() {
               {data.ftp ? `当前 FTP ${data.ftp.valueWatts} W` : "尚未设置 FTP"}
             </AppText>
           </Card>
+          <GoalAssessments
+            goalId={goalId}
+            canSchedule={
+              !!data.ftp && data.goal.status === "ACTIVE" && !flow.busy
+            }
+          />
+          {data.assessment ? (
+            <Card>
+              <AppText>
+                基于测试「{data.assessment.protocol}
+                」选择后续课程范围。阶段不会自动推进；请确认所选日期和拟替换课程。
+              </AppText>
+            </Card>
+          ) : null}
           {!data.ftp ? (
             <FtpRequiredState />
           ) : data.goal.status !== "ACTIVE" ? (
@@ -60,6 +78,15 @@ export function GoalDetailScreen() {
               {data.stages ? (
                 <StageTimeline
                   plan={data.stages}
+                  onAssessment={
+                    flow.busy
+                      ? undefined
+                      : (stageId, date) =>
+                          router.push({
+                            pathname: "/assessments/new",
+                            params: { goalId, stageId, date },
+                          })
+                  }
                   today={data.today}
                   selectedId={flow.stageId}
                   onSelect={

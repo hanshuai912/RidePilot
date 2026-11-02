@@ -1,7 +1,7 @@
 ---
 name: cycling-training
 description: RidePilot cycling coach adapter for authenticated stage, date-range and weekly planning, adjustments, assessment review, race preparation and plan explanation.
-version: 1.2.0
+version: 1.3.0
 ---
 
 # RidePilot cycling coach

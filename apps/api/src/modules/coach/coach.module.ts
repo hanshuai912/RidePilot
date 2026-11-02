@@ -1,3 +1,7 @@
+import { AssessmentsService } from "./assessments.service";
+import { AssessmentScheduleService } from "./assessment-schedule.service";
+import { AssessmentReviewService } from "./assessment-review.service";
+import { AssessmentsController } from "./assessments.controller";
 import { Module } from "@nestjs/common";
 import { AiModule } from "../../ai/ai.module";
 import { InfraModule } from "../../infra/infra.module";
@@ -23,6 +27,7 @@ import { TrainingRangeService } from "./training-range.service";
 @Module({
   imports: [InfraModule, AiModule],
   controllers: [
+    AssessmentsController,
     StagePlansController,
     CoachDataController,
     CoachChatController,
@@ -32,6 +37,9 @@ import { TrainingRangeService } from "./training-range.service";
     AiProposalController,
   ],
   providers: [
+    AssessmentsService,
+    AssessmentScheduleService,
+    AssessmentReviewService,
     StagePlansService,
     TrainingRangeService,
     CoachGenerationContextService,

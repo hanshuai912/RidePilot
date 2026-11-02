@@ -17,6 +17,7 @@ import { WorkoutProfileChart } from "./WorkoutProfileChart";
 
 export function Home({
   days,
+  assessmentDates = [],
   selectedDate,
   selectedWorkouts,
   workouts,
@@ -32,6 +33,7 @@ export function Home({
   onEdit,
 }: {
   days: string[];
+  assessmentDates?: string[];
   selectedDate: string;
   selectedWorkouts: Workout[];
   workouts: Workout[];
@@ -92,6 +94,7 @@ export function Home({
           {days.map((day) => (
             <Pressable
               key={day}
+              accessibilityLabel={`${day}${assessmentDates.includes(day) ? "，有阶段测试" : ""}`}
               onPress={() => setSelectedDate(day)}
               style={[styles.day, day === selectedDate && styles.selectedDay]}
             >
@@ -111,10 +114,16 @@ export function Home({
               >
                 {Number(day.slice(-2))}
               </AppText>
+              {assessmentDates.includes(day) ? (
+                <AppText variant="caption" style={styles.brand}>
+                  测试
+                </AppText>
+              ) : null}
               <View
                 style={[
                   styles.dot,
-                  workouts.some((item) => item.scheduledDate === day) &&
+                  (workouts.some((item) => item.scheduledDate === day) ||
+                    assessmentDates.includes(day)) &&
                     styles.activeDot,
                 ]}
               />

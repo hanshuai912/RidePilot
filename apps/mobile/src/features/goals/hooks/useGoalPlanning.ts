@@ -1,6 +1,8 @@
+import { assessmentsApi } from "../../assessments/services/assessments.api";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { router, useFocusEffect } from "expo-router";
 import type {
+  Assessment,
   RangeGeneration,
   StagePlanGeneration,
 } from "@ridepilot/contracts";
@@ -11,7 +13,7 @@ import { getProfile } from "../../profile/services/profile.api";
 import { goalsApi } from "../services/goals.api";
 import { waitForGeneration } from "../services/wait-for-generation";
 
-export function useGoalPlanning(goalId: string) {
+export function useGoalPlanning(goalId: string, assessmentId?: string) {
   const { session } = useAuth();
   const token = session?.accessToken;
   const [data, setData] = useState<{
@@ -19,6 +21,7 @@ export function useGoalPlanning(goalId: string) {
     stages: Awaited<ReturnType<typeof goalsApi.activeStages>>;
     ftp: Awaited<ReturnType<typeof coachApi.ftp>>;
     today: string;
+    assessment: Assessment | null;
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -59,11 +62,14 @@ export function useGoalPlanning(goalId: string) {
         goalsApi.activeStages(token, goalId),
         coachApi.ftp(token),
         getProfile(token),
+        assessmentId
+          ? assessmentsApi.get(token, assessmentId)
+          : Promise.resolve(null),
       ])
-        .then(([goal, stages, ftp, profile]) => {
+        .then(([goal, stages, ftp, profile, assessment]) => {
           if (!active) return;
           const today = localDateInTimezone(new Date(), profile.timezone);
-          setData({ goal, stages, ftp, today });
+          setData({ goal, stages, ftp, today, assessment });
           setStartDate((current) => current || today);
           setEndDate(
             (current) =>
@@ -86,7 +92,7 @@ export function useGoalPlanning(goalId: string) {
       return () => {
         active = false;
       };
-    }, [token, goalId, attempt]),
+    }, [token, goalId, assessmentId, attempt]),
   );
 
   const generate = async (kind: "STAGES" | "COURSES") => {
@@ -118,6 +124,7 @@ export function useGoalPlanning(goalId: string) {
         startDate,
         endDate,
         notes,
+        assessmentVersion: data.assessment?.version,
       });
       if (request.current?.signature !== signature) {
         const status = await coachApi.planStatus(token);
@@ -131,6 +138,12 @@ export function useGoalPlanning(goalId: string) {
                   stageId,
                   notes,
                   expectedBaseVersion: status.planVersion,
+                  ...(data.assessment
+                    ? {
+                        assessmentId: data.assessment.id,
+                        assessmentVersion: data.assessment.version,
+                      }
+                    : {}),
                 }
               : {
                   scope,
@@ -139,6 +152,12 @@ export function useGoalPlanning(goalId: string) {
                   endDate,
                   notes,
                   expectedBaseVersion: status.planVersion,
+                  ...(data.assessment
+                    ? {
+                        assessmentId: data.assessment.id,
+                        assessmentVersion: data.assessment.version,
+                      }
+                    : {}),
                 };
         request.current = {
           kind,

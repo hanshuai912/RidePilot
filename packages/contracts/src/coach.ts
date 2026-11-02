@@ -62,18 +62,6 @@ export const activityInputSchema = z.strictObject({
 export const activityResponseSchema = activityInputSchema.extend({
   id: z.uuid(),
 });
-export const assessmentInputSchema = z.strictObject({
-  goalId: z.uuid().nullable().optional(),
-  localDate: z.iso.date(),
-  protocol: z.string().trim().min(1).max(64),
-});
-export const assessmentPatchSchema = z.strictObject({
-  expectedVersion: z.number().int().positive(),
-  status: z.enum(["COMPLETED", "POSTPONED", "SKIPPED", "INVALID"]),
-  localDate: z.iso.date().optional(),
-  resultWatts: z.number().int().min(50).max(800).nullable().optional(),
-  conditions: z.string().trim().max(200).nullable().optional(),
-});
 export const raceInputSchema = z.strictObject({
   name: z.string().trim().min(1).max(120),
   localDate: z.iso.date(),
@@ -129,6 +117,7 @@ export const weekGenerationInputSchema = z.strictObject({
     .optional(),
   targetWorkoutId: z.uuid().optional(),
   relatedId: z.uuid().optional(),
+  relatedVersion: z.number().int().positive().optional(),
   notes: z.string().trim().max(200).optional(),
   symptomFlags: z
     .array(z.enum(["CHEST_PAIN", "FAINTING", "SEVERE_ILLNESS"]))
@@ -237,8 +226,6 @@ export type GoalInput = z.infer<typeof goalInputSchema>;
 export type GoalPatch = z.infer<typeof goalPatchSchema>;
 export type ActivityInput = z.infer<typeof activityInputSchema>;
 export type ActivityResponse = z.infer<typeof activityResponseSchema>;
-export type AssessmentInput = z.infer<typeof assessmentInputSchema>;
-export type AssessmentPatch = z.infer<typeof assessmentPatchSchema>;
 export type RaceInput = z.infer<typeof raceInputSchema>;
 export type RacePatch = z.infer<typeof racePatchSchema>;
 export type WeekGenerationInput = z.infer<typeof weekGenerationInputSchema>;

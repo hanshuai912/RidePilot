@@ -1,3 +1,4 @@
+import { assessmentsApi } from "../../assessments/services/assessments.api";
 import { Text } from "react-native";
 import { within } from "@testing-library/react-native";
 import { Stack, router, usePathname } from "expo-router";
@@ -45,6 +46,9 @@ jest.mock("../../coach/services/coach.api", () => ({
     apply: jest.fn(),
     recordActivity: jest.fn(),
   },
+}));
+jest.mock("../../assessments/services/assessments.api", () => ({
+  assessmentsApi: { list: jest.fn() },
 }));
 jest.mock("../services/training.api", () => ({
   ...jest.requireActual("../services/training.api"),
@@ -140,6 +144,7 @@ const routes = {
   "workouts/segment": WorkoutSegmentScreen,
   "workouts/preview": WorkoutPreviewScreen,
   "workouts/[workoutId]": WorkoutDetailScreen,
+  "assessments/[assessmentId]": () => <Text>已打开日历测试</Text>,
   "cycling-power-zones": function FtpSettings() {
     return (
       <Text
@@ -160,6 +165,7 @@ const routes = {
 };
 
 beforeEach(() => {
+  jest.mocked(assessmentsApi).list.mockResolvedValue([]);
   jest.clearAllMocks();
   jest.mocked(useAuth).mockReturnValue({
     status: "authenticated",
@@ -1175,4 +1181,51 @@ test("adjustment preview rejects a draft for another workout", async () => {
   );
   expect(screen.queryByText("确认应用这节训练")).toBeNull();
   expect(coach.apply).not.toHaveBeenCalled();
+});
+
+test("calendar displays test events with courses and opens the test route", async () => {
+  jest.mocked(assessmentsApi).list.mockResolvedValue([
+    {
+      id: "00000000-0000-4000-8000-000000000099",
+      goalId: null,
+      stageId: null,
+      kind: "FTP",
+      protocol: "日历 FTP 方案",
+      localDate: today,
+      actualDate: null,
+      status: "SCHEDULED",
+      resultWatts: null,
+      durationSeconds: null,
+      routeName: null,
+      distanceKm: null,
+      source: null,
+      rpe: null,
+      conditions: null,
+      notes: null,
+      reason: null,
+      comparableConditions: false,
+      baselineFtpWatts: 250,
+      ftpMeasurementId: null,
+      version: 1,
+    },
+  ]);
+  await renderRouter(routes, { initialUrl: `/(tabs)/training?date=${today}` });
+  await screen.findByText(`日历 FTP 方案`, { exact: false });
+  expect(screen.getByLabelText(`${today}，有阶段测试`)).toBeTruthy();
+  expect(screen.getByText("耐力骑行")).toBeTruthy();
+  await fireEvent.press(screen.getByText("查看测试"));
+  await screen.findByText("已打开日历测试");
+});
+
+test("failed test refresh preserves readable workout data and offers a retry", async () => {
+  jest
+    .mocked(assessmentsApi)
+    .list.mockRejectedValueOnce(new Error("测试日程暂不可用"));
+  await renderRouter(routes, { initialUrl: `/(tabs)/training?date=${today}` });
+  await screen.findByText("测试日程暂不可用");
+  expect(screen.getByText("耐力骑行")).toBeTruthy();
+  await fireEvent.press(screen.getByText("重试读取日程"));
+  await waitFor(() =>
+    expect(screen.queryByText("测试日程暂不可用")).toBeNull(),
+  );
 });

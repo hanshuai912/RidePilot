@@ -5,3 +5,5 @@
 `apps/api/src/docs/swagger.ts` 负责文档注册，`apps/api/src/configure-app.ts` 将文档与 API 路由配置应用到 Nest 实例。健康、认证、用户档案和训练接口的主要请求/成功响应 schema 由 `packages/contracts` 的 Zod schema 转换为 OpenAPI 3.0，错误响应由控制器说明。训练草稿和应用接口中的基础版本允许为 0，表示首次人工创建。受保护接口在 Swagger UI 使用 `access-token` Bearer 认证方案。后续新增接口时应同步维护运行时 Zod 校验、Swagger 注解、共享契约和本目录文档。
 
 `SWAGGER_ENABLED` 控制文档页面和 JSON 的注册。开发环境默认开启，生产环境默认关闭；本地 Compose 显式设为 `true`。生产部署如需开放文档，应结合网络访问控制评估。
+
+阶段测试的安排预览、创建、结果、复评与 FTP 确认接口同样使用共享 Zod 转换请求及响应 schema；写入要求 Idempotency-Key，状态和能力版本冲突返回 409。

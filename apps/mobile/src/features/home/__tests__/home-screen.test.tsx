@@ -161,6 +161,10 @@ beforeEach(() => {
   api.today.mockResolvedValue(response());
 });
 
+afterEach(() => {
+  jest.useRealTimers();
+});
+
 test("one home request shows real meals and training, with detail, adjustment and feedback routes", async () => {
   const screen = await render(<HomeScreen />);
   await waitFor(() => expect(screen.getByText("燕麦香蕉早餐")).toBeTruthy());
@@ -284,6 +288,8 @@ test("training partial failure leaves meals visible and retry uses one aggregate
 });
 
 test("pull refresh retains cached courses on failure and updates feedback after success", async () => {
+  // This fixture represents a same-day refresh, independently of the system date.
+  jest.useFakeTimers({ now: new Date("2026-10-30T01:00:00Z") });
   const screen = await render(<HomeScreen />);
   await waitFor(() => expect(screen.getByText("耐力训练")).toBeTruthy());
   api.today.mockResolvedValueOnce(response({ trainingError: "读取超时" }));

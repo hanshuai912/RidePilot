@@ -107,6 +107,7 @@ model User {
   trainingAvailability TrainingAvailability?
   trainingActivities   TrainingActivity[]
   assessments          TrainingAssessment[]
+  assessmentMutations  AssessmentMutation[]
   races                TrainingRace[]
   aiGenerations        AiGeneration[]
   externalConnections  ExternalConnection[]
@@ -284,15 +285,16 @@ model TrainingStagePlan {
 }
 
 model TrainingStage {
-  id                   String   @id @default(uuid()) @db.Uuid
-  stagePlanId          String   @map("stage_plan_id") @db.Uuid
-  stagePlan            TrainingStagePlan @relation(fields: [stagePlanId], references: [id], onDelete: Cascade)
+  assessments          TrainingAssessment[]
+  id                   String               @id @default(uuid()) @db.Uuid
+  stagePlanId          String               @map("stage_plan_id") @db.Uuid
+  stagePlan            TrainingStagePlan    @relation(fields: [stagePlanId], references: [id], onDelete: Cascade)
   position             Int
-  title                String   @db.VarChar(80)
-  purpose              String   @db.VarChar(300)
-  startDate            DateTime @map("start_date") @db.Date
-  endDate              DateTime @map("end_date") @db.Date
-  assessmentSuggestion String   @map("assessment_suggestion") @db.VarChar(300)
+  title                String               @db.VarChar(80)
+  purpose              String               @db.VarChar(300)
+  startDate            DateTime             @map("start_date") @db.Date
+  endDate              DateTime             @map("end_date") @db.Date
+  assessmentSuggestion String               @map("assessment_suggestion") @db.VarChar(300)
 
   @@unique([stagePlanId, position])
   @@map("training_stages")
@@ -329,6 +331,21 @@ model TrainingActivity {
 }
 
 model TrainingAssessment {
+  stageId              String?        @map("stage_id") @db.Uuid
+  stage                TrainingStage? @relation(fields: [stageId], references: [id], onDelete: SetNull)
+  kind                 String         @default("LEGACY") @db.VarChar(24)
+  actualDate           DateTime?      @map("actual_date") @db.Date
+  source               String?        @db.VarChar(24)
+  rpe                  Int?
+  durationSeconds      Int?           @map("duration_seconds")
+  routeName            String?        @map("route_name") @db.VarChar(120)
+  distanceKm           Decimal?       @map("distance_km") @db.Decimal(8, 3)
+  notes                String?        @db.VarChar(500)
+  reason               String?        @db.VarChar(200)
+  comparableConditions Boolean        @default(false) @map("comparable_conditions")
+  baselineFtpWatts     Decimal?       @map("baseline_ftp_watts") @db.Decimal(8, 2)
+  ftpMeasurementId     String?        @unique @map("ftp_measurement_id") @db.Uuid
+
   id          String   @id @default(uuid()) @db.Uuid
   userId      String   @map("user_id") @db.Uuid
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -620,4 +637,17 @@ model ExternalSyncRun {
   @@unique([connectionId, idempotencyKey])
   @@index([connectionId, createdAt])
   @@map("external_sync_runs")
+}
+
+model AssessmentMutation {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  key       String   @db.VarChar(128)
+  signature String   @db.VarChar(64)
+  response  Json
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([userId, key])
+  @@map("assessment_mutations")
 }

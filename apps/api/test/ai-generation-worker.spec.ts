@@ -1,3 +1,4 @@
+import type { AssessmentReviewService } from "../src/modules/coach/assessment-review.service";
 import { CoachGenerationContextService } from "../src/modules/coach/coach-generation-context.service";
 import type { StagePlansService } from "../src/modules/coach/stage-plans.service";
 import type { TrainingRangeService } from "../src/modules/coach/training-range.service";
@@ -26,6 +27,7 @@ test("AI worker gives an actionable error when coach migrations are missing", as
       prisma,
       {} as CoachDataService,
       {} as TrainingRangeService,
+      {} as AssessmentReviewService,
     ),
     {} as SkillLoaderService,
     {} as AiService,
@@ -108,7 +110,12 @@ test("empty week keeps a past course and allows the remaining dates", async () =
   } as unknown as CoachDataService;
   const worker = new AiGenerationService(
     prisma,
-    new CoachGenerationContextService(prisma, data, {} as TrainingRangeService),
+    new CoachGenerationContextService(
+      prisma,
+      data,
+      {} as TrainingRangeService,
+      {} as AssessmentReviewService,
+    ),
     {} as SkillLoaderService,
     {} as AiService,
     {} as CoachPlanValidator,

@@ -51,3 +51,5 @@
 - 移动端 `./node_modules/.bin/expo export --platform android --output-dir /tmp/ridepilot-goal-range-android` 通过。
 
 未执行实体设备操作验收与真实模型调用；较长课程范围的真实生成耗时和输出质量需要后续联调。测试运行有现有 pg 并行查询弃用提示，不影响本轮通过结果。
+
+2026-10-30 后续补充：阶段建议现可单独安排测试日程、录入结果、复评，并关联后续范围课程草稿；具体行为见 [阶段测试与后续课程](stage-assessments.md)，不自动创建或晋级。

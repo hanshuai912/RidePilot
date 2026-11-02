@@ -387,7 +387,10 @@ export class PlanRestoreService {
       where: { userId: proposal.userId, status: "CONFIRMED" },
     });
     const assessments = await tx.trainingAssessment.findMany({
-      where: { userId: proposal.userId, status: "SCHEDULED" },
+      where: {
+        userId: proposal.userId,
+        status: { in: ["SCHEDULED", "POSTPONED"] },
+      },
     });
     const forbidden = new Set(
       [...races, ...assessments].map((item) => dbToDate(item.localDate)),

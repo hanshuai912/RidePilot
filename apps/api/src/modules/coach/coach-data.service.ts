@@ -44,15 +44,18 @@ export class CoachDataService {
         code: "FTP_DATE_IN_FUTURE",
         message: "FTP 测量日期不能晚于当前时间",
       });
-    const ftp = await this.prisma.abilityMeasurement.create({
-      data: {
-        userId,
-        metricType: "FTP",
-        unit: "W",
-        value: input.valueWatts,
-        measuredAt,
-        source: input.source,
-      },
+    const ftp = await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT "id" FROM "users" WHERE "id" = ${userId}::uuid FOR UPDATE`;
+      return tx.abilityMeasurement.create({
+        data: {
+          userId,
+          metricType: "FTP",
+          unit: "W",
+          value: input.valueWatts,
+          measuredAt,
+          source: input.source,
+        },
+      });
     });
     return {
       id: ftp.id,
