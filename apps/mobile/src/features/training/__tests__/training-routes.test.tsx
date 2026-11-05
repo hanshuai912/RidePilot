@@ -1,7 +1,7 @@
 import { assessmentsApi } from "../../assessments/services/assessments.api";
 import { Text } from "react-native";
 import { within } from "@testing-library/react-native";
-import { Stack, router, usePathname } from "expo-router";
+import { Stack, router, usePathname, useLocalSearchParams } from "expo-router";
 import {
   renderRouter,
   screen,
@@ -1260,4 +1260,35 @@ test("calendar displays race events and opens the race lifecycle", async () => {
   expect(screen.getByLabelText(new RegExp(`${today}.*有比赛`))).toBeTruthy();
   await fireEvent.press(screen.getByText("查看赛事与备赛安排"));
   await waitFor(() => expect(screen.getByText("已打开日历赛事")).toBeTruthy());
+});
+
+test("cycle review feedback returns to its original range without generating or applying", async () => {
+  const { "(tabs)/coach": _coach, ...reviewRoutes } = routes;
+  await renderRouter(
+    {
+      ...reviewRoutes,
+      "(tabs)/coach/index": () => null,
+      "(tabs)/coach/cycle-review": function ReviewDestination() {
+        const params = useLocalSearchParams<{
+          startDate: string;
+          endDate: string;
+        }>();
+        return (
+          <Text>{`返回复盘 ${params.startDate} 至 ${params.endDate}`}</Text>
+        );
+      },
+    },
+    {
+      initialUrl: `/workouts/feedback?workoutId=${workout.id}&source=cycle-review&reviewStartDate=2030-01-01&reviewEndDate=2030-01-07`,
+    },
+  );
+  await screen.findByText("保存训练反馈");
+  await fireEvent.press(screen.getByText("保存训练反馈"));
+  await screen.findByText("返回复盘 2030-01-01 至 2030-01-07");
+  expect(screen.getByTestId("current-path").props.children).toBe(
+    "/coach/cycle-review",
+  );
+  expect(coach.recordActivity).toHaveBeenCalledTimes(1);
+  expect(coach.adjustWorkout).not.toHaveBeenCalled();
+  expect(coach.apply).not.toHaveBeenCalled();
 });

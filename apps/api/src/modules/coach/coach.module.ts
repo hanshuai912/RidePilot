@@ -1,3 +1,5 @@
+import { CycleReviewController } from "./cycle-review/cycle-review.controller";
+import { CycleReviewService } from "./cycle-review/cycle-review.service";
 import { AssessmentsService } from "./assessments.service";
 import { AssessmentScheduleService } from "./assessment-schedule.service";
 import { AssessmentReviewService } from "./assessment-review.service";
@@ -33,6 +35,7 @@ import { CoachSuggestionsRepository } from "./coach-suggestions.repository";
 @Module({
   imports: [InfraModule, AiModule],
   controllers: [
+    CycleReviewController,
     CoachCenterController,
     AssessmentsController,
     StagePlansController,
@@ -44,6 +47,7 @@ import { CoachSuggestionsRepository } from "./coach-suggestions.repository";
     AiProposalController,
   ],
   providers: [
+    CycleReviewService,
     CoachOverviewService,
     CoachSuggestionsService,
     CoachSuggestionsRepository,

@@ -1,3 +1,4 @@
+import { CycleReviewEvidenceCard } from "../cycle-review/CycleReviewEvidenceCard";
 import { View } from "react-native";
 import type { AiProposalResponse } from "@ridepilot/contracts";
 
@@ -46,6 +47,9 @@ export function PlanPreview({
 
   return (
     <>
+      {proposal.cycleReview ? (
+        <CycleReviewEvidenceCard evidence={proposal.cycleReview} />
+      ) : null}
       <View className="rounded-[18px] border border-border border-l-4 border-l-brand bg-surface p-4">
         <AppText variant="label" className="text-brand">
           {proposal.status === "APPLIED"

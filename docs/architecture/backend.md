@@ -19,3 +19,7 @@ AI 教练持续协作中心在 `CoachModule` 内新增 `CoachOverviewService`、
 ## 2026-11-05：生成候选生命周期
 
 `infra/prisma/generation-candidates.ts` 封装跨训练/阶段/营养的输入指纹、任务身份、复用与成功替代的持久化规则，各领域服务提供候选有效性判断。提交和 worker 保存均锁用户行；模型调用在事务外，返回后重读上下文。CoachSuggestionsRepository 提供一致快照，Service 只读投影失效历史；NutritionGenerationStaleReason 在营养应用和联动状态恢复时重查新生成快照。没有新增服务依赖、数据库迁移或主动触发生成。详情见 [生命周期](../features/coach-suggestion-lifecycle.md)。
+
+## 训练执行与周期复盘（2026-11-05）
+
+CoachModule 新增 cycle-review 子目录，分别承担只读数据查询、聚合与建议规则、证据指纹校验、用例与控制器。复盘生成转交现有 AiGenerationService 的 RANGE_PLAN 场景，复用任务幂等、用户锁、上下文复查、提案版本及确认应用事务。模型获得服务端重算的证据；恢复强度在生成及应用前独立校验。建议 repository 在同一读取快照中核对复盘候选，失效项只读投影到历史。移动端使用独立复盘页面，复用课程反馈、测试流程和通用提案预览。无新增依赖或迁移，见 [功能说明](../features/training-cycle-review.md)。

@@ -188,6 +188,12 @@ function TrainingCalendar({
           </Button>
         </>
       ) : null}
+      <Button
+        variant="secondary"
+        onPress={() => router.push("/(tabs)/coach/cycle-review")}
+      >
+        训练执行与周期复盘
+      </Button>
       <Button variant="secondary" onPress={() => router.push("/goals")}>
         目标与阶段 · 生成课程
       </Button>

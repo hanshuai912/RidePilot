@@ -1,3 +1,6 @@
+import { cycleReviewEvidenceSchema } from "@ridepilot/contracts";
+import { buildCycleReview } from "./cycle-review/cycle-review.policy";
+import { readCycleReviewData } from "./cycle-review/cycle-review.repository";
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../../infra/prisma/prisma.service";
 
@@ -109,7 +112,28 @@ export class CoachSuggestionsRepository {
           }),
           tx.nutritionProfile.findUnique({ where: { userId } }),
         ]);
+        const cycleReviewStale: Record<string, boolean> = {};
+        const fingerprints = new Map<string, string>();
+        for (const p of training) {
+          if (![...pendingCoachStatuses].some((status) => status === p.status))
+            continue;
+          const draft = p.draft as Record<string, unknown>;
+          const evidence = cycleReviewEvidenceSchema.safeParse(
+            draft.cycleReview,
+          );
+          if (!evidence.success) continue;
+          const range = evidence.data.snapshot;
+          const key = `${range.startDate}:${range.endDate}`;
+          if (!fingerprints.has(key))
+            fingerprints.set(
+              key,
+              buildCycleReview(await readCycleReviewData(tx, userId, range))
+                .fingerprint,
+            );
+          cycleReviewStale[p.id] = fingerprints.get(key) !== range.fingerprint;
+        }
         return {
+          cycleReviewStale,
           plan,
           nutrition,
           user,

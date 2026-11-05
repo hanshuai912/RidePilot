@@ -8,14 +8,34 @@ import { PlanPreview } from "../components/PlanPreview";
 import { useCoachSuggestion } from "../hooks/useCoachSuggestion";
 
 export function CoachSuggestionScreen() {
-  const { id = "", kind = "" } = useLocalSearchParams<{
+  const {
+    id = "",
+    kind = "",
+    source,
+    startDate,
+    endDate,
+  } = useLocalSearchParams<{
     id?: string;
     kind?: string;
+    source?: string;
+    startDate?: string;
+    endDate?: string;
   }>();
   const { session } = useAuth();
   const router = useRouter();
   const state = useCoachSuggestion(session?.accessToken, id, kind);
   const proposal = state.data?.proposal;
+  const fromReview =
+    source === "cycle-review" ||
+    (state.data?.kind === "TRAINING" && !!state.data.proposal.cycleReview);
+  const returnToReview = () =>
+    router.replace({
+      pathname: "/(tabs)/coach/cycle-review",
+      params: {
+        ...(startDate ? { startDate } : {}),
+        ...(endDate ? { endDate } : {}),
+      },
+    });
   const editable =
     !!proposal &&
     !state.data?.staleReason &&
@@ -23,7 +43,11 @@ export function CoachSuggestionScreen() {
   return (
     <TrainingPage
       title="教练建议预览"
-      onBack={() => router.replace("/(tabs)/coach/suggestions")}
+      onBack={() =>
+        fromReview
+          ? returnToReview()
+          : router.replace("/(tabs)/coach/suggestions")
+      }
       busy={state.busy}
       loading={state.loading}
     >
@@ -51,12 +75,20 @@ export function CoachSuggestionScreen() {
           <Button
             variant="secondary"
             onPress={() =>
-              router.replace(
-                kind === "NUTRITION" ? "/(tabs)/nutrition" : "/(tabs)/coach",
-              )
+              fromReview
+                ? returnToReview()
+                : router.replace(
+                    kind === "NUTRITION"
+                      ? "/(tabs)/nutrition"
+                      : "/(tabs)/coach",
+                  )
             }
           >
-            {kind === "NUTRITION" ? "前往饮食与补给" : "前往 AI 教练"}
+            {fromReview
+              ? "刷新周期复盘并重新选择"
+              : kind === "NUTRITION"
+                ? "前往饮食与补给"
+                : "前往 AI 教练"}
           </Button>
         </Card>
       ) : null}
@@ -136,6 +168,36 @@ export function CoachSuggestionScreen() {
       kind === "TRAINING" &&
       state.affectedDates.length ? (
         <TrainingNutritionLinkCard dates={state.affectedDates} />
+      ) : null}
+      {fromReview ? (
+        <>
+          {proposal?.status === "APPLIED" ? (
+            <Button
+              variant="secondary"
+              onPress={() =>
+                router.replace({
+                  pathname: "/(tabs)/training",
+                  params: {
+                    date:
+                      state.affectedDates[0] ??
+                      (state.data?.kind === "TRAINING"
+                        ? state.data.proposal.weekStartDate
+                        : ""),
+                  },
+                })
+              }
+            >
+              前往下一周期训练
+            </Button>
+          ) : null}
+          <Button
+            variant="secondary"
+            disabled={state.busy}
+            onPress={returnToReview}
+          >
+            返回周期复盘与历史
+          </Button>
+        </>
       ) : null}
       <Button
         variant="secondary"

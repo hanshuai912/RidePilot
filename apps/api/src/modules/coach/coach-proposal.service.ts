@@ -1,4 +1,9 @@
 import {
+  resolveCycleReview,
+  validateCycleRecovery,
+  cycleReviewStaleReason,
+} from "./cycle-review/cycle-review.evidence";
+import {
   copiedWorkoutStructure,
   workoutActivities,
 } from "../training/workout-activity";
@@ -12,6 +17,7 @@ import {
   aiProposalResponseSchema,
   aiWeekOutputSchema,
   type AiWeekOutput,
+  type CycleReviewEvidence,
   type UpdateAiProposal,
 } from "@ridepilot/contracts";
 import type {
@@ -31,6 +37,7 @@ import {
 } from "./coach-plan.validator";
 
 interface AiDraft extends AiWeekOutput {
+  cycleReview?: CycleReviewEvidence;
   weekStartDate: string;
   endDate?: string;
   stageId?: string;
@@ -103,6 +110,7 @@ export class CoachProposalService {
       blockers: proposal.validationBlockers ?? [],
       skillVersion: draft.skillVersion,
       model: draft.model,
+      ...(draft.cycleReview ? { cycleReview: draft.cycleReview } : {}),
     });
   }
 
@@ -380,6 +388,25 @@ export class CoachProposalService {
         }),
       ]);
     const blockers: string[] = [];
+    if (draft.cycleReview) {
+      try {
+        await resolveCycleReview(tx, userId, {
+          ...draft.cycleReview.snapshot,
+          action: draft.cycleReview.action,
+        });
+        validateCycleRecovery(
+          draft,
+          Number(ftp?.value ?? 0),
+          draft.cycleReview.action,
+        );
+      } catch (error) {
+        if (error instanceof ConflictException)
+          blockers.push(cycleReviewStaleReason);
+        else if (error instanceof BadRequestException)
+          blockers.push(error.message);
+        else throw error;
+      }
+    }
     if (draft.stageId) {
       const stage = await tx.trainingStage.findFirst({
         where: {

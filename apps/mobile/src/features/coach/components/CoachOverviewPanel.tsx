@@ -146,6 +146,12 @@ export function CoachOverviewPanel() {
       </Card>
       <Button
         variant="secondary"
+        onPress={() => router.push("/(tabs)/coach/cycle-review")}
+      >
+        训练执行与周期复盘
+      </Button>
+      <Button
+        variant="secondary"
         onPress={() => router.push("/(tabs)/coach/chat")}
       >
         问 AI 教练

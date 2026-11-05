@@ -185,3 +185,7 @@ Content-Type: application/json
 普通周、调整、范围及阶段生成按账号、场景、完整输入复用运行任务或当前有效草稿，支持可选 `forceRegenerate:true` 显式重新生成。范围请求的两个 scope 均支持该参数。重复点击同一运行请求（包括 force）继续查询原任务。新候选成功后才在事务中替代同任务范围的旧候选；失败保留旧候选。已有幂等键的不同请求仍409。
 
 GET 建议列表把版本/资料失效的候选投影为 EXPIRED，从 pending 移到 recent；被成功新候选替代的记录显示 SUPERSEDED。历史只读，不修改原数据。阶段详情的状态增加 SUPERSEDED。生成中上下文变化返回任务 FAILED/errorCode=GENERATION_CONTEXT_CHANGED；到期草稿应用返回409 PROPOSAL_EXPIRED。详见 [建议生命周期](../features/coach-suggestion-lifecycle.md)。
+
+## 周期复盘（2026-11-05）
+
+新增 GET `/ai-coach/cycle-review`（可选 startDate/endDate）、GET `/ai-coach/cycle-review/history`（最近30次主动生成）、POST `/ai-coach/cycle-review/generate-proposal`（202，要求 Idempotency-Key）。所有接口 JWT 鉴权、本人数据隔离。共享协议在 `cycle-review.ts`。生成输入的 review 为日期/action/fingerprint 引用，服务端重算证据；后续日期和基础版本单独传入。训练草稿响应增加可选 cycleReview 证据。读取不调用模型、不写草稿。依据变化409 CYCLE_REVIEW_STALE；恢复区段超过70% FTP则任务失败或校验阻止应用。完整输入、统计口径和异常处理见 [周期复盘](../features/training-cycle-review.md)。

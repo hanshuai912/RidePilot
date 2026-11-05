@@ -9,9 +9,16 @@ import {
 import { useTrainingResource } from "./useTrainingResource";
 
 export function useWorkoutActionRoute() {
-  const { workoutId = "", source: rawSource } = useLocalSearchParams<{
+  const {
+    workoutId = "",
+    source: rawSource,
+    reviewStartDate,
+    reviewEndDate,
+  } = useLocalSearchParams<{
     workoutId?: string;
     source?: string;
+    reviewStartDate?: string;
+    reviewEndDate?: string;
   }>();
   const { session } = useAuth();
   const token = session?.accessToken;
@@ -25,6 +32,8 @@ export function useWorkoutActionRoute() {
     ...resource,
     token,
     workoutId,
+    reviewStartDate,
+    reviewEndDate,
     source,
     back: () => backFromWorkoutAction(source, workoutId),
   };

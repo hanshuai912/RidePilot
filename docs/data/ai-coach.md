@@ -39,3 +39,7 @@ FTP 使用现有 `AbilityMeasurement` 的 `metricType=FTP`、`unit=W`。课程�
 ## 2026-11-05：候选替代与只读失效投影
 
 无 Prisma schema 或 migration 变化。复用 AiGeneration.input/proposalId 识别同一任务；训练 draft 增加内部 contextFingerprint。成功替代时，同范围旧 ChangeProposal/NutritionProposal 设 EXPIRED、validationPassed=false、proposalVersion+1、validationBlockers 保存替代原因。TrainingStagePlan.status 为 String，新增 SUPERSEDED、version+1，不改已确认的 ACTIVE。列表展示 SUPERSEDED，时间或版本失效只读投影 EXPIRED，不删除记录、不回填旧资料快照。并发提交和成功替代都在用户行锁事务内完成。详见 [生命周期规则](../features/coach-suggestion-lifecycle.md)。
+
+## 周期复盘证据（2026-11-05）
+
+无新增表或 migration。AiGeneration.input.cycleReview 保存复盘日期、动作和 fingerprint，成功后的 ChangeProposal.draft.cycleReview 保存完整生成依据。草稿编辑只允许课程输出字段，不接受替换证据；应用前重新计算证据指纹，appliedVersionId 追溯应用版本。失败任务仅保存复盘引用，不保证完整快照。计划复制按稳定活动身份去重；聚合只使用已填数值，未记录不视为失败。详见 [周期复盘](../features/training-cycle-review.md)。

@@ -1,3 +1,4 @@
+import { cycleReviewStaleReason } from "./cycle-review/cycle-review.evidence";
 import {
   ConflictException,
   Injectable,
@@ -44,6 +45,7 @@ export class CoachSuggestionsService {
       races,
       assessments,
       nutritionProfile,
+      cycleReviewStale,
     } = await this.repository.read(userId);
     const now = new Date();
     const superseded = (value: unknown) =>
@@ -89,8 +91,9 @@ export class CoachSuggestionsService {
       return {
         id: p.id,
         kind: "TRAINING",
-        title:
-          p.proposalType === "AI_RACE_REPLAN"
+        title: draft.cycleReview
+          ? "周期复盘训练建议"
+          : p.proposalType === "AI_RACE_REPLAN"
             ? "赛事训练建议"
             : p.proposalType === "AI_ASSESSMENT_REVIEW"
               ? "测试复评建议"
@@ -109,7 +112,9 @@ export class CoachSuggestionsService {
             ? "草稿已过期，请重新生成"
             : (p.baseVersionId ?? null) !== (plan?.activeVersionId ?? null)
               ? "正式训练版本已变化，请重新生成"
-              : contextReason(draft),
+              : cycleReviewStale?.[p.id]
+                ? cycleReviewStaleReason
+                : contextReason(draft),
       };
     });
     items.push(

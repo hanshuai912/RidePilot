@@ -39,8 +39,18 @@ export function generationRequestKey(input: unknown) {
 
 export function generationTaskKey(input: unknown) {
   const values = object(input);
-  return generationFingerprint(
-    Object.fromEntries(
+  const review = object(values.cycleReview);
+  return generationFingerprint({
+    ...(values.cycleReview
+      ? {
+          cycleReview: {
+            startDate: review.startDate,
+            endDate: review.endDate,
+            action: review.action,
+          },
+        }
+      : {}),
+    ...Object.fromEntries(
       [
         "mode",
         "goalId",
@@ -56,7 +66,7 @@ export function generationTaskKey(input: unknown) {
         "trainingProposalId",
       ].map((key) => [key, values[key]]),
     ),
-  );
+  });
 }
 
 export async function reusableGeneration(

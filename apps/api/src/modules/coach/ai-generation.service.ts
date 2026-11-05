@@ -1,3 +1,4 @@
+import { validateCycleRecovery } from "./cycle-review/cycle-review.evidence";
 import {
   BadRequestException,
   ConflictException,
@@ -227,6 +228,10 @@ export class AiGenerationService implements OnModuleInit, OnModuleDestroy {
                   : ["WEEK_PLAN", "RANGE_PLAN"].includes(scene)
                     ? "Generate cycling workouts covering the entire selected date range."
                     : "Propose safe replacement workouts only for the selected future scope. Explain changes and tradeoffs.",
+              cycleReview: context.cycleReview,
+              cycleReviewInstructions: context.cycleReview
+                ? "基于所附复盘证据解释本次选择。CONTINUE 沿用目标规划；ADJUST 根据已记录执行情况调整可行安排；RECOVERY 所有区段强度上限不得超过 70% FTP，并安排休息日。不要把未记录当作失败，不得推断 FTP 提升或自动推进阶段。"
+                : undefined,
               scene,
               racePhase: input.racePhase,
               reason: input.reason,
@@ -292,6 +297,11 @@ export class AiGenerationService implements OnModuleInit, OnModuleDestroy {
         forbiddenDates: context.forbiddenDates,
         retainedMinutes: context.retainedMinutes,
       });
+      validateCycleRecovery(
+        output,
+        Number(context.ftp.value),
+        context.cycleReview?.action,
+      );
       if (input.mode === "replace_workout" && output.workouts.length !== 1)
         throw new BadRequestException({
           code: "AI_OUTPUT_INVALID",
@@ -330,6 +340,9 @@ export class AiGenerationService implements OnModuleInit, OnModuleDestroy {
             draft: {
               ...output,
               contextFingerprint: generationFingerprint(context),
+              ...(context.cycleReview
+                ? { cycleReview: context.cycleReview }
+                : {}),
               weekStartDate: input.weekStartDate,
               ...(input.endDate ? { endDate: input.endDate } : {}),
               ...(input.stageId ? { stageId: input.stageId } : {}),

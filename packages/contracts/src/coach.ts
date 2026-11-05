@@ -1,3 +1,7 @@
+import {
+  cycleReviewReferenceSchema,
+  cycleReviewEvidenceSchema,
+} from "./cycle-review";
 import { z } from "zod";
 import { workoutSegmentSchema } from "./training";
 
@@ -166,6 +170,7 @@ export const racePlanningPhaseSchema = z.enum([
 ]);
 
 export const weekGenerationInputSchema = z.strictObject({
+  cycleReview: cycleReviewReferenceSchema.optional(),
   weekStartDate: z.iso.date(),
   goalId: z.uuid(),
   mode: z.enum([
@@ -264,6 +269,7 @@ export const restoreProposalResponseSchema = z.object({
   blockers: z.array(z.string()),
 });
 export const aiProposalResponseSchema = z.object({
+  cycleReview: cycleReviewEvidenceSchema.optional(),
   proposalId: z.uuid(),
   status: z.enum([
     "DRAFT",

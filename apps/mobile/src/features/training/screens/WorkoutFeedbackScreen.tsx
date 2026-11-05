@@ -24,9 +24,19 @@ export function WorkoutFeedbackScreen() {
         workoutActionDestination(route.source, route.workoutId, {
           date,
           saved: true,
+          reviewStartDate: route.reviewStartDate,
+          reviewEndDate: route.reviewEndDate,
         }),
       );
-  }, [saved, route.source, route.workoutId, date, finish]);
+  }, [
+    saved,
+    route.source,
+    route.workoutId,
+    route.reviewStartDate,
+    route.reviewEndDate,
+    date,
+    finish,
+  ]);
   return (
     <TrainingPage
       title="记录完成"

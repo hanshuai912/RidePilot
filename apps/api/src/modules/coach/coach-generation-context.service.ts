@@ -1,3 +1,4 @@
+import { resolveCycleReview } from "./cycle-review/cycle-review.evidence";
 import { racePlanningWindow } from "./race-planning.validation";
 import { AssessmentReviewService } from "./assessment-review.service";
 import {
@@ -34,6 +35,19 @@ export class CoachGenerationContextService {
       | "ASSESSMENT_REVIEW"
       | "RACE_REPLAN",
   ) {
+    if (
+      input.cycleReview &&
+      (scene !== "RANGE_PLAN" ||
+        input.mode !== "range" ||
+        input.stageId ||
+        input.relatedId ||
+        input.targetWorkoutId ||
+        input.racePhase)
+    )
+      throw new BadRequestException({
+        code: "INVALID_GENERATION_MODE",
+        message: "周期复盘只支持独立的日期范围生成",
+      });
     if (input.symptomFlags?.length)
       throw new BadRequestException({
         code: "TRAINING_SAFETY_BLOCKED",
@@ -389,6 +403,24 @@ export class CoachGenerationContextService {
             ? "所选范围没有可训练日期，请选择后续阶段或调整日期"
             : "本周没有剩余可训练日期，请选择下周开始",
       });
+    const cycleReview = input.cycleReview
+      ? await resolveCycleReview(this.prisma, userId, input.cycleReview)
+      : undefined;
+    if (
+      cycleReview &&
+      (input.weekStartDate <= cycleReview.snapshot.endDate ||
+        input.weekStartDate < localToday ||
+        end > dbToDate(goal.targetDate))
+    )
+      throw new BadRequestException({
+        code: "INVALID_CYCLE_TARGET_RANGE",
+        message: "后续训练须从今天或未来开始、晚于复盘结束日，且不超过目标日期",
+      });
+    if (cycleReview && cycleReview.snapshot.goal?.id !== input.goalId)
+      throw new ConflictException({
+        code: "CYCLE_REVIEW_STALE",
+        message: "活跃目标已变化，请刷新复盘",
+      });
     const stage = input.stageId
       ? await this.prisma.trainingStage.findFirst({
           where: {
@@ -399,6 +431,7 @@ export class CoachGenerationContextService {
         })
       : null;
     return {
+      ...(cycleReview ? { cycleReview } : {}),
       stage,
       nearbyRaces:
         scene === "RACE_REPLAN"
