@@ -20,6 +20,7 @@ jest.mock("../services/nutrition.api", () => ({
     }
   },
   nutritionApi: {
+    trainingState: jest.fn().mockResolvedValue({ affectedDates: [] }),
     getProfile: jest.fn(),
     saveProfile: jest.fn(),
     getPlan: jest.fn(),

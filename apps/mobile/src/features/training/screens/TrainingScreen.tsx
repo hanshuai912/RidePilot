@@ -1,3 +1,4 @@
+import { TrainingNutritionLinkCard } from "../../nutrition/components/TrainingNutritionLinkCard";
 import { coachApi } from "../../coach/services/coach.api";
 import { RaceDayEvents } from "../../races/components/RaceDayEvents";
 import { assessmentsApi } from "../../assessments/services/assessments.api";
@@ -154,6 +155,7 @@ function TrainingCalendar({
         }
         onEdit={edit}
       />
+      <TrainingNutritionLinkCard dates={[selectedDate]} checkStatus />
       {raceError ? (
         <AppText className="text-negative">{raceError}</AppText>
       ) : null}

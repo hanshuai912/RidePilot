@@ -1,4 +1,4 @@
-# 饮食模块服务端基础能力
+# 饮食与训练补给
 
 ## 已完成
 
@@ -44,3 +44,39 @@
 - AI Provider 测试覆盖响应体超时不能被误判为无效响应：`./node_modules/.bin/jest --runInBand test/ai-provider.spec.ts test/nutrition-generation.spec.ts`（在 `apps/api` 目录执行）。
 - `pnpm --filter @ridepilot/api test -- --runTestsByPath test/nutrition-generation.spec.ts test/ai-provider.spec.ts`：12 项通过，覆盖五天赛事输出额度、校验后保存草稿、不可重试失败及时结束及临时失败重试。
 - 实际模型只读诊断：修复后五天赛事输入返回 15 个餐次并通过共享契约校验；没有将诊断结果保存或应用到正式计划。
+
+## 训练与补给联动、份量与时间编辑
+
+实现 FR-505 / FR-506：训练应用后可手动生成补给调整草稿，逐日比较旧安排与建议，独立确认后应用。未确认时保留正式饮食。
+
+### 操作路径
+
+1. AI 教练应用成功页、赛事训练应用成功页、单节 AI 调整成功页 →「查看训练补给联动」；普通课程应用后在训练日历也可进入。
+2. 训练日历按选中日期显示核对卡；饮食页按今天起 7 天显示核对卡，应用后返回会重新读取状态。
+3. 联动页选择 1–31 天，点击读取范围；默认只读取/恢复已有任务和草稿，绝不自动生成。超长训练周期分批处理。
+4. 缺少饮食档案时在当前页填写偏好、禁忌和用餐时间，保存后仍须点击「生成训练补给草稿」。读取最新正式训练，包含休息日，长骑删除也能调整补给。
+5. 预览全部日期的原餐次与建议餐次，包含食物份量、时间、能量、碳水、水分与训练补给备注；可以编辑份量、时间，保存后重新校验。
+6. 点击「确认应用到正式计划」后更新范围内饮食，保留范围外餐次。暂不处理可返回，核对提示保留；页面内可显式重新生成。
+7. 饮食 → 今日餐次 →「编辑份量和时间」→ 保存为 ITEM_EDIT 草稿 → 校验 → 确认应用。修改份量后原营养值清空，保留食材来源/过敏原信息。
+
+### 技术边界
+
+- 新页面 `/nutrition/training-linked`；读取、生成、编辑和确认由 `useTrainingNutrition` 管理，恢复服务端状态，不用路由携带整份草稿。
+- `TrainingNutritionService` 负责待核对日期、任务/草稿恢复与并发去重；`NutritionGenerationContextService` 负责上下文和版本检查；`NutritionApplicationService` 负责事务应用与范围合并。AI 生成 worker 只编排生成与校验。
+- 营养与训练分别确认，不自动同步，不实现跨领域原子应用或实际进食日志。
+- 网络请求有超时，轮询有 150 秒上限。失败页面保留可操作入口，继续查询恢复服务端任务；重新进入不会新建任务。应用及生成均由服务端再次检查版本。
+- 旧营养计划未保存核对记录的日期显示待核对，不把它当成确定的补给不足；不编造精准营养数值。
+- 数据沿用 JSON 快照，无 Prisma schema 变更，无需新增数据库迁移。详见 [API](../api/nutrition.md) 和 [数据](../data/nutrition.md)。
+
+### 验证
+
+自动化覆盖手动生成、已有草稿/应用恢复、独立确认、缺资料引导、超时后继续查询、份量与时间校验、按餐次精确编辑、范围外保留、任务并发去重、生成期间训练/营养变化、应用前版本变化、跨用户访问和当前过敏原阻断。
+
+已执行：
+
+- `pnpm --filter @ridepilot/mobile test`：28 个套件、253 个用例通过。
+- `pnpm test`：后端 23 个套件、129 个用例通过；未设置 TEST_DATABASE_URL 的数据库套件按设计跳过（10 个套件、60 个用例），另在隔离测试库执行相关集成测试。
+- `node /tmp/ridepilot-nutrition-integration.cjs`（工作目录 apps/api）：脚本验证仅使用本机 `*_test` PostgreSQL 和 Redis DB 1，然后运行 `jest --runInBand --runTestsByPath test/training-nutrition.e2e-spec.ts test/nutrition.e2e-spec.ts`，2 个套件、14 个用例通过。模型使用可控测试替身。PostgreSQL 驱动输出已有并发 query 弃用提示，用例全部通过。
+- `pnpm typecheck`、`pnpm lint`、`pnpm build` 已执行通过；本次变更文件 Prettier 检查、`git diff --check` 通过。
+
+真实大模型和真机流程尚未验证。生成 worker 保留任务租约、重试和结果写回的同一状态机，生成上下文和正式应用已拆为独立服务。

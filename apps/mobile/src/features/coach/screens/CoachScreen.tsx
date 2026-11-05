@@ -1,3 +1,4 @@
+import { TrainingNutritionLinkCard } from "../../nutrition/components/TrainingNutritionLinkCard";
 import { useEffect, useRef } from "react";
 import { usePathname, useRouter } from "expo-router";
 import { Modal, View } from "react-native";
@@ -212,6 +213,7 @@ export function CoachScreen() {
             本次只应用骑行训练计划；饮食与禁忌信息已保留在本次引导，未提交后端。
           </AppText>
         </View>
+        <TrainingNutritionLinkCard dates={flow.appliedDates} />
         <InfoStrip>计划已经生效，可以先查看第一节训练。</InfoStrip>
       </CoachPage>
     );

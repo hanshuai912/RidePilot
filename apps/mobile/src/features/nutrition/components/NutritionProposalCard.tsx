@@ -4,7 +4,7 @@ import type { NutritionProposalResponse } from "@ridepilot/contracts";
 
 import { colors } from "../../../theme/colors";
 import { AppText, Badge, Button, Card } from "../../../components/ui";
-import { formatNutrient, mealTypeLabels } from "../model/nutrition";
+import { NutritionDraftReview } from "./NutritionDraftReview";
 
 export function NutritionProposalCard({
   proposal,
@@ -13,6 +13,7 @@ export function NutritionProposalCard({
   onValidate,
   onApply,
   onDismiss,
+  onEdit,
 }: {
   proposal: NutritionProposalResponse;
   applying: boolean;
@@ -20,6 +21,7 @@ export function NutritionProposalCard({
   onValidate: () => void;
   onApply: () => void;
   onDismiss: () => void;
+  onEdit?: (index: number) => void;
 }) {
   const canApply = proposal.status === "READY" && proposal.validation.passed;
   const applied = proposal.status === "APPLIED";
@@ -71,30 +73,11 @@ export function NutritionProposalCard({
           </AppText>
         </View>
       </View>
-      <View className="mt-4 gap-2">
-        {proposal.draft.items.slice(0, 4).map((item, index) => (
-          <View
-            key={`${item.localDate}-${item.mealType}-${index}`}
-            className="flex-row items-start gap-2 rounded-xl bg-surface-2 px-3 py-2.5"
-          >
-            <AppText variant="label" className="w-14 text-brand">
-              {mealTypeLabels[item.mealType]}
-            </AppText>
-            <View className="flex-1">
-              <AppText variant="caption">{item.title}</AppText>
-              <AppText variant="label" muted className="mt-1">
-                {formatNutrient(item.nutrients.energyKcal, "kcal")}
-              </AppText>
-            </View>
-          </View>
-        ))}
-        {proposal.draft.items.length > 4 ? (
-          <AppText variant="caption" muted>
-            还有 {proposal.draft.items.length - 4}{" "}
-            个餐次，打开计划后可继续查看。
-          </AppText>
-        ) : null}
-      </View>
+      <NutritionDraftReview
+        proposal={proposal}
+        onEdit={onEdit}
+        busy={applying || validating}
+      />
       {proposal.metadata?.assumptions.length ? (
         <View className="mt-4 rounded-xl border border-border bg-surface-2 p-3">
           <AppText variant="label" className="text-secondary">
@@ -130,11 +113,15 @@ export function NutritionProposalCard({
           </Button>
         ) : null}
         {canApply ? (
-          <Button loading={applying} onPress={onApply}>
+          <Button loading={applying} disabled={validating} onPress={onApply}>
             确认应用到正式计划
           </Button>
         ) : null}
-        <Button variant="ghost" onPress={onDismiss}>
+        <Button
+          variant="ghost"
+          disabled={applying || validating}
+          onPress={onDismiss}
+        >
           {applied ? "返回" : "暂不处理"}
         </Button>
       </View>

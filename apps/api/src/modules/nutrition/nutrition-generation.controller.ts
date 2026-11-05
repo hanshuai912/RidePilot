@@ -6,6 +6,7 @@ import {
   HttpCode,
   Param,
   Post,
+  Query,
 } from "@nestjs/common";
 import {
   ApiBearerAuth,
@@ -19,11 +20,15 @@ import {
   NutritionGenerationInput,
   NutritionLinkedGenerationRequest,
   raceNutritionStateSchema,
+  trainingNutritionStateSchema,
+  nutritionPlanQuerySchema,
+  NutritionPlanQuery,
 } from "@ridepilot/contracts";
 import { ZodBodyPipe } from "../../common/zod-body.pipe";
 import { toOpenApiSchema } from "../../docs/zod-openapi";
 import { CurrentPrincipal } from "../auth/current-principal.decorator";
 import type { AuthPrincipal } from "../auth/auth.types";
+import { TrainingNutritionService } from "./training-nutrition.service";
 import { NutritionGenerationService } from "./nutrition-generation.service";
 import { RaceNutritionService } from "./race-nutrition.service";
 
@@ -34,7 +39,21 @@ export class NutritionGenerationController {
   constructor(
     private readonly service: NutritionGenerationService,
     private readonly races: RaceNutritionService,
+    private readonly training: TrainingNutritionService,
   ) {}
+
+  @Get("training-link")
+  @ApiOkResponse({
+    schema: toOpenApiSchema(trainingNutritionStateSchema, "output"),
+  })
+  trainingState(
+    @CurrentPrincipal() principal: AuthPrincipal,
+    @Query(new ZodBodyPipe(nutritionPlanQuerySchema)) query: NutritionPlanQuery,
+  ) {
+    if (query.date)
+      return this.training.get(principal.userId, query.date, query.date);
+    return this.training.get(principal.userId, query.from!, query.to!);
+  }
 
   @Get("races/:raceId/proposal")
   @ApiOkResponse({

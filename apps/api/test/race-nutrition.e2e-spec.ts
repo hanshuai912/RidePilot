@@ -1,3 +1,4 @@
+import { TrainingNutritionService } from "../src/modules/nutrition/training-nutrition.service";
 import { INestApplication, NotFoundException } from "@nestjs/common";
 import { APP_GUARD } from "@nestjs/core";
 import { Test } from "@nestjs/testing";
@@ -16,6 +17,7 @@ describe("race nutrition lookup HTTP contract", () => {
     const module = await Test.createTestingModule({
       controllers: [NutritionGenerationController],
       providers: [
+        { provide: TrainingNutritionService, useValue: {} },
         { provide: NutritionGenerationService, useValue: {} },
         { provide: RaceNutritionService, useValue: { get } },
         {

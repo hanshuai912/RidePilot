@@ -79,7 +79,7 @@ export function CoursePreviewScreen() {
           <PlanPreview
             proposal={resource.data.proposal}
             ftpWatts={resource.data.ftp?.valueWatts ?? null}
-            nutritionSummary="本次不调整饮食"
+            nutritionSummary="应用训练后，可在训练日历手动生成补给联动草稿"
           />
           {validated ? (
             <AppText className="text-positive">

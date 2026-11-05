@@ -1,3 +1,5 @@
+import { NutritionApplicationService } from "./nutrition-application.service";
+import { NutritionGenerationContextService } from "./nutrition-generation-context.service";
 import { Module } from "@nestjs/common";
 import { AiModule } from "../../ai/ai.module";
 import { InfraModule } from "../../infra/infra.module";
@@ -13,6 +15,8 @@ import { NutritionGenerationService } from "./nutrition-generation.service";
 import { NutritionSkillLoaderService } from "./nutrition-skill-loader.service";
 import { RaceNutritionService } from "./race-nutrition.service";
 
+import { TrainingNutritionService } from "./training-nutrition.service";
+
 @Module({
   imports: [InfraModule, AiModule],
   controllers: [
@@ -22,6 +26,8 @@ import { RaceNutritionService } from "./race-nutrition.service";
     NutritionGenerationController,
   ],
   providers: [
+    NutritionApplicationService,
+    NutritionGenerationContextService,
     NutritionRepository,
     NutritionProfileService,
     NutritionPlanService,
@@ -29,6 +35,7 @@ import { RaceNutritionService } from "./race-nutrition.service";
     NutritionGenerationService,
     NutritionSkillLoaderService,
     RaceNutritionService,
+    TrainingNutritionService,
   ],
   exports: [NutritionProposalService, NutritionPlanService],
 })

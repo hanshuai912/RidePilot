@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { TrainingNutritionLinkCard } from "../../nutrition/components/TrainingNutritionLinkCard";
 import { router, useLocalSearchParams } from "expo-router";
 import { AppText, Button } from "../../../components/ui";
 import { TrainingPage } from "../components/TrainingPage";
@@ -17,9 +17,23 @@ export function WorkoutAdjustmentPreviewScreen() {
   }>();
   const source = workoutActionSource(rawSource);
   const state = useWorkoutAdjustmentPreview();
-  const busy = state.busy || !!state.appliedDate;
+  const busy = state.busy;
   const { guard, finish } = useWorkoutActionExit(false, busy);
+  const alreadyApplied =
+    state.data?.proposal.status === "APPLIED" || !!state.appliedDate;
+  const openLatest = () =>
+    finish(
+      workoutActionDestination(source, workoutId, {
+        applied: true,
+        date: state.appliedDate ?? state.data?.workout.scheduledDate,
+        saved: !!state.appliedDate,
+      }),
+    );
   const back = () => {
+    if (alreadyApplied) {
+      openLatest();
+      return;
+    }
     if (router.canGoBack()) router.back();
     else
       router.replace({
@@ -27,17 +41,6 @@ export function WorkoutAdjustmentPreviewScreen() {
         params: { workoutId, source },
       });
   };
-  useEffect(() => {
-    if (state.appliedDate)
-      finish(
-        workoutActionDestination(source, workoutId, {
-          applied: true,
-          date: state.appliedDate,
-          saved: true,
-        }),
-      );
-  }, [state.appliedDate, source, workoutId, finish]);
-  const alreadyApplied = state.data?.proposal.status === "APPLIED";
   return (
     <TrainingPage
       title="调整预览"
@@ -51,15 +54,12 @@ export function WorkoutAdjustmentPreviewScreen() {
       {alreadyApplied ? (
         <>
           <AppText>调整已应用，请查看最新计划。</AppText>
-          <Button
-            onPress={() =>
-              finish(
-                workoutActionDestination(source, workoutId, { applied: true }),
-              )
-            }
-          >
-            查看最新计划
-          </Button>
+          <TrainingNutritionLinkCard
+            dates={[
+              state.appliedDate ?? state.data?.workout.scheduledDate ?? "",
+            ].filter(Boolean)}
+          />
+          <Button onPress={openLatest}>查看最新计划</Button>
         </>
       ) : state.data ? (
         <WorkoutAdjustmentPreview

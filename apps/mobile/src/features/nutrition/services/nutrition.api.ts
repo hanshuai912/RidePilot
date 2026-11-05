@@ -5,6 +5,9 @@ import {
   nutritionProfileResponseSchema,
   nutritionProposalResponseSchema,
   raceNutritionStateSchema,
+  trainingNutritionStateSchema,
+  type UpdateNutritionProposal,
+  type CreateNutritionItemEdit,
   generationResponseSchema,
   type NutritionGenerationInput,
   type NutritionPlanResponse,
@@ -101,6 +104,26 @@ function key() {
 }
 
 export const nutritionApi = {
+  trainingState: (token: string, from: string, to: string) =>
+    request(
+      `nutrition/training-link?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
+      token,
+      trainingNutritionStateSchema,
+    ),
+  update: (token: string, proposalId: string, input: UpdateNutritionProposal) =>
+    request(
+      `nutrition/proposals/${encodeURIComponent(proposalId)}`,
+      token,
+      nutritionProposalResponseSchema,
+      { method: "PATCH", body: input },
+    ),
+  createItemEdit: (token: string, input: CreateNutritionItemEdit) =>
+    request(
+      "nutrition/item-edit-proposals",
+      token,
+      nutritionProposalResponseSchema,
+      { method: "POST", body: input, idempotencyKey: key() },
+    ),
   raceState: (token: string, raceId: string) =>
     request(
       `nutrition/races/${encodeURIComponent(raceId)}/proposal`,
@@ -173,7 +196,7 @@ export const nutritionApi = {
       {
         method: "POST",
         body: { expectedNutritionVersion },
-        idempotencyKey: key(),
+        idempotencyKey: `nutrition-apply-${proposalId}`,
       },
     ),
 };

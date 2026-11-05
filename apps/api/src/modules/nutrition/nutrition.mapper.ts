@@ -95,6 +95,7 @@ export function toPlanResponse(
   }
   const snapshot = plan.activeVersion.snapshot as {
     dailyTarget?: unknown;
+    dailyTargets?: Record<string, unknown>;
   } | null;
   return {
     planId: plan.id,
@@ -103,8 +104,11 @@ export function toPlanResponse(
     timezone,
     from,
     to,
-    dailyTarget: (snapshot?.dailyTarget ??
-      null) as NutritionPlanResponse["dailyTarget"],
+    dailyTarget: ((from === to &&
+    snapshot?.dailyTargets &&
+    from in snapshot.dailyTargets
+      ? snapshot.dailyTargets[from]
+      : snapshot?.dailyTarget) ?? null) as NutritionPlanResponse["dailyTarget"],
     items: plan.activeVersion.items
       .filter((item) => {
         const date = dbToDate(item.localDate);

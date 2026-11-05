@@ -21,8 +21,9 @@ import {
 import { colors } from "../../../theme/colors";
 import { useAuth } from "../../auth/hooks/AuthProvider";
 import { getProfile } from "../../profile/services/profile.api";
-import { localDateInTimezone } from "../../coach/model/plan-dates";
-import { NutritionMealCard } from "../components/NutritionMealCard";
+import { addDays, localDateInTimezone } from "../../coach/model/plan-dates";
+import { NutritionEditableMeals } from "../components/NutritionEditableMeals";
+import { TrainingNutritionLinkCard } from "../components/TrainingNutritionLinkCard";
 import { NutritionProfileSheet } from "../components/NutritionProfileSheet";
 import { NutritionProposalCard } from "../components/NutritionProposalCard";
 import { NutritionSwapSheet } from "../components/NutritionSwapSheet";
@@ -307,6 +308,12 @@ export function NutritionScreen() {
           </AppText>
         </Card>
       ) : null}
+      {!loading && date ? (
+        <TrainingNutritionLinkCard
+          dates={[date, addDays(date, 6)]}
+          checkStatus
+        />
+      ) : null}
       {!loading && !profile ? (
         <Card className="border-brand/50 bg-surface-elevated p-5">
           <Badge variant="brand">开始前先告诉我</Badge>
@@ -417,13 +424,15 @@ export function NutritionScreen() {
               {groupedItems.length} 个餐次
             </AppText>
           </View>
-          {groupedItems.map((item) => (
-            <NutritionMealCard
-              key={item.id}
-              item={item}
-              onSwap={(next) => setSwapItem(next)}
+          {plan ? (
+            <NutritionEditableMeals
+              plan={plan}
+              token={token}
+              onSwap={setSwapItem}
+              onProposal={setProposal}
+              onError={setFeedback}
             />
-          ))}
+          ) : null}
         </View>
       ) : null}
       {!loading && profile ? (

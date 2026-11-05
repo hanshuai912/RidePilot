@@ -51,10 +51,12 @@ function NutritionProfileEditor({
   saving,
   onClose,
   onSave,
+  error,
 }: {
   visible: boolean;
   profile?: NutritionProfileInput;
   saving: boolean;
+  error?: string | null;
   onClose: () => void;
   onSave: (input: NutritionProfileInput) => Promise<void>;
 }) {
@@ -200,6 +202,11 @@ function NutritionProfileEditor({
               </AppText>
             </Card>
           </ScrollView>
+          {error ? (
+            <AppText variant="caption" className="mb-3 text-negative">
+              {error}
+            </AppText>
+          ) : null}
           <Button loading={saving} size="lg" onPress={() => void onSave(form)}>
             保存饮食档案
           </Button>

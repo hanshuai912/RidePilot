@@ -20,11 +20,13 @@ import { AiService } from "../../ai/ai.service";
 import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infra/prisma/prisma.service";
 import { dbToDate, dateToDb } from "../training/training.validation";
-import { toProfileResponse } from "./nutrition.mapper";
-import { NutritionRepository } from "./nutrition.repository";
+import { toPlanDraft, toProfileResponse } from "./nutrition.mapper";
+import { NutritionGenerationContextService } from "./nutrition-generation-context.service";
 import { NutritionSkillLoaderService } from "./nutrition-skill-loader.service";
 import { validateNutritionDraft } from "./nutrition.validation";
 import { RaceNutritionService } from "./race-nutrition.service";
+
+import { TrainingNutritionService } from "./training-nutrition.service";
 
 @Injectable()
 export class NutritionGenerationService
@@ -38,8 +40,9 @@ export class NutritionGenerationService
     private readonly prisma: PrismaService,
     private readonly ai: AiService,
     private readonly skill: NutritionSkillLoaderService,
-    private readonly repository: NutritionRepository,
+    private readonly context: NutritionGenerationContextService,
     private readonly races: RaceNutritionService,
+    private readonly training: TrainingNutritionService,
   ) {}
 
   async onModuleInit() {
@@ -88,7 +91,7 @@ export class NutritionGenerationService
     }
     if (parsed.mode === "RACE_LINKED") {
       return this.races.reuseOrCreate(userId, parsed, key, async (tx) => {
-        await this.context(userId, parsed);
+        await this.context.read(userId, parsed);
         const job = await tx.aiGeneration.create({
           data: {
             userId,
@@ -101,7 +104,22 @@ export class NutritionGenerationService
         return generationResponseSchema.parse(this.toResponse(job));
       });
     }
-    await this.context(userId, parsed);
+    if (parsed.mode === "TRAINING_LINKED") {
+      return this.training.reuseOrCreate(userId, parsed, key, async (tx) => {
+        await this.context.read(userId, parsed, tx);
+        const job = await tx.aiGeneration.create({
+          data: {
+            userId,
+            scene: "NUTRITION_PLAN",
+            input: parsed,
+            idempotencyKey: key,
+            requestId: randomUUID(),
+          },
+        });
+        return generationResponseSchema.parse(this.toResponse(job));
+      });
+    }
+    await this.context.read(userId, parsed);
     try {
       const job = await this.prisma.aiGeneration.create({
         data: {
@@ -209,7 +227,7 @@ export class NutritionGenerationService
     if (!job || job.status !== "RUNNING") return;
     const input = nutritionGenerationInputSchema.parse(job.input);
     try {
-      const context = await this.context(job.userId, input);
+      const context = await this.context.read(job.userId, input);
       const skill = await this.skill.load(input.mode);
       const requestedDays =
         (dateToDb(input.endDate).getTime() -
@@ -221,10 +239,9 @@ export class NutritionGenerationService
         temperature: 0.2,
         // A multi-day race draft includes meals plus the model's reasoning.
         // The fixed 7k budget could be consumed before any JSON was returned.
-        maxTokens:
-          input.mode === "RACE_LINKED"
-            ? Math.min(32000, Math.max(7000, 5000 + requestedDays * 3000))
-            : 7000,
+        maxTokens: ["RACE_LINKED", "TRAINING_LINKED"].includes(input.mode)
+          ? Math.min(32000, Math.max(7000, 5000 + requestedDays * 3000))
+          : 7000,
         responseFormat: { type: "json_object" },
         metadata: {
           feature: "nutrition-plan",
@@ -241,7 +258,7 @@ export class NutritionGenerationService
           {
             role: "user",
             content: JSON.stringify({
-              task: "Generate a conservative cycling nutrition draft for the requested date range.",
+              task: "Generate a conservative cycling nutrition draft for the requested date range. In TRAINING_LINKED mode use the latest official context.workouts, including days with no workouts; remove obsolete workout fueling when a long ride becomes rest, while keeping regular meals. Adjust pre/during/post workout fueling when duration or intensity changes. Respect the dietary profile. If workout start time is unknown, explain meal-time assumptions and use notes for relative fueling timing; never invent an exact workout start time.",
               outputContract:
                 "Return one top-level JSON object with exactly these keys: summary, assumptions, draft, warnings, blockers, sourceRefs, confidence. Put all dates and meals inside draft; never put startDate, endDate, dailyTarget, or items at the top level. draft must contain startDate, endDate, dailyTarget (null or {energyKcal, carbohydrateG, proteinG, fatG, basis: ESTIMATE|USER_ENTERED|LABEL, confidence: HIGH|MEDIUM|LOW}), and items. Every item must contain localDate, mealType (BREAKFAST|LUNCH|DINNER|SNACK|PRE_WORKOUT|DURING_WORKOUT|POST_WORKOUT), scheduledLocalTime in HH:mm, title, foods, nutrients, nutritionSource (CURATED|LABEL|USER_ENTERED|AI_ESTIMATE), confidence (HIGH|MEDIUM|LOW), linkedWorkoutId (UUID or null), and notes (string or null). Every food must contain name, amount (positive number), unit (g|ml|piece|serving), allergenTags as an array containing only the exact enum values MILK|EGG|PEANUT|TREE_NUT|WHEAT|SOY|FISH|SHELLFISH|SESAME (use [] when no exact enum applies; never use words such as milk, egg, gluten, or 麸质), and ingredientStatus (KNOWN|PARTIAL|UNKNOWN). nutrients must contain energyKcal, carbohydrateG, proteinG, fatG, fluidMl, sodiumMg; use null when data is missing. Never return HYDRATION as a meal type and never return null scheduledLocalTime; use only times present in mealSchedule. If the profile only has one meal time, return at least that meal.",
               input,
@@ -253,6 +270,32 @@ export class NutritionGenerationService
       });
       const raw = JSON.parse(response.text) as unknown;
       const output = nutritionAiOutputSchema.parse(raw);
+      if (
+        output.draft.startDate !== input.startDate ||
+        output.draft.endDate !== input.endDate ||
+        output.draft.items.some(
+          (item) =>
+            item.localDate < input.startDate || item.localDate > input.endDate,
+        )
+      ) {
+        throw new BadRequestException({
+          code: "AI_OUTPUT_INVALID",
+          message: "营养草稿超出请求日期范围",
+        });
+      }
+      if (
+        output.draft.items.some(
+          (item) =>
+            item.linkedWorkoutId &&
+            !context.workouts.some(
+              (workout) => workout.id === item.linkedWorkoutId,
+            ),
+        )
+      )
+        throw new BadRequestException({
+          code: "AI_OUTPUT_INVALID",
+          message: "补给关联了不属于当前训练范围的课程",
+        });
       const validation = validateNutritionDraft(
         output.draft,
         toProfileResponse(context.nutritionProfile),
@@ -273,8 +316,14 @@ export class NutritionGenerationService
         model: response.model,
         skillVersion: skill.version,
         skillHash: skill.hash,
+        ...(input.mode === "TRAINING_LINKED"
+          ? { trainingContext: context.trainingContext }
+          : {}),
       };
       await this.prisma.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT "id" FROM "users" WHERE "id" = ${job.userId}::uuid FOR UPDATE`;
+        // Recheck both official versions after the potentially long model call.
+        await this.context.read(job.userId, input, tx);
         const updated = await tx.aiGeneration.updateMany({
           where: {
             id: job.id,
@@ -287,8 +336,14 @@ export class NutritionGenerationService
         if (!updated.count) return;
         const plan = await tx.nutritionPlan.findFirst({
           where: { userId: job.userId, status: "ACTIVE" },
-          include: { activeVersion: true },
+          include: { activeVersion: { include: { items: true } } },
         });
+        const previousItems =
+          plan?.activeVersion?.items.filter(
+            (item) =>
+              dbToDate(item.localDate) >= input.startDate &&
+              dbToDate(item.localDate) <= input.endDate,
+          ) ?? [];
         const proposal = await tx.nutritionProposal.create({
           data: {
             userId: job.userId,
@@ -297,6 +352,18 @@ export class NutritionGenerationService
             proposalType: "AI_PLAN",
             status: blockers.length ? "BLOCKED" : "READY",
             draft: output.draft,
+            original: previousItems.length
+              ? (toPlanDraft(
+                  previousItems,
+                  input.startDate,
+                  input.endDate,
+                  (
+                    plan?.activeVersion?.snapshot as {
+                      dailyTarget?: unknown;
+                    } | null
+                  )?.dailyTarget ?? null,
+                ) as Prisma.InputJsonValue)
+              : undefined,
             metadata,
             validationPassed: blockers.length === 0,
             validationWarnings: warnings,
@@ -339,241 +406,6 @@ export class NutritionGenerationService
         retryable,
       });
     }
-  }
-
-  private async context(userId: string, input: NutritionGenerationInput) {
-    if (input.startDate > input.endDate)
-      throw new BadRequestException({
-        code: "NUTRITION_DATE_INVALID",
-        message: "计划开始日期不能晚于结束日期",
-      });
-    const days =
-      (dateToDb(input.endDate).getTime() -
-        dateToDb(input.startDate).getTime()) /
-        86_400_000 +
-      1;
-    if (days > 31)
-      throw new BadRequestException({
-        code: "NUTRITION_DATE_RANGE_TOO_LARGE",
-        message: "一次最多生成 31 天饮食草稿",
-      });
-    const [
-      nutritionProfile,
-      athleteProfile,
-      user,
-      plan,
-      nutritionPlan,
-      workouts,
-      race,
-      trainingProposal,
-    ] = await Promise.all([
-      this.repository.findProfile(userId),
-      this.prisma.athleteProfile.findUnique({ where: { userId } }),
-      this.prisma.user.findUniqueOrThrow({
-        where: { id: userId },
-        select: { timezone: true, locale: true, profileVersion: true },
-      }),
-      this.prisma.trainingPlan.findFirst({
-        where: { userId, status: "ACTIVE" },
-        include: { activeVersion: true },
-      }),
-      this.repository.findActivePlan(userId),
-      this.prisma.workout.findMany({
-        where: {
-          planVersion: { activeForPlan: { userId, status: "ACTIVE" } },
-          scheduledDate: {
-            gte: dateToDb(input.startDate),
-            lte: dateToDb(input.endDate),
-          },
-        },
-        orderBy: [{ scheduledDate: "asc" }, { dayOrder: "asc" }],
-      }),
-      input.raceId
-        ? this.prisma.trainingRace.findFirst({
-            where: { id: input.raceId, userId },
-          })
-        : Promise.resolve(null),
-      input.trainingProposalId
-        ? this.prisma.changeProposal.findFirst({
-            where: { id: input.trainingProposalId, userId },
-            include: { baseVersion: true },
-          })
-        : Promise.resolve(null),
-    ]);
-    if (!nutritionProfile)
-      throw new BadRequestException({
-        code: "NUTRITION_PROFILE_REQUIRED",
-        message: "请先建立饮食档案",
-      });
-    const nutritionVersion = nutritionPlan?.activeVersion?.versionNo ?? 0;
-    if (nutritionVersion !== input.expectedNutritionVersion)
-      throw new ConflictException({
-        code: "NUTRITION_VERSION_CONFLICT",
-        message: "正式营养计划已更新，请重新生成",
-      });
-    if (input.mode === "INITIAL" && nutritionVersion !== 0)
-      throw new ConflictException({
-        code: "NUTRITION_PLAN_EXISTS",
-        message: "已有正式营养计划，请使用重新生成场景",
-      });
-    if (input.mode === "REGENERATE" && nutritionVersion === 0)
-      throw new ConflictException({
-        code: "NUTRITION_PLAN_NOT_FOUND",
-        message: "尚无正式营养计划，请使用首次生成场景",
-      });
-    const trainingVersion = plan?.activeVersion?.versionNo ?? 0;
-    if (
-      input.expectedTrainingPlanVersion !== undefined &&
-      trainingVersion !== input.expectedTrainingPlanVersion
-    )
-      throw new ConflictException({
-        code: "PLAN_VERSION_CONFLICT",
-        message: "正式训练计划已更新，请重新生成",
-      });
-    if (
-      input.mode === "TRAINING_LINKED" &&
-      !input.workoutId &&
-      !input.trainingProposalId
-    )
-      throw new BadRequestException({
-        code: "TRAINING_CONTEXT_REQUIRED",
-        message: "训练联动场景需要 workoutId 或 trainingProposalId",
-      });
-    if (input.trainingProposalId && input.mode !== "TRAINING_LINKED")
-      throw new BadRequestException({
-        code: "INVALID_TRAINING_LINK_MODE",
-        message: "trainingProposalId 只能用于训练联动场景",
-      });
-    if (input.trainingProposalId && input.workoutId)
-      throw new BadRequestException({
-        code: "DUPLICATE_TRAINING_CONTEXT",
-        message: "trainingProposalId 不能与 workoutId 同时使用",
-      });
-    if (
-      input.mode === "TRAINING_LINKED" &&
-      input.expectedTrainingPlanVersion === undefined
-    )
-      throw new BadRequestException({
-        code: "PLAN_VERSION_REQUIRED",
-        message: "训练联动场景需要 expectedTrainingPlanVersion",
-      });
-    if (input.trainingProposalId) {
-      if (!trainingProposal)
-        throw new NotFoundException({
-          code: "TRAINING_PROPOSAL_NOT_FOUND",
-          message: "训练提案不存在",
-        });
-      if (!trainingProposal.proposalType.startsWith("AI_"))
-        throw new ConflictException({
-          code: "TRAINING_PROPOSAL_NOT_SUPPORTED",
-          message: "当前只支持从 AI 训练提案生成营养联动草稿",
-        });
-      if (!["READY", "APPLIED"].includes(trainingProposal.status))
-        throw new ConflictException({
-          code: "TRAINING_PROPOSAL_NOT_READY",
-          message: "训练提案尚未通过校验",
-        });
-      if (
-        (trainingProposal.baseVersionId ?? null) !==
-        (plan?.activeVersionId ?? null)
-      )
-        throw new ConflictException({
-          code: "PLAN_VERSION_CONFLICT",
-          message: "训练提案基于旧版本，请重新生成",
-        });
-    }
-    if (input.mode === "RACE_LINKED" && (!input.raceId || !race))
-      throw new NotFoundException({
-        code: "RACE_NOT_FOUND",
-        message: "赛事不存在",
-      });
-    if (input.mode === "RACE_LINKED" && race?.status === "CANCELLED")
-      throw new ConflictException({
-        code: "RACE_CANCELLED",
-        message: "赛事已取消，请调整日常饮食，不再生成该赛事的补给",
-      });
-    const selectedWorkout = input.workoutId
-      ? workouts.find((workout) => workout.id === input.workoutId)
-      : null;
-    if (input.workoutId && !selectedWorkout)
-      throw new NotFoundException({
-        code: "WORKOUT_NOT_FOUND",
-        message: "训练课程不存在",
-      });
-    return {
-      timezone: user.timezone,
-      locale: user.locale,
-      profileVersion: user.profileVersion,
-      nutritionProfile,
-      athleteProfile: athleteProfile
-        ? {
-            heightCm: athleteProfile.heightCm
-              ? Number(athleteProfile.heightCm)
-              : null,
-            weightKg: athleteProfile.weightKg
-              ? Number(athleteProfile.weightKg)
-              : null,
-            ageBand: athleteProfile.ageBand,
-            experienceLevel: athleteProfile.experienceLevel,
-          }
-        : null,
-      trainingPlanVersion: trainingVersion,
-      workouts: workouts.map((workout) => ({
-        id: workout.id,
-        scheduledDate: dbToDate(workout.scheduledDate),
-        title: workout.title,
-        purpose: workout.purpose,
-        timeTargetMin: workout.timeTargetMin
-          ? Number(workout.timeTargetMin)
-          : null,
-        distanceTargetKm: workout.distanceTargetKm
-          ? Number(workout.distanceTargetKm)
-          : null,
-        structure: workout.structure,
-      })),
-      selectedWorkout: selectedWorkout
-        ? {
-            id: selectedWorkout.id,
-            scheduledDate: dbToDate(selectedWorkout.scheduledDate),
-            title: selectedWorkout.title,
-            purpose: selectedWorkout.purpose,
-            structure: selectedWorkout.structure,
-          }
-        : null,
-      trainingChange: trainingProposal
-        ? {
-            proposalId: trainingProposal.id,
-            proposalType: trainingProposal.proposalType,
-            status: trainingProposal.status,
-            basePlanVersion: trainingProposal.baseVersion?.versionNo ?? 0,
-            original: trainingProposal.original,
-            draft: trainingProposal.draft,
-          }
-        : null,
-      race: race
-        ? {
-            id: race.id,
-            name: race.name,
-            localDate: dbToDate(race.localDate),
-            distanceKm: Number(race.distanceKm),
-            priority: race.priority,
-          }
-        : null,
-      existingNutritionPlan: nutritionPlan
-        ? {
-            version: nutritionVersion,
-            items:
-              nutritionPlan.activeVersion?.items.map((item) => ({
-                id: item.id,
-                localDate: dbToDate(item.localDate),
-                mealType: item.mealType,
-                title: item.title,
-                foods: item.foods,
-                nutrients: item.nutrients,
-              })) ?? [],
-          }
-        : null,
-    };
   }
 
   private errorCode(error: unknown) {

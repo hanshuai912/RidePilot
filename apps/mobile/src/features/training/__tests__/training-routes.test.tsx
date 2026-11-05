@@ -959,6 +959,10 @@ test("adjustment failure keeps notes, and apply timeout retries the identical wr
   expect(screen.getByText("确认这节训练的新方案？")).toBeTruthy();
   await fireEvent.press(screen.getByText("确认应用这节训练"));
   await waitFor(() =>
+    expect(screen.getByText("查看训练补给联动")).toBeTruthy(),
+  );
+  await fireEvent.press(screen.getByText("查看最新计划"));
+  await waitFor(() =>
     expect(screen.getByTestId("current-path").props.children).toBe("/training"),
   );
   expect(coach.validate).toHaveBeenCalledTimes(1);
@@ -1100,6 +1104,10 @@ test("home adjustment previews on its own route, preserves inputs on back and re
   );
   const reads = jest.mocked(homeApi.today).mock.calls.length;
   await fireEvent.press(screen.getByText("确认应用这节训练"));
+  await waitFor(() =>
+    expect(screen.getByText("查看训练补给联动")).toBeTruthy(),
+  );
+  await fireEvent.press(screen.getByText("查看最新计划"));
   await waitFor(() =>
     expect(screen.getByTestId("current-path").props.children).toBe("/"),
   );

@@ -115,3 +115,13 @@ export { homeTodayResponseSchema, homeTrainingSchema } from "./home";
 export type { HomeTodayResponse, HomeTraining } from "./home";
 
 export * from "./assessments";
+
+export {
+  trainingNutritionStateSchema,
+  nutritionTrainingContextSchema,
+  createNutritionItemEditSchema,
+} from "./nutrition";
+export type {
+  TrainingNutritionState,
+  CreateNutritionItemEdit,
+} from "./nutrition";

@@ -220,6 +220,13 @@ export const validateNutritionProposalResponseSchema = z.strictObject({
   blockers: z.array(z.string()),
 });
 
+export const nutritionTrainingContextSchema = z.strictObject({
+  planVersionId: z.uuid().nullable(),
+  planVersion: z.number().int().nonnegative(),
+  dateSignatures: z.record(z.string(), z.string()),
+  trainingProposalId: z.uuid().optional(),
+});
+
 export const nutritionProposalMetadataSchema = z.strictObject({
   summary: z.string(),
   assumptions: z.array(z.string()),
@@ -230,6 +237,7 @@ export const nutritionProposalMetadataSchema = z.strictObject({
   model: z.string(),
   skillVersion: z.string(),
   skillHash: z.string(),
+  trainingContext: nutritionTrainingContextSchema.optional(),
 });
 
 export const nutritionProposalResponseSchema = z.strictObject({
@@ -332,3 +340,26 @@ export type NutritionLinkedGenerationRequest = z.infer<
   typeof nutritionLinkedGenerationRequestSchema
 >;
 export type NutritionAiOutput = z.infer<typeof nutritionAiOutputSchema>;
+
+export const trainingNutritionStateSchema = z.strictObject({
+  from: z.iso.date(),
+  to: z.iso.date(),
+  trainingPlanVersion: z.number().int().nonnegative(),
+  nutritionVersion: z.number().int().nonnegative(),
+  affectedDates: z.array(z.iso.date()),
+  generation: generationResponseSchema.nullable(),
+  proposal: nutritionProposalResponseSchema.nullable(),
+});
+export type TrainingNutritionState = z.infer<
+  typeof trainingNutritionStateSchema
+>;
+
+export const createNutritionItemEditSchema = z.strictObject({
+  itemId: z.uuid(),
+  expectedNutritionVersion: z.number().int().positive(),
+  scheduledLocalTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
+  amounts: z.array(z.number().positive().max(10000)).min(1).max(20),
+});
+export type CreateNutritionItemEdit = z.infer<
+  typeof createNutritionItemEditSchema
+>;

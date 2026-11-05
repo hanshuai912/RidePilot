@@ -1,3 +1,4 @@
+import { NutritionGenerationContextService } from "../src/modules/nutrition/nutrition-generation-context.service";
 import { NutritionGenerationService } from "../src/modules/nutrition/nutrition-generation.service";
 import { AiException } from "../src/ai/exceptions/ai.exception";
 
@@ -33,6 +34,9 @@ describe("NutritionGenerationService linked contexts", () => {
         findFirst: jest.fn().mockResolvedValue(trainingProposal),
       },
       $transaction: jest.fn(),
+      $queryRaw: jest.fn(),
+      nutritionProfile: { findUnique: jest.fn() },
+      nutritionPlan: { findFirst: jest.fn().mockResolvedValue(null) },
     };
     const repository = {
       findProfile: jest.fn().mockResolvedValue({
@@ -49,6 +53,9 @@ describe("NutritionGenerationService linked contexts", () => {
       }),
       findActivePlan: jest.fn().mockResolvedValue(null),
     };
+    prisma.nutritionProfile.findUnique.mockImplementation(
+      repository.findProfile,
+    );
     const ai = { generate: jest.fn() };
     const skill = { load: jest.fn() };
     const races = {
@@ -64,7 +71,8 @@ describe("NutritionGenerationService linked contexts", () => {
         prisma as never,
         ai as never,
         skill as never,
-        repository as never,
+        new NutritionGenerationContextService(prisma as never),
+        races as never,
         races as never,
       ),
       prisma,
@@ -208,6 +216,7 @@ describe("NutritionGenerationService linked contexts", () => {
     const create = jest.fn().mockResolvedValue({ id: "proposal" });
     prisma.$transaction.mockImplementation(async (callback) =>
       callback({
+        ...prisma,
         aiGeneration: prisma.aiGeneration,
         nutritionPlan: { findFirst: jest.fn().mockResolvedValue(null) },
         nutritionProposal: { create },

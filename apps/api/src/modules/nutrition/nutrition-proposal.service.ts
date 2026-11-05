@@ -8,6 +8,7 @@ import {
   ApplyNutritionProposal,
   ApplyNutritionProposalResponse,
   CreateNutritionMealSwapProposal,
+  CreateNutritionItemEdit,
   CreateNutritionPlanProposal,
   NutritionPlanDraft,
   NutritionProposalResponse,
@@ -15,12 +16,13 @@ import {
 } from "@ridepilot/contracts";
 import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infra/prisma/prisma.service";
-import { dateToDb, dbToDate } from "../training/training.validation";
+import { dbToDate } from "../training/training.validation";
 import {
   toPlanDraft,
   toProfileResponse,
   toProposalResponse,
 } from "./nutrition.mapper";
+import { NutritionApplicationService } from "./nutrition-application.service";
 import { NutritionRepository } from "./nutrition.repository";
 import { validateNutritionDraft } from "./nutrition.validation";
 
@@ -32,6 +34,7 @@ export class NutritionProposalService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly repository: NutritionRepository,
+    private readonly application: NutritionApplicationService,
   ) {}
 
   async createPlanProposal(
@@ -49,6 +52,11 @@ export class NutritionProposalService {
       input.expectedNutritionVersion,
       baseVersion?.versionNo ?? 0,
     );
+    const originals =
+      baseVersion?.items.filter((item) => {
+        const date = dbToDate(item.localDate);
+        return date >= input.draft.startDate && date <= input.draft.endDate;
+      }) ?? [];
     const proposal = await this.prisma.nutritionProposal.create({
       data: {
         userId,
@@ -56,15 +64,13 @@ export class NutritionProposalService {
         baseVersionId: baseVersion?.id,
         proposalType: "PLAN_CREATE",
         draft: json(input.draft),
-        original: baseVersion
+        original: originals.length
           ? json(
               toPlanDraft(
-                baseVersion.items,
-                this.snapshotDate(baseVersion.snapshot, "startDate") ??
-                  dbToDate(baseVersion.items[0]?.localDate ?? new Date()),
-                this.snapshotDate(baseVersion.snapshot, "endDate") ??
-                  dbToDate(baseVersion.items.at(-1)?.localDate ?? new Date()),
-                (baseVersion.snapshot as { dailyTarget?: unknown } | null)
+                originals,
+                input.draft.startDate,
+                input.draft.endDate,
+                (baseVersion?.snapshot as { dailyTarget?: unknown } | null)
                   ?.dailyTarget ?? null,
               ),
             )
@@ -76,10 +82,72 @@ export class NutritionProposalService {
     return toProposalResponse(proposal);
   }
 
+  async createItemEdit(
+    userId: string,
+    input: CreateNutritionItemEdit,
+    key?: string,
+  ) {
+    const existing = await this.findByKey(userId, key);
+    if (existing) return toProposalResponse(existing);
+    const item = await this.repository.findPlanItem(userId, input.itemId);
+    if (!item)
+      throw new NotFoundException({
+        code: "NUTRITION_ITEM_NOT_FOUND",
+        message: "餐次不存在",
+      });
+    const draft = toPlanDraft(
+      [item],
+      dbToDate(item.localDate),
+      dbToDate(item.localDate),
+      null,
+    ).items[0];
+    if (draft.foods.length !== input.amounts.length)
+      throw new BadRequestException({
+        code: "NUTRITION_AMOUNTS_INVALID",
+        message: "食物份量与餐次不匹配",
+      });
+    const changed = draft.foods.some(
+      (food, index) => food.amount !== input.amounts[index],
+    );
+    return this.createMealSwapProposal(
+      userId,
+      {
+        itemId: input.itemId,
+        expectedNutritionVersion: input.expectedNutritionVersion,
+        reason: "TRAINING_CHANGED",
+        replacement: {
+          ...draft,
+          scheduledLocalTime: input.scheduledLocalTime,
+          foods: draft.foods.map((food, index) => ({
+            ...food,
+            amount: input.amounts[index],
+          })),
+          ...(changed
+            ? {
+                nutrients: {
+                  energyKcal: null,
+                  carbohydrateG: null,
+                  proteinG: null,
+                  fatG: null,
+                  fluidMl: null,
+                  sodiumMg: null,
+                },
+                nutritionSource: "USER_ENTERED" as const,
+                confidence: "LOW" as const,
+              }
+            : {}),
+        },
+      },
+      key,
+      "ITEM_EDIT",
+    );
+  }
+
   async createMealSwapProposal(
     userId: string,
     input: CreateNutritionMealSwapProposal,
     idempotencyKey?: string,
+    proposalType: "MEAL_SWAP" | "ITEM_EDIT" = "MEAL_SWAP",
   ): Promise<NutritionProposalResponse> {
     const existing = await this.findByKey(userId, idempotencyKey);
     if (existing) return toProposalResponse(existing);
@@ -98,24 +166,26 @@ export class NutritionProposalService {
     );
     const profile = await this.repository.findProfile(userId);
     if (!profile) throw this.profileRequired();
-    const dates = item.planVersion.items
-      .map((entry) => dbToDate(entry.localDate))
-      .sort();
+    const date = dbToDate(item.localDate);
+    const dayItems = item.planVersion.items.filter(
+      (entry) => dbToDate(entry.localDate) === date,
+    );
+    const snapshot = item.planVersion.snapshot as {
+      dailyTarget?: unknown;
+      dailyTargets?: Record<string, unknown>;
+    } | null;
     const current = toPlanDraft(
-      item.planVersion.items,
-      dates[0],
-      dates.at(-1) ?? dates[0],
-      (item.planVersion.snapshot as { dailyTarget?: unknown } | null)
-        ?.dailyTarget ?? null,
+      dayItems,
+      date,
+      date,
+      (snapshot?.dailyTargets && date in snapshot.dailyTargets
+        ? snapshot.dailyTargets[date]
+        : snapshot?.dailyTarget) ?? null,
     );
     const draft: NutritionPlanDraft = {
       ...current,
-      items: current.items.map((entry) =>
-        entry.localDate === dbToDate(item.localDate) &&
-        entry.mealType === item.mealType &&
-        entry.scheduledLocalTime === item.scheduledLocalTime
-          ? input.replacement
-          : entry,
+      items: current.items.map((entry, index) =>
+        dayItems[index].id === item.id ? input.replacement : entry,
       ),
     };
     const proposal = await this.prisma.nutritionProposal.create({
@@ -123,7 +193,7 @@ export class NutritionProposalService {
         userId,
         planId: item.planVersion.plan.id,
         baseVersionId: item.planVersionId,
-        proposalType: "MEAL_SWAP",
+        proposalType,
         draft: json(draft),
         original: json(current),
         idempotencyKey,
@@ -153,6 +223,15 @@ export class NutritionProposalService {
       throw new ConflictException({
         code: "PROPOSAL_NOT_EDITABLE",
         message: "当前营养草稿不可编辑",
+      });
+    const previousDraft = proposal.draft as unknown as NutritionPlanDraft;
+    if (
+      input.draft.startDate !== previousDraft.startDate ||
+      input.draft.endDate !== previousDraft.endDate
+    )
+      throw new BadRequestException({
+        code: "NUTRITION_RANGE_CHANGED",
+        message: "编辑草稿不能改变覆盖日期，请重新生成",
       });
     if (proposal.proposalVersion !== input.expectedProposalVersion)
       throw this.proposalVersionConflict();
@@ -207,149 +286,13 @@ export class NutritionProposalService {
     return this.get(userId, proposalId);
   }
 
-  async apply(
+  apply(
     userId: string,
     proposalId: string,
     input: ApplyNutritionProposal,
-    idempotencyKey?: string,
+    key?: string,
   ): Promise<ApplyNutritionProposalResponse> {
-    if (!idempotencyKey || idempotencyKey.length > 255)
-      throw new BadRequestException({
-        code: "IDEMPOTENCY_KEY_REQUIRED",
-        message: "缺少有效幂等键",
-      });
-    return this.prisma.$transaction(async (tx) => {
-      await tx.$queryRaw`SELECT "id" FROM "users" WHERE "id" = ${userId}::uuid FOR UPDATE`;
-      const proposal = await tx.nutritionProposal.findFirst({
-        where: { id: proposalId, userId },
-        include: { baseVersion: true },
-      });
-      if (!proposal) throw this.notFound();
-      if (proposal.appliedVersionId)
-        return this.appliedResponse(tx, proposal.appliedVersionId);
-      const used = await tx.nutritionProposal.findUnique({
-        where: { applyIdempotencyKey: idempotencyKey },
-        select: { id: true },
-      });
-      if (used && used.id !== proposalId)
-        throw new ConflictException({
-          code: "IDEMPOTENCY_KEY_CONFLICT",
-          message: "幂等键已被其他提案使用",
-        });
-      if (proposal.status !== "READY" || !proposal.validationPassed)
-        throw new ConflictException({
-          code: "NUTRITION_PROPOSAL_NOT_READY",
-          message: "营养草稿尚未通过校验",
-        });
-      const plan = await tx.nutritionPlan.findFirst({
-        where: { userId, status: "ACTIVE" },
-        include: { activeVersion: true },
-      });
-      this.assertExpectedVersion(
-        input.expectedNutritionVersion,
-        plan?.activeVersion?.versionNo ?? 0,
-      );
-      if (
-        (proposal.baseVersionId ?? null) !== (plan?.activeVersion?.id ?? null)
-      )
-        throw new ConflictException({
-          code: "NUTRITION_VERSION_CONFLICT",
-          message: "营养草稿基于旧版本，请重新生成",
-        });
-      const profile = await tx.nutritionProfile.findUnique({
-        where: { userId },
-      });
-      if (!profile) throw this.profileRequired();
-      const result = validateNutritionDraft(
-        proposal.draft as unknown as NutritionPlanDraft,
-        toProfileResponse(profile),
-      );
-      if (result.blockers.length)
-        throw new ConflictException({
-          code: "NUTRITION_VALIDATION_FAILED",
-          message: result.blockers.join("；"),
-        });
-      const targetPlan =
-        plan ??
-        (await tx.nutritionPlan.create({ data: { userId, status: "ACTIVE" } }));
-      const draft = proposal.draft as unknown as NutritionPlanDraft;
-      const version = await tx.nutritionPlanVersion.create({
-        data: {
-          planId: targetPlan.id,
-          versionNo: (plan?.activeVersion?.versionNo ?? 0) + 1,
-          baseVersionId: plan?.activeVersion?.id,
-          source: proposal.proposalType,
-          profileVersion: profile.version,
-          snapshot: json({
-            dailyTarget: draft.dailyTarget ?? null,
-            startDate: draft.startDate,
-            endDate: draft.endDate,
-          }),
-          appliedAt: new Date(),
-        },
-      });
-      await tx.nutritionItem.createMany({
-        data: draft.items.map((item) => ({
-          planVersionId: version.id,
-          localDate: dateToDb(item.localDate),
-          mealType: item.mealType,
-          scheduledLocalTime: item.scheduledLocalTime,
-          title: item.title,
-          foods: json(item.foods),
-          nutrients: json(item.nutrients),
-          nutritionSource: item.nutritionSource,
-          confidence: item.confidence,
-          linkedWorkoutId: item.linkedWorkoutId,
-          notes: item.notes ?? null,
-        })),
-      });
-      await tx.nutritionPlan.update({
-        where: { id: targetPlan.id },
-        data: { activeVersionId: version.id },
-      });
-      await tx.nutritionProposal.update({
-        where: { id: proposalId },
-        data: {
-          status: "APPLIED",
-          appliedVersionId: version.id,
-          applyIdempotencyKey: idempotencyKey,
-        },
-      });
-      return {
-        success: true as const,
-        newNutritionVersion: version.versionNo,
-        affectedDates: [
-          ...new Set(draft.items.map((item) => item.localDate)),
-        ].sort(),
-      };
-    });
-  }
-
-  private async appliedResponse(
-    tx: Prisma.TransactionClient,
-    versionId: string,
-  ) {
-    const version = await tx.nutritionPlanVersion.findUnique({
-      where: { id: versionId },
-      include: { items: true },
-    });
-    if (!version)
-      throw new ConflictException({
-        code: "NUTRITION_VERSION_NOT_FOUND",
-        message: "营养计划版本不存在",
-      });
-    return {
-      success: true as const,
-      newNutritionVersion: version.versionNo,
-      affectedDates: [
-        ...new Set(version.items.map((item) => dbToDate(item.localDate))),
-      ].sort(),
-    };
-  }
-
-  private snapshotDate(snapshot: unknown, key: "startDate" | "endDate") {
-    const value = (snapshot as Record<string, unknown> | null)?.[key];
-    return typeof value === "string" ? value : null;
+    return this.application.apply(userId, proposalId, input, key);
   }
 
   private async findByKey(userId: string, key?: string) {

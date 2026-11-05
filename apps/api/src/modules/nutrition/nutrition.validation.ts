@@ -20,6 +20,12 @@ export function validateNutritionDraft(
   if (draft.startDate > draft.endDate)
     blockers.push("计划开始日期不能晚于结束日期");
 
+  if (
+    (Date.parse(draft.endDate) - Date.parse(draft.startDate)) / 86400000 + 1 >
+    31
+  )
+    blockers.push("一次最多调整 31 天的饮食安排");
+
   for (const [index, item] of draft.items.entries()) {
     if (item.localDate < draft.startDate || item.localDate > draft.endDate)
       blockers.push(`第 ${index + 1} 个餐次日期不在计划范围内`);

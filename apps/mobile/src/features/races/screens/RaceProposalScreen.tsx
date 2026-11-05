@@ -1,3 +1,4 @@
+import { TrainingNutritionLinkCard } from "../../nutrition/components/TrainingNutritionLinkCard";
 import { useRef } from "react";
 import { router, useLocalSearchParams } from "expo-router";
 import { racePlanningPhaseSchema } from "@ridepilot/contracts";
@@ -169,6 +170,14 @@ export function RaceProposalScreen() {
             ftpWatts={null}
             nutritionSummary="以饮食档案及独立补给方案为准"
           />
+          {proposal.status === "APPLIED" ? (
+            <TrainingNutritionLinkCard
+              dates={[
+                proposal.weekStartDate ?? draft.startDate,
+                proposal.endDate ?? draft.endDate,
+              ]}
+            />
+          ) : null}
           {proposal.status === "APPLIED" ? (
             <Card>
               <AppText className="text-positive">已应用{label}计划</AppText>

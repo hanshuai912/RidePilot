@@ -10,6 +10,8 @@ import {
 import { ApiBearerAuth, ApiBody, ApiTags } from "@nestjs/swagger";
 import {
   applyNutritionProposalSchema,
+  createNutritionItemEditSchema,
+  CreateNutritionItemEdit,
   createNutritionMealSwapProposalSchema,
   createNutritionPlanProposalSchema,
   updateNutritionProposalSchema,
@@ -45,6 +47,17 @@ export class NutritionProposalController {
       input,
       idempotencyKey,
     );
+  }
+
+  @Post("nutrition/item-edit-proposals")
+  @ApiBody({ schema: toOpenApiSchema(createNutritionItemEditSchema, "input") })
+  createItemEdit(
+    @CurrentPrincipal() principal: AuthPrincipal,
+    @Headers("idempotency-key") key: string | undefined,
+    @Body(new ZodBodyPipe(createNutritionItemEditSchema))
+    input: CreateNutritionItemEdit,
+  ) {
+    return this.service.createItemEdit(principal.userId, input, key);
   }
 
   @Post("nutrition/meal-swap-proposals")
