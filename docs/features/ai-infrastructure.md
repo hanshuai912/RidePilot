@@ -30,6 +30,10 @@ AI_GUARD_MODE=noop
 
 用户提供的 DeepSeek 配置可用于本地手动联调；本仓库不保存该密钥。`AI_BASE_URL` 会在 Provider 内部补上 `/chat/completions`，也可以直接填写完整的兼容端点。营养生成会请求 JSON 响应模式；Provider 读取响应体超时时会保留为可重试的 `AI_PROVIDER_TIMEOUT`，不会误报为无效 JSON。
 
+交互式教练问答设置内部可选 `thinkingMode: "disabled"`，原生 `api.deepseek.com` 映射为 `thinking: {type:"disabled"}`；其他兼容端点不转发厂商字段，未指定该选项的草稿生成不受影响。DeepSeek 的思考开关及默认行为以 [官方思考模式文档](https://api-docs.deepseek.com/guides/thinking_mode/) 为依据。问答使用1600 tokens预算和简短回答提示，避免原600 tokens在思考阶段耗尽。
+
+响应 `finish_reason=length` 会抛可重试的 `AI_PROVIDER_OUTPUT_TRUNCATED`，不返回截断正文；空白或缺少最终正文返回 `AI_PROVIDER_INVALID_RESPONSE`。模型 `reasoning_content` 不作为答案，也不写入日志。问答 HTTP 路由挂载 `AiExceptionFilter`，把内部 AI 异常转为中文502/504/422/503响应，保留 code/retryable；后台草稿 worker 继续捕获内部异常并记录任务状态。
+
 开发和测试环境当前使用 `NoopGuardAdapter`。生产环境禁止使用 NoopGuard；接入真实 Guard 前，生产配置不能启动 AI 模块。
 
 ## 业务模块调用

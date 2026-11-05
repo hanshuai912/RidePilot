@@ -1,5 +1,7 @@
 # 训练课程 API
 
+AI 训练草稿应用支持可选 `expectedProposalVersion`。教练中心总是传入预览的草稿版本，同时检查正式基础版本；不一致返回 `409 PROPOSAL_VERSION_CONFLICT`。已应用提案重复请求仍返回原结果。该扩展针对 AI 草稿，人工课程沿用已有应用规则。
+
 所有接口前缀为 `/api/v1`，需要 `Authorization: Bearer <access-token>`。
 
 AI 教练新增的计划生成、调整、历史恢复及相关资料接口见 [AI 教练 API](./ai-coach.md)。这些入口仍复用本页的提案校验和正式版本应用语义。

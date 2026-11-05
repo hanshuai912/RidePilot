@@ -42,6 +42,14 @@ export class NutritionApplicationService {
       if (!proposal) throw this.notFound();
       if (proposal.appliedVersionId)
         return this.appliedResponse(tx, proposal.appliedVersionId);
+      if (
+        input.expectedProposalVersion !== undefined &&
+        proposal.proposalVersion !== input.expectedProposalVersion
+      )
+        throw new ConflictException({
+          code: "PROPOSAL_VERSION_CONFLICT",
+          message: "草稿已变化，请重新预览和校验",
+        });
       const used = await tx.nutritionProposal.findUnique({
         where: { applyIdempotencyKey: idempotencyKey },
         select: { id: true },

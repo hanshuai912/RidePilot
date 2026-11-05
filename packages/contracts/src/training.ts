@@ -55,6 +55,7 @@ export const updateProposalSchema = z.object({
 });
 export const applyProposalSchema = z.object({
   expectedBaseVersion: z.number().int().nonnegative(),
+  expectedProposalVersion: z.number().int().positive().optional(),
 });
 
 export const workoutActivitySchema = z.object({

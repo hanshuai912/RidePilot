@@ -1,5 +1,23 @@
 # AI 教练 API
 
+## 持续协作中心
+
+新增共享契约 `packages/contracts/src/coach-center.ts`，均需登录并按本人归属访问：
+
+| 方法 | 路径                                | 说明                                                                                                                                   |
+| ---- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| GET  | `/ai-coach/overview`                | 账号时区当天、主目标/阶段、带日期的状态依据、下一未记录课程/已安排测试、最多十四节未来未记录课程、最近五个已应用版本                   |
+| GET  | `/ai-coach/suggestions`             | `{pending,recent}`；训练、饮食/补给、阶段草稿及排队/生成任务；recent 最近十条终态记录；含版本和可识别的失效原因                        |
+| POST | `/ai-coach/suggestions/:id/dismiss` | `{kind:"TRAINING"或"NUTRITION"或"STAGE",expectedVersion:1}`；事务条件更新；同一版本放弃幂等成功；404 不存在/非本人，409 状态或版本变化 |
+
+所有 GET 只读，不提交或应用生成。状态规则、证据时间窗、阶段失效与课程身份规则见 [持续协作中心](../features/ai-coach-center.md)。
+
+`POST /ai-coach/chat` 仍要求正式训练计划，输入 `{message,history?}`，message 1–500字符；history 最多六条 `{role:"user"或"assistant",content}`，每条1–6000字符，不接受 system。服务端读取本人最新概览、未来课程及实际反馈后只读回答，返回 `{answer,requestId,model,readOnly:true}`。会话历史不在服务端持久化，不可调用生成或应用能力。
+
+AI 训练与营养提案 apply 新增可选 `expectedProposalVersion`，与正式基础版本一同检查。教练中心总是发送预览的草稿版本；变化返回409 `PROPOSAL_VERSION_CONFLICT`。旧客户端兼容；已应用提案重复调用保持幂等返回原结果。
+
+问答模型异常返回 `{statusCode,code,message,retryable}`，message 为可直接展示的中文：502 `AI_PROVIDER_OUTPUT_TRUNCATED`（回答额度耗尽，允许重试）、502 `AI_PROVIDER_INVALID_RESPONSE`（缺少有效正文）、504 `AI_PROVIDER_TIMEOUT`、422 `AI_INPUT_REJECTED/AI_OUTPUT_REJECTED/AI_GUARD_REVIEW_REQUIRED`，以及503配置/审核服务错误。失败不新增建议或修改计划，客户端保留问题供手动重试。DeepSeek 问答显式关闭思考模式并使用1600 tokens，返回内容始终是最终正文。
+
 所有路径前缀为 `/api/v1`，需要 `Authorization: Bearer <access-token>`。写入型生成和应用请求应带独立的 `Idempotency-Key`。请求体与响应结构以 `packages/contracts/src/coach.ts` 的 Zod schema 为准。
 
 ## 阶段及范围生成（2026-10-30）

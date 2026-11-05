@@ -9,7 +9,7 @@ import {
 import { AppText, Button, Card } from "../../../components/ui";
 import { colors } from "../../../theme/colors";
 import type { CoachTask } from "../hooks/useInitialPlan";
-import { AiMark, InfoStrip } from "./CoachPage";
+import { InfoStrip } from "./CoachPage";
 
 function QuickAction({
   icon,
@@ -60,40 +60,12 @@ export function CoachHome({
 }) {
   return (
     <>
-      <View className="overflow-hidden rounded-[19px] border border-border bg-surface p-4">
-        <View className="flex-row items-start justify-between">
-          <AiMark />
-          <View className="rounded-full border border-brand-subtle bg-brand-subtle px-3 py-1.5">
-            <AppText variant="label" className="text-brand">
-              正式计划 v{planVersion}
-            </AppText>
-          </View>
-        </View>
-        <AppText variant="label" className="mt-5 text-muted">
-          当前训练计划
-        </AppText>
-        <AppText variant="display" className="mt-2 text-[27px] leading-[32px]">
-          先看状态，再决定下一步
-        </AppText>
-        <AppText variant="body" className="mt-2 text-secondary">
-          训练反馈、身体状态和比赛安排会先形成建议草稿，确认后才会改变未来课程。
-        </AppText>
-      </View>
-
       <Card>
-        <View className="flex-row items-center justify-between">
-          <AppText variant="label" className="text-brand">
-            计划状态
-          </AppText>
-          <AppText variant="caption" muted>
-            持续协作
-          </AppText>
-        </View>
-        <AppText variant="card" className="mt-2">
-          未来训练仍按正式计划执行
+        <AppText variant="label" className="text-brand">
+          正式计划 v{planVersion} · 快捷任务
         </AppText>
-        <AppText variant="caption" muted className="mt-1">
-          你可以告诉 AI 教练发生了什么，再选择影响范围。已完成的训练记录会保留。
+        <AppText muted className="mt-2">
+          选择需要改变的安排，预览并确认后才会应用。
         </AppText>
         {!ready ? <InfoStrip>{missingData}</InfoStrip> : null}
       </Card>

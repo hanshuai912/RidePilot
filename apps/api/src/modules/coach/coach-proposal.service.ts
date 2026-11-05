@@ -177,6 +177,7 @@ export class CoachProposalService {
     id: string,
     expectedBaseVersion: number,
     key: string,
+    expectedProposalVersion?: number,
   ) {
     if (!key || key.length > 255)
       throw new BadRequestException({
@@ -200,6 +201,14 @@ export class CoachProposalService {
         });
       if (proposal.appliedVersionId)
         return this.appliedResponse(tx, proposal.appliedVersionId, proposal);
+      if (
+        expectedProposalVersion !== undefined &&
+        proposal.proposalVersion !== expectedProposalVersion
+      )
+        throw new ConflictException({
+          code: "PROPOSAL_VERSION_CONFLICT",
+          message: "草稿已变化，请重新预览和校验",
+        });
       if (proposal.status !== "READY" || !proposal.validationPassed)
         throw new ConflictException({
           code: "PROPOSAL_NOT_READY",

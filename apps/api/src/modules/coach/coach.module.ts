@@ -25,10 +25,15 @@ import { StagePlansService } from "./stage-plans.service";
 import { StagePlansController } from "./stage-plans.controller";
 import { CoachGenerationContextService } from "./coach-generation-context.service";
 import { TrainingRangeService } from "./training-range.service";
+import { CoachCenterController } from "./coach-center.controller";
+import { CoachOverviewService } from "./coach-overview.service";
+import { CoachSuggestionsService } from "./coach-suggestions.service";
+import { CoachSuggestionsRepository } from "./coach-suggestions.repository";
 
 @Module({
   imports: [InfraModule, AiModule],
   controllers: [
+    CoachCenterController,
     AssessmentsController,
     StagePlansController,
     CoachDataController,
@@ -39,6 +44,9 @@ import { TrainingRangeService } from "./training-range.service";
     AiProposalController,
   ],
   providers: [
+    CoachOverviewService,
+    CoachSuggestionsService,
+    CoachSuggestionsRepository,
     AssessmentsService,
     AssessmentScheduleService,
     AssessmentReviewService,

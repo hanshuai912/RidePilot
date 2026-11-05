@@ -267,6 +267,7 @@ export type RaceNutritionState = z.infer<typeof raceNutritionStateSchema>;
 
 export const applyNutritionProposalSchema = z.strictObject({
   expectedNutritionVersion: z.number().int().nonnegative(),
+  expectedProposalVersion: z.number().int().positive().optional(),
 });
 
 export const applyNutritionProposalResponseSchema = z.strictObject({

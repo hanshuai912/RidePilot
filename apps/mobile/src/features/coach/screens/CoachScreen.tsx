@@ -13,6 +13,8 @@ import {
   ScheduleStep,
 } from "../components/InitialPlanSteps";
 import { CoachHome } from "../components/CoachHome";
+import { CoachOverviewPanel } from "../components/CoachOverviewPanel";
+import { CoachSuggestionsPanel } from "../components/CoachSuggestionsPanel";
 import {
   AiMark,
   CoachPage,
@@ -234,6 +236,8 @@ export function CoachScreen() {
         busy={busy}
         error={error}
       >
+        <CoachOverviewPanel />
+        <CoachSuggestionsPanel compact />
         <CoachHome
           planVersion={resources.planStatus.planVersion}
           ready={ready}
@@ -265,6 +269,7 @@ export function CoachScreen() {
         onSecondary={() => router.push("/workouts/new")}
         error={error}
       >
+        <CoachSuggestionsPanel compact />
         <View className="overflow-hidden rounded-[18px] border border-border bg-surface p-4">
           <AiMark />
           <AppText variant="label" className="mt-4 text-muted">

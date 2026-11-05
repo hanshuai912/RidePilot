@@ -1,4 +1,4 @@
-import { Body, Controller, Post } from "@nestjs/common";
+import { Body, Controller, Post, UseFilters } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import {
   coachChatInputSchema,
@@ -8,6 +8,7 @@ import { ZodBodyPipe } from "../../common/zod-body.pipe";
 import { CurrentPrincipal } from "../auth/current-principal.decorator";
 import type { AuthPrincipal } from "../auth/auth.types";
 import { CoachChatService } from "./coach-chat.service";
+import { AiExceptionFilter } from "../../ai/exceptions/ai-exception.filter";
 
 @ApiTags("ai-coach")
 @ApiBearerAuth("access-token")
@@ -16,6 +17,7 @@ export class CoachChatController {
   constructor(private readonly chat: CoachChatService) {}
 
   @Post("ai-coach/chat")
+  @UseFilters(AiExceptionFilter)
   explain(
     @CurrentPrincipal() principal: AuthPrincipal,
     @Body(new ZodBodyPipe(coachChatInputSchema)) input: CoachChatInput,

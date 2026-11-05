@@ -1,12 +1,13 @@
+const mockConfig = {
+  provider: "openai-compatible",
+  baseUrl: "https://api.deepseek.com",
+  apiKey: "test-key",
+  model: "deepseek-flash",
+  timeoutMs: 1000,
+  guardMode: "noop",
+};
 jest.mock("../src/ai/config/ai.config", () => ({
-  getAiConfig: () => ({
-    provider: "openai-compatible",
-    baseUrl: "https://api.deepseek.com",
-    apiKey: "test-key",
-    model: "deepseek-flash",
-    timeoutMs: 1000,
-    guardMode: "noop",
-  }),
+  getAiConfig: () => mockConfig,
 }));
 
 import { OpenAiCompatibleProvider } from "../src/ai/providers/openai-compatible.provider";
@@ -30,6 +31,7 @@ describe("OpenAiCompatibleProvider", () => {
 
   beforeEach(() => {
     fetchMock.mockReset();
+    mockConfig.baseUrl = "https://api.deepseek.com";
   });
 
   it("maps an OpenAI-compatible response and request", async () => {
@@ -90,7 +92,9 @@ describe("OpenAiCompatibleProvider", () => {
     expect(fetchMock).toHaveBeenCalledWith(
       "https://api.deepseek.com/chat/completions",
       expect.objectContaining({
-        body: expect.stringContaining('"response_format":{"type":"json_object"}'),
+        body: expect.stringContaining(
+          '"response_format":{"type":"json_object"}',
+        ),
       }),
     );
   });
@@ -136,7 +140,9 @@ describe("OpenAiCompatibleProvider", () => {
     fetchMock.mockResolvedValue({
       ok: true,
       status: 200,
-      text: jest.fn().mockRejectedValue(new DOMException("aborted", "AbortError")),
+      text: jest
+        .fn()
+        .mockRejectedValue(new DOMException("aborted", "AbortError")),
     } as unknown as Response);
 
     await expect(
@@ -145,5 +151,81 @@ describe("OpenAiCompatibleProvider", () => {
       code: "AI_PROVIDER_TIMEOUT",
       retryable: true,
     });
+  });
+
+  it("disables thinking only when explicitly requested for native DeepSeek", async () => {
+    fetchMock.mockResolvedValue(
+      response({
+        choices: [{ message: { content: "完整回答" }, finish_reason: "stop" }],
+      }),
+    );
+    await provider.generate({
+      messages: [{ role: "user", content: "问题" }],
+      thinkingMode: "disabled",
+      maxTokens: 1600,
+    });
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toMatchObject({
+      thinking: { type: "disabled" },
+      max_tokens: 1600,
+    });
+
+    mockConfig.baseUrl = "https://other-provider.example/v1";
+    await provider.generate({
+      messages: [{ role: "user", content: "问题" }],
+      thinkingMode: "disabled",
+    });
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body)).not.toHaveProperty(
+      "thinking",
+    );
+  });
+
+  it.each(["", "不完整的正文"])(
+    "classifies budget exhaustion without returning reasoning or partial content (%p)",
+    async (content) => {
+      fetchMock.mockResolvedValue(
+        response({
+          choices: [
+            {
+              message: { content, reasoning_content: "private reasoning" },
+              finish_reason: "length",
+            },
+          ],
+          usage: { completion_tokens: 600 },
+        }),
+      );
+      await expect(
+        provider.generate({ messages: [{ role: "user", content: "问题" }] }),
+      ).rejects.toMatchObject({
+        code: "AI_PROVIDER_OUTPUT_TRUNCATED",
+        retryable: true,
+      });
+    },
+  );
+
+  it("does not expose reasoning when a response has no final answer", async () => {
+    fetchMock.mockResolvedValue(
+      response({
+        choices: [
+          {
+            message: { content: null, reasoning_content: "private reasoning" },
+            finish_reason: "stop",
+          },
+        ],
+      }),
+    );
+    await expect(
+      provider.generate({ messages: [{ role: "user", content: "问题" }] }),
+    ).rejects.toMatchObject({ code: "AI_PROVIDER_INVALID_RESPONSE" });
+  });
+
+  it("rejects whitespace-only answers", async () => {
+    fetchMock.mockResolvedValue(
+      response({
+        choices: [{ message: { content: " \n\t" }, finish_reason: "stop" }],
+      }),
+    );
+    await expect(
+      provider.generate({ messages: [{ role: "user", content: "问题" }] }),
+    ).rejects.toMatchObject({ code: "AI_PROVIDER_INVALID_RESPONSE" });
   });
 });

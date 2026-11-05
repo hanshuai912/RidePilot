@@ -46,6 +46,7 @@ export class TrainingApplicationService {
         proposalId,
         input.expectedBaseVersion,
         idempotencyKey,
+        input.expectedProposalVersion,
       );
     if (type?.proposalType === "PLAN_RESTORE")
       return this.restore.apply(

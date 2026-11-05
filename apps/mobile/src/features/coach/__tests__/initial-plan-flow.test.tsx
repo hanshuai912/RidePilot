@@ -17,6 +17,14 @@ import { CoachScreen } from "../screens/CoachScreen";
 import { coachApi } from "../services/coach.api";
 
 let mockPathname = "/coach";
+// The collaboration center has separate interaction tests; keep onboarding
+// tests focused on its existing generation/application flow.
+jest.mock("../components/CoachOverviewPanel", () => ({
+  CoachOverviewPanel: () => null,
+}));
+jest.mock("../components/CoachSuggestionsPanel", () => ({
+  CoachSuggestionsPanel: () => null,
+}));
 const mockNavigate = jest.fn((href: unknown) => {
   const rawPath =
     typeof href === "string"

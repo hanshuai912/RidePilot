@@ -188,6 +188,7 @@ export const nutritionApi = {
     token: string,
     proposalId: string,
     expectedNutritionVersion: number,
+    expectedProposalVersion?: number,
   ) =>
     request(
       `nutrition/proposals/${encodeURIComponent(proposalId)}/apply`,
@@ -195,7 +196,7 @@ export const nutritionApi = {
       applyNutritionProposalResponseSchema,
       {
         method: "POST",
-        body: { expectedNutritionVersion },
+        body: { expectedNutritionVersion, expectedProposalVersion },
         idempotencyKey: `nutrition-apply-${proposalId}`,
       },
     ),

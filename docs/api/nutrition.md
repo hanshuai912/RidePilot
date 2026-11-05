@@ -1,5 +1,7 @@
 # 饮食 API
 
+教练中心通过本人建议列表恢复饮食/赛事补给草稿。应用请求支持可选 `expectedProposalVersion`：与预览版本不一致返回 `409 PROPOSAL_VERSION_CONFLICT`，已应用重复请求仍返回原结果。正式饮食版本、领域校验和幂等语义保留。
+
 所有接口前缀为 `/api/v1`，需要 `Authorization: Bearer <access-token>`。写入提案和应用接口应带 `Idempotency-Key`。
 
 ## 当前已实现接口

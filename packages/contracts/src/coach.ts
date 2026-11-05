@@ -227,6 +227,15 @@ export const updateAiProposalSchema = z.strictObject({
 });
 export const coachChatInputSchema = z.strictObject({
   message: z.string().trim().min(1).max(500),
+  history: z
+    .array(
+      z.strictObject({
+        role: z.enum(["user", "assistant"]),
+        content: z.string().trim().min(1).max(6000),
+      }),
+    )
+    .max(6)
+    .optional(),
 });
 export const coachChatResponseSchema = z.object({
   answer: z.string(),

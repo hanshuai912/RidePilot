@@ -1,5 +1,7 @@
 # 后端架构基线
 
+AI 教练持续协作中心在 `CoachModule` 内新增 `CoachOverviewService`、独立状态规则、`CoachSuggestionsRepository/Service` 和薄控制器。概览使用一致读取事务，建议查询与生命周期写入分离；问答复用概览和已有 AI 编排器，无新增模型客户端或数据表，见 [持续协作中心](../features/ai-coach-center.md)。
+
 `apps/api` 是 NestJS 模块化单体，入口统一使用 `/api/v1`。当前包含 health、auth、profile、training、coach 和 AI 基础设施模块；业务功能按领域新增 controller、service、repository。`packages/contracts` 存放移动端与 API 共用的 Zod 请求/响应 schema，不共享 Prisma 类型。
 
 `TrainingModule` 将草稿/查询、正式应用事务、数据查询和响应映射分别放入 service、application service、repository 和 mapper。人工课程无需先有正式计划；首次确认应用在事务内创建正式计划和第 1 版，沿用草稿校验、用户确认、版本和幂等约束，详见 [手动训练课程](../features/manual-training-workout.md)。

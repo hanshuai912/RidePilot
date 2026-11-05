@@ -10,7 +10,7 @@ import {
 
 interface OpenAiResponse {
   choices?: Array<{
-    message?: { content?: unknown };
+    message?: { content?: unknown; reasoning_content?: unknown };
     finish_reason?: unknown;
   }>;
   model?: unknown;
@@ -55,6 +55,11 @@ export class OpenAiCompatibleProvider implements AiProvider {
           ...(request.maxTokens === undefined
             ? {}
             : { max_tokens: request.maxTokens }),
+          // Vendor extensions must not leak into other compatible endpoints.
+          ...(request.thinkingMode !== undefined &&
+          new URL(config.baseUrl).hostname === "api.deepseek.com"
+            ? { thinking: { type: request.thinkingMode } }
+            : {}),
           ...(request.responseFormat === undefined
             ? {}
             : { response_format: request.responseFormat }),
@@ -133,9 +138,18 @@ export class OpenAiCompatibleProvider implements AiProvider {
     }
 
     const data = payload as OpenAiResponse;
-    const choice = data.choices?.[0];
+    const choice = Array.isArray(data.choices) ? data.choices[0] : undefined;
+    // A reasoning model may exhaust the whole budget before emitting content.
+    // Never return a reasoning trace or a partial answer as the final result.
+    if (choice?.finish_reason === "length") {
+      throw new AiException(
+        "AI_PROVIDER_OUTPUT_TRUNCATED",
+        "AI provider output exceeded the token budget",
+        true,
+      );
+    }
     const content = choice?.message?.content;
-    if (!choice || typeof content !== "string" || content.length === 0) {
+    if (!choice || typeof content !== "string" || !content.trim()) {
       throw new AiException(
         "AI_PROVIDER_INVALID_RESPONSE",
         "AI provider response did not contain text content",

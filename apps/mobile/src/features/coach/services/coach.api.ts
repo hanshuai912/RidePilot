@@ -49,10 +49,18 @@ export async function coachRequest<T>(
   path: string,
   token: string,
   schema: { parse: (value: unknown) => T },
-  options: { method?: string; body?: unknown; idempotencyKey?: string } = {},
+  options: {
+    method?: string;
+    body?: unknown;
+    idempotencyKey?: string;
+    timeoutMs?: number;
+  } = {},
 ): Promise<T> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 12000);
+  const timeout = setTimeout(
+    () => controller.abort(),
+    options.timeoutMs ?? 12000,
+  );
   try {
     const response = await fetch(`${API_BASE_URL}/${path}`, {
       method: options.method ?? "GET",
@@ -218,6 +226,7 @@ export const coachApi = {
     id: string,
     expectedBaseVersion: number,
     key: string,
+    expectedProposalVersion?: number,
   ) =>
     request(
       `proposals/${encodeURIComponent(id)}/apply`,
@@ -225,7 +234,7 @@ export const coachApi = {
       applyProposalResponseSchema,
       {
         method: "POST",
-        body: { expectedBaseVersion },
+        body: { expectedBaseVersion, expectedProposalVersion },
         idempotencyKey: key,
       },
     ),
