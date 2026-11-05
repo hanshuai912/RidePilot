@@ -27,3 +27,7 @@
 - `snapshot.affectedDates`：本次实际替换范围，重放幂等应用响应时使用。
 
 应用时锁用户行和营养提案行，检查当前训练 ID、营养基础版本及当前过敏原；范围外餐次复制到新版本。草稿更新采用 proposalVersion 乐观锁并重置校验。没有训练核对摘要的历史版本按“待核对”展示，不自动迁移或生成新方案。
+
+## 2026-11-05：生成上下文与候选替代
+
+复用 NutritionProposal.metadata JSON，新增可选 generationContext（上下文指纹、用户/营养档案版本、正式训练版本 ID、可选赛事 ID/版本）；共享严格 schema 同步扩展，不新增表或迁移。新提案应用时校验这些版本；旧数据无快照时沿用已有基准版本和领域校验。成功可用的新候选才把同任务旧候选设为 EXPIRED、proposalVersion+1、validationPassed=false，并写明替代原因。BLOCKED/FAILED 不退役旧可用候选。

@@ -3,13 +3,22 @@ import type {
   AiProposalResponse,
   NutritionProposalResponse,
 } from "@ridepilot/contracts";
+import { coachCenterApi } from "../services/coach-center.api";
 import { coachApi } from "../services/coach.api";
 import { nutritionApi } from "../../nutrition/services/nutrition.api";
 import { useCoachResource } from "./useCoachResource";
 
 type Draft =
-  | { kind: "TRAINING"; proposal: AiProposalResponse }
-  | { kind: "NUTRITION"; proposal: NutritionProposalResponse };
+  | {
+      kind: "TRAINING";
+      proposal: AiProposalResponse;
+      staleReason?: string | null;
+    }
+  | {
+      kind: "NUTRITION";
+      proposal: NutritionProposalResponse;
+      staleReason?: string | null;
+    };
 
 export function useCoachSuggestion(
   token: string | undefined,
@@ -20,6 +29,7 @@ export function useCoachSuggestion(
   const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [invalidatedCount, setInvalidatedCount] = useState(0);
   const [affectedDates, setAffectedDates] = useState<string[]>([]);
   const pending = useRef(false);
   const load = useCallback(async (): Promise<Draft> => {
@@ -28,14 +38,31 @@ export function useCoachSuggestion(
     if (!token) throw new Error("请先登录");
     if (!id || !["TRAINING", "NUTRITION"].includes(kind))
       throw new Error("建议链接无效，请返回建议列表");
-    return kind === "TRAINING"
-      ? { kind, proposal: await coachApi.proposal(token, id) }
-      : { kind: "NUTRITION", proposal: await nutritionApi.proposal(token, id) };
+    const [draft, suggestions] = await Promise.all([
+      kind === "TRAINING"
+        ? coachApi.proposal(token, id)
+        : nutritionApi.proposal(token, id),
+      coachCenterApi.suggestions(token),
+    ]);
+    const item = [...suggestions.pending, ...suggestions.recent].find(
+      (p) => p.id === id && p.kind === kind,
+    );
+    return {
+      kind,
+      proposal: draft,
+      staleReason: item?.staleReason ?? null,
+    } as Draft;
   }, [token, id, kind]);
   const resource = useCoachResource(load);
   const { data, setData } = resource;
   const run = async (apply: boolean) => {
-    if (!token || !data || pending.current || (apply && (!checked || !confirm)))
+    if (
+      !token ||
+      !data ||
+      data.staleReason ||
+      pending.current ||
+      (apply && (!checked || !confirm))
+    )
       return;
     pending.current = true;
     setBusy(true);
@@ -63,6 +90,16 @@ export function useCoachSuggestion(
         } as Draft);
         setAffectedDates(result.affectedDates);
         setConfirm(false);
+        // Refresh related suggestions after the official version changes.
+        try {
+          const suggestions = await coachCenterApi.suggestions(token);
+          setInvalidatedCount(
+            suggestions.recent.filter((p) => p.staleReason && p.id !== id)
+              .length,
+          );
+        } catch {
+          /* Returning to the list retries the read on focus. */
+        }
       } else {
         const result: Draft =
           data.kind === "TRAINING"
@@ -89,6 +126,7 @@ export function useCoachSuggestion(
     busy,
     actionError: error,
     affectedDates,
+    invalidatedCount,
     validate: () => run(false),
     apply: () => run(true),
   };

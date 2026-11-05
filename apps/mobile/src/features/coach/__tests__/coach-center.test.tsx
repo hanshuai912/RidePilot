@@ -341,3 +341,84 @@ it("shows validation blockers and does not offer application", async () => {
   expect(screen.queryByText("预览完成，准备应用")).toBeNull();
   expect(training.apply).not.toHaveBeenCalled();
 });
+
+it("shows stale drafts only in history with their reasons and excludes them from the count", async () => {
+  api.suggestions.mockResolvedValue({
+    pending: [],
+    recent: [
+      {
+        ...suggestion,
+        status: "SUPERSEDED",
+        staleReason: "已有同一任务的新草稿，本草稿已被替代",
+      },
+    ],
+  });
+  const screen = await render(<CoachSuggestionsPanel />);
+  await screen.findByText("待处理建议 · 0");
+  expect(screen.getByText(/已被新草稿替代/)).toBeTruthy();
+  expect(screen.getByText("已有同一任务的新草稿，本草稿已被替代")).toBeTruthy();
+  expect(screen.queryByText("继续预览建议")).toBeNull();
+  expect(training.generate).not.toHaveBeenCalled();
+});
+
+it("disables validation and application when the list marks an old READY draft stale", async () => {
+  api.suggestions.mockResolvedValue({
+    pending: [],
+    recent: [
+      {
+        ...suggestion,
+        status: "EXPIRED",
+        staleReason: "正式训练版本已变化，请重新生成",
+      },
+    ],
+  });
+  const screen = await render(<CoachSuggestionScreen />);
+  await screen.findByText("正式训练版本已变化，请重新生成");
+  expect(screen.queryByText("校验这份建议")).toBeNull();
+  expect(training.validate).not.toHaveBeenCalled();
+  expect(training.apply).not.toHaveBeenCalled();
+  expect(training.generate).not.toHaveBeenCalled();
+  await fireEvent.press(screen.getByText("前往 AI 教练"));
+  expect(mockReplace).toHaveBeenCalledWith("/(tabs)/coach");
+  expect(training.generate).not.toHaveBeenCalled();
+});
+
+it("refreshes related stale suggestions after explicit application", async () => {
+  api.suggestions
+    .mockResolvedValueOnce({ pending: [suggestion], recent: [] })
+    .mockResolvedValue({
+      pending: [],
+      recent: [
+        {
+          ...suggestion,
+          id: "00000000-0000-4000-8000-000000000008",
+          status: "EXPIRED",
+          staleReason: "关联训练版本已变化",
+        },
+      ],
+    });
+  const screen = await render(<CoachSuggestionScreen />);
+  await screen.findByText("校验这份建议");
+  await fireEvent.press(screen.getByText("校验这份建议"));
+  await screen.findByText("预览完成，准备应用");
+  await fireEvent.press(screen.getByText("预览完成，准备应用"));
+  await fireEvent.press(screen.getByText("确认应用到正式计划"));
+  await screen.findByText("已有 1 份关联建议失效，可在建议历史查看原因。");
+  expect(api.suggestions).toHaveBeenCalledTimes(2);
+  expect(screen.getByText("建议已应用")).toBeTruthy();
+});
+
+it("preserves application success if refreshing related suggestions fails", async () => {
+  api.suggestions
+    .mockResolvedValueOnce({ pending: [suggestion], recent: [] })
+    .mockRejectedValue(new Error("读取失败"));
+  const screen = await render(<CoachSuggestionScreen />);
+  await screen.findByText("校验这份建议");
+  await fireEvent.press(screen.getByText("校验这份建议"));
+  await screen.findByText("预览完成，准备应用");
+  await fireEvent.press(screen.getByText("预览完成，准备应用"));
+  await fireEvent.press(screen.getByText("确认应用到正式计划"));
+  await screen.findByText("建议已应用");
+  await waitFor(() => expect(api.suggestions).toHaveBeenCalledTimes(2));
+  expect(screen.queryByText("读取失败")).toBeNull();
+});

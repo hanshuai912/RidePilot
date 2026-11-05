@@ -107,6 +107,7 @@ export class TrainingRangeService {
     }
     assertDateRange(startDate, endDate, 84);
     return {
+      ...(input.forceRegenerate ? { forceRegenerate: true } : {}),
       goalId: input.goalId,
       weekStartDate: startDate,
       endDate,

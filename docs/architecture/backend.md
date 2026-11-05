@@ -15,3 +15,7 @@ AI 教练持续协作中心在 `CoachModule` 内新增 `CoachOverviewService`、
 设计取舍见 [ADR 0001](../adr/0001-backend-foundation.md)和[ADR 0002](../adr/0002-authentication.md)，运行命令见 [README](../../README.md)。
 
 阶段测试服务位于 CoachModule，按日程冲突、状态与幂等写入、复评证据拆分，原 CoachEvents 仅保留活动和赛事。范围 AI 上下文读取服务端复评证据，正式课程应用复用原版本事务。见 [阶段测试](../features/stage-assessments.md)。
+
+## 2026-11-05：生成候选生命周期
+
+`infra/prisma/generation-candidates.ts` 封装跨训练/阶段/营养的输入指纹、任务身份、复用与成功替代的持久化规则，各领域服务提供候选有效性判断。提交和 worker 保存均锁用户行；模型调用在事务外，返回后重读上下文。CoachSuggestionsRepository 提供一致快照，Service 只读投影失效历史；NutritionGenerationStaleReason 在营养应用和联动状态恢复时重查新生成快照。没有新增服务依赖、数据库迁移或主动触发生成。详情见 [生命周期](../features/coach-suggestion-lifecycle.md)。

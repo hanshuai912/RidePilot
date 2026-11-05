@@ -188,10 +188,26 @@ export function GoalDetailScreen() {
                   className="mt-2"
                   variant="secondary"
                   disabled={flow.busy}
-                  onPress={() => void flow.generate("STAGES")}
+                  onPress={() => void flow.generate("STAGES", !!data.stages)}
                 >
                   {data.stages ? "重新生成阶段草稿" : "生成阶段草稿"}
                 </Button>
+                <Button
+                  variant="ghost"
+                  disabled={flow.busy}
+                  onPress={() => void flow.generate("COURSES", true)}
+                >
+                  重新生成课程草稿
+                </Button>
+                {!data.stages ? (
+                  <Button
+                    variant="ghost"
+                    disabled={flow.busy}
+                    onPress={() => void flow.generate("STAGES", true)}
+                  >
+                    重新生成阶段草稿
+                  </Button>
+                ) : null}
               </Card>
             </>
           )}

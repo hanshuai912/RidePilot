@@ -59,11 +59,11 @@ describeDb("goal stages and selected course ranges", () => {
         measuredAt: new Date().toISOString(),
       })
       .expect(201);
-  const generateStages = async () => {
+  const generateStages = async (days = 13) => {
     const job = (
       await post("stage-plans/generate-proposal")
         .set("Idempotency-Key", randomUUID())
-        .send({ goalId, startDate: start, endDate: addDays(start, 13) })
+        .send({ goalId, startDate: start, endDate: addDays(start, days) })
         .expect(202)
     ).body;
     const finished = await wait(job.generationId);
@@ -321,7 +321,7 @@ describeDb("goal stages and selected course ranges", () => {
 
   it("rejects concurrent stage drafts and requires authentication and owned stages", async () => {
     const first = await generateStages();
-    const second = await generateStages();
+    const second = await generateStages(20);
     await post(`stage-plans/${first.id}/activate`)
       .send({ expectedVersion: 1 })
       .expect(201);

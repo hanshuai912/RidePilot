@@ -1,3 +1,4 @@
+import { nutritionGenerationStaleReason } from "./nutrition-generation-validity";
 import {
   ConflictException,
   Injectable,
@@ -73,6 +74,18 @@ export class RaceNutritionService {
       include: { baseVersion: true },
       orderBy: { createdAt: "desc" },
     });
+    const staleIds = new Set(
+      (
+        await Promise.all(
+          proposals.map(async (p) =>
+            p.status !== "APPLIED" &&
+            (await nutritionGenerationStaleReason(db, userId, p.metadata))
+              ? p.id
+              : null,
+          ),
+        )
+      ).filter((id): id is string => !!id),
+    );
     // An accidental newer draft must not hide the plan the user already applied.
     const applied = proposals.find(
       (item) =>
@@ -82,6 +95,7 @@ export class RaceNutritionService {
     );
     const validDrafts = proposals.filter(
       (item) =>
+        !staleIds.has(item.id) &&
         ["DRAFT", "READY", "BLOCKED"].includes(item.status) &&
         (item.baseVersionId ?? null) === (plan?.activeVersionId ?? null) &&
         (!item.expiresAt || item.expiresAt.getTime() > Date.now()),

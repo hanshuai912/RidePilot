@@ -18,7 +18,8 @@ const statusLabels: Record<string, string> = {
   FAILED: "生成失败",
   APPLIED: "已应用",
   REJECTED: "已放弃",
-  EXPIRED: "已过期",
+  EXPIRED: "已失效",
+  SUPERSEDED: "已被新草稿替代",
   ACTIVE: "已确认",
   ARCHIVED: "已归档",
 };
@@ -82,7 +83,7 @@ export function CoachSuggestionsPanel({
       <AppText variant="caption" muted className="mt-2">
         {item.summary}
       </AppText>
-      {(canDismiss || item.status === "EXPIRED") && item.staleReason ? (
+      {item.staleReason ? (
         <AppText variant="caption" className="mt-2 text-warning">
           {item.staleReason}
         </AppText>

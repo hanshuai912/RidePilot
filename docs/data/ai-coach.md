@@ -35,3 +35,7 @@ FTP 使用现有 `AbilityMeasurement` 的 `metricType=FTP`、`unit=W`。课程�
 无需新增列或迁移。赛事训练的 AiGeneration.input 增加可选 racePhase、forceRegenerate、endDate 和 relatedVersion；ChangeProposal.draft 保留对应日期范围、场景及赛事版本快照。旧周请求和提案继续读取。恢复查询只返回当前赛事和正式版本匹配的方案，明确重新生成的候选优先于旧已应用方案。
 
 赛事改期、取消或更新结果在同一用户行锁事务中递增赛事版本、停止关联排队/运行任务（FAILED / RACE_VERSION_CONFLICT）、将未应用训练及营养提案置为 EXPIRED。通过 AiGeneration.input 的 relatedId/raceId 关联既有提案。正式训练/营养版本及实际训练记录不修改；用户确认新草稿时才创建新的正式版本。
+
+## 2026-11-05：候选替代与只读失效投影
+
+无 Prisma schema 或 migration 变化。复用 AiGeneration.input/proposalId 识别同一任务；训练 draft 增加内部 contextFingerprint。成功替代时，同范围旧 ChangeProposal/NutritionProposal 设 EXPIRED、validationPassed=false、proposalVersion+1、validationBlockers 保存替代原因。TrainingStagePlan.status 为 String，新增 SUPERSEDED、version+1，不改已确认的 ACTIVE。列表展示 SUPERSEDED，时间或版本失效只读投影 EXPIRED，不删除记录、不回填旧资料快照。并发提交和成功替代都在用户行锁事务内完成。详见 [生命周期规则](../features/coach-suggestion-lifecycle.md)。

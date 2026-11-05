@@ -84,7 +84,7 @@ export class CoachGenerationContextService {
         code: "INVALID_GENERATION_MODE",
         message: "范围生成请使用范围接口",
       });
-    if (scene !== "RACE_REPLAN" && (input.racePhase || input.forceRegenerate))
+    if (scene !== "RACE_REPLAN" && input.racePhase)
       throw new BadRequestException({
         code: "INVALID_GENERATION_MODE",
         message: "赛事参数只能用于赛事规划",

@@ -65,6 +65,11 @@ export function StagePreviewScreen() {
                 ? "当前阶段安排"
                 : "历史阶段安排"}
           </AppText>
+          {resource.data.status === "SUPERSEDED" ? (
+            <AppText className="text-warning">
+              已有同一任务的新草稿，本草稿已被替代。
+            </AppText>
+          ) : null}
           <StageTimeline plan={resource.data} />
           <AppText muted>
             确认后保存这份阶段安排。具体课程需要另行生成与确认，已有课程不会因此改变。

@@ -7,7 +7,7 @@
 | 方法 | 路径                                | 说明                                                                                                                                   |
 | ---- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | GET  | `/ai-coach/overview`                | 账号时区当天、主目标/阶段、带日期的状态依据、下一未记录课程/已安排测试、最多十四节未来未记录课程、最近五个已应用版本                   |
-| GET  | `/ai-coach/suggestions`             | `{pending,recent}`；训练、饮食/补给、阶段草稿及排队/生成任务；recent 最近十条终态记录；含版本和可识别的失效原因                        |
+| GET  | `/ai-coach/suggestions`             | `{pending,recent}`；训练、饮食/补给、阶段草稿及排队/生成任务；recent 包括所有当前失效草稿及最近十条终态记录；含版本和可识别的失效原因  |
 | POST | `/ai-coach/suggestions/:id/dismiss` | `{kind:"TRAINING"或"NUTRITION"或"STAGE",expectedVersion:1}`；事务条件更新；同一版本放弃幂等成功；404 不存在/非本人，409 状态或版本变化 |
 
 所有 GET 只读，不提交或应用生成。状态规则、证据时间窗、阶段失效与课程身份规则见 [持续协作中心](../features/ai-coach-center.md)。
@@ -24,13 +24,13 @@ AI 训练与营养提案 apply 新增可选 `expectedProposalVersion`，与正�
 
 所有训练创建/调整均要求可用 FTP，包括手动绝对功率课程；缺失返回 `400 FTP_REQUIRED`，移动端直达骑行功率区间设置。新契约见 `packages/contracts/src/stages.ts`。
 
-| 方法 | 路径                             | 行为                                                                    |
-| ---- | -------------------------------- | ----------------------------------------------------------------------- |
-| POST | `/stage-plans/generate-proposal` | `{goalId,startDate,endDate}`，带幂等键，202 返回生成任务；范围 1–365 天 |
-| GET  | `/goals/:id/stage-plan`          | `{plan: 阶段安排或 null}`；含 stale 和有序阶段                          |
-| GET  | `/stage-plans/:id`               | 当前用户的阶段草稿/正式/历史安排                                        |
-| POST | `/stage-plans/:id/activate`      | `{expectedVersion}`；事务确认阶段并归档旧安排；同一版本请求可重复提交   |
-| POST | `/plans/generate-range-proposal` | 带幂等键；按阶段或日期生成 1–84 天课程草稿，202 返回任务                |
+| 方法 | 路径                             | 行为                                                                                     |
+| ---- | -------------------------------- | ---------------------------------------------------------------------------------------- |
+| POST | `/stage-plans/generate-proposal` | `{goalId,startDate,endDate,forceRegenerate?}`，带幂等键，202 返回生成任务；范围 1–365 天 |
+| GET  | `/goals/:id/stage-plan`          | `{plan: 阶段安排或 null}`；含 stale 和有序阶段                                           |
+| GET  | `/stage-plans/:id`               | 当前用户的阶段草稿/正式/历史安排                                                         |
+| POST | `/stage-plans/:id/activate`      | `{expectedVersion}`；事务确认阶段并归档旧安排；同一版本请求可重复提交                    |
+| POST | `/plans/generate-range-proposal` | 带幂等键；按阶段或日期生成 1–84 天课程草稿，202 返回任务                                 |
 
 范围请求二选一：
 
@@ -179,3 +179,9 @@ Content-Type: application/json
 课程详情的“记录训练反馈”使用 `POST /activities`，保存完成状态、实际时长、RPE、疲劳和备注。训练记录与正式计划版本独立保存，已记录课程不再作为可调整课程覆盖。响应结构包含 `id`、`workoutId`、`localDate`、`status`、`durationMin`、`rpe`、`fatigue` 和 `notes`。
 
 阶段测试安排、结果及 FTP 独立确认已升级，字段、预览、幂等和迁移见 [阶段测试 API](assessments.md)。范围生成可携带 assessmentId / assessmentVersion，课程应用前重查证据版本。
+
+## 生成复用与失效建议（2026-11-05）
+
+普通周、调整、范围及阶段生成按账号、场景、完整输入复用运行任务或当前有效草稿，支持可选 `forceRegenerate:true` 显式重新生成。范围请求的两个 scope 均支持该参数。重复点击同一运行请求（包括 force）继续查询原任务。新候选成功后才在事务中替代同任务范围的旧候选；失败保留旧候选。已有幂等键的不同请求仍409。
+
+GET 建议列表把版本/资料失效的候选投影为 EXPIRED，从 pending 移到 recent；被成功新候选替代的记录显示 SUPERSEDED。历史只读，不修改原数据。阶段详情的状态增加 SUPERSEDED。生成中上下文变化返回任务 FAILED/errorCode=GENERATION_CONTEXT_CHANGED；到期草稿应用返回409 PROPOSAL_EXPIRED。详见 [建议生命周期](../features/coach-suggestion-lifecycle.md)。

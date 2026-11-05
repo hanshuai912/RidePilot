@@ -248,7 +248,7 @@ describeDb("AI coach collaboration center", () => {
       await prisma.trainingStagePlan.findUnique({ where: { id: stage.id } }),
     ).toMatchObject({ status: "ACTIVE" });
   });
-  it("keeps old pending work visible, merges jobs and nutrition, and explains stale versions", async () => {
+  it("archives stale work without mutation, keeps it visible beyond recent history, and isolates users", async () => {
     await seedPlan();
     const pending = await prisma.changeProposal.create({
       data: {
@@ -282,15 +282,24 @@ describeDb("AI coach collaboration center", () => {
     const list = (await get("ai-coach/suggestions").expect(200)).body;
     expect(list.pending).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({
-          id: pending.id,
-          staleReason: expect.stringContaining("版本已变化"),
-        }),
         expect.objectContaining({ id: food.id, kind: "NUTRITION" }),
         expect.objectContaining({ id: job.id, kind: "GENERATION" }),
       ]),
     );
-    expect(list.recent).toHaveLength(10);
+    expect(list.pending.some((p: { id: string }) => p.id === pending.id)).toBe(
+      false,
+    );
+    expect(list.recent).toHaveLength(11);
+    expect(list.recent).toContainEqual(
+      expect.objectContaining({
+        id: pending.id,
+        status: "EXPIRED",
+        staleReason: expect.stringContaining("版本已变化"),
+      }),
+    );
+    expect(
+      await prisma.changeProposal.findUnique({ where: { id: pending.id } }),
+    ).toMatchObject({ status: "READY", proposalVersion: 1 });
     const other = await register();
     expect(
       (await get("ai-coach/suggestions", other.tokens.accessToken).expect(200))

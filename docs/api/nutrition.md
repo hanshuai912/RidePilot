@@ -81,3 +81,9 @@ Content-Type: application/json
 `POST /nutrition/item-edit-proposals` 请求：`{ itemId, expectedNutritionVersion, scheduledLocalTime: "09:30", amounts: [100, 200] }`。amounts 与原餐次食物顺序一一对应，保留原食物、单位、过敏原和成分状态；变更份量后营养值置为 null，并标为 USER_ENTERED / LOW。按餐次 ID 精确修改，不会误改同日同时间同餐型的另一餐。创建后必须 validate，再 apply。错误包括 404 NUTRITION_ITEM_NOT_FOUND、409 NUTRITION_VERSION_CONFLICT、400 NUTRITION_AMOUNTS_INVALID。
 
 编辑联动草稿复用 PATCH，携带 expectedProposalVersion；不允许改变覆盖起止日期，修改后重置为 DRAFT，必须重新校验。其他日期范围请重新生成。
+
+## 营养草稿生命周期（2026-11-05）
+
+INITIAL/REGENERATE 同样按完整请求与当前上下文复用已有任务/有效草稿；显式 `forceRegenerate:true` 创建新候选，运行中的相同任务仍恢复。RACE_LINKED/TRAINING_LINKED 保留原有已应用方案恢复和显式重新生成行为。只有新候选无 blockers 时才替代同任务范围旧候选，FAILED/BLOCKED 均保留原候选。旧候选 EXPIRED 并增加 proposalVersion；服务端拒绝重新应用。
+
+新 AI 提案 metadata 可含 `generationContext:{fingerprint,profileVersion,nutritionProfileVersion,trainingPlanVersionId,raceId?,raceVersion?}`。提交前后比较完整上下文，改变时任务失败 `GENERATION_CONTEXT_CHANGED`。应用重查快照，资料或赛事改变返回409 NUTRITION_GENERATION_STALE；训练联动已有 PLAN_VERSION_CONFLICT 语义保留。到期应用返回409 PROPOSAL_EXPIRED。无新增迁移；接口和客户端契约同步更新。

@@ -332,6 +332,7 @@ export function useInitialPlan() {
     mode: WeekGenerationInput["mode"] = "initial",
     weekStartDate?: string,
     scope?: Pick<AdjustmentScope, "targetWorkoutId" | "expectedPlanVersion">,
+    forceRegenerate = false,
   ) => {
     if (!token) return;
     if (symptomFlags.length) {
@@ -377,6 +378,7 @@ export function useInitialPlan() {
         goalId: goal.id,
         mode,
         expectedBaseVersion: latest.planStatus.planVersion,
+        ...(forceRegenerate ? { forceRegenerate: true } : {}),
         ...(scope?.targetWorkoutId
           ? { targetWorkoutId: scope.targetWorkoutId }
           : {}),
@@ -480,7 +482,7 @@ export function useInitialPlan() {
   const retryGeneration = () => {
     const previous = generationRequest.current;
     if (previous)
-      void generate(previous.mode, previous.weekStartDate, previous);
+      void generate(previous.mode, previous.weekStartDate, previous, true);
   };
 
   const upcomingWorkoutDate = async (): Promise<string | null | undefined> => {

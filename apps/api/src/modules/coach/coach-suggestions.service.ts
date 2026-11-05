@@ -9,6 +9,7 @@ import {
   type DismissCoachSuggestion,
 } from "@ridepilot/contracts";
 import type { Prisma } from "../../generated/prisma/client";
+import { supersededReason } from "../../infra/prisma/generation-candidates";
 import { PrismaService } from "../../infra/prisma/prisma.service";
 
 import {
@@ -42,8 +43,11 @@ export class CoachSuggestionsService {
       jobs,
       races,
       assessments,
+      nutritionProfile,
     } = await this.repository.read(userId);
     const now = new Date();
+    const superseded = (value: unknown) =>
+      Array.isArray(value) && value.includes(supersededReason);
     const contextReason = (draft: Record<string, unknown>) => {
       if (
         draft.profileVersion !== undefined &&
@@ -99,8 +103,9 @@ export class CoachSuggestionsService {
         version: p.proposalVersion,
         createdAt: p.createdAt.toISOString(),
         goalId: null,
-        staleReason:
-          p.status === "EXPIRED" || (p.expiresAt && p.expiresAt <= now)
+        staleReason: superseded(p.validationBlockers)
+          ? supersededReason
+          : p.status === "EXPIRED" || (p.expiresAt && p.expiresAt <= now)
             ? "草稿已过期，请重新生成"
             : (p.baseVersionId ?? null) !== (plan?.activeVersionId ?? null)
               ? "正式训练版本已变化，请重新生成"
@@ -111,6 +116,7 @@ export class CoachSuggestionsService {
       ...food.map((p): CoachSuggestion => {
         const metadata = object(p.metadata);
         const context = object(metadata.trainingContext);
+        const generated = object(metadata.generationContext);
         return {
           id: p.id,
           kind: "NUTRITION",
@@ -123,8 +129,9 @@ export class CoachSuggestionsService {
           version: p.proposalVersion,
           createdAt: p.createdAt.toISOString(),
           goalId: null,
-          staleReason:
-            p.status === "EXPIRED" || (p.expiresAt && p.expiresAt <= now)
+          staleReason: superseded(p.validationBlockers)
+            ? supersededReason
+            : p.status === "EXPIRED" || (p.expiresAt && p.expiresAt <= now)
               ? "草稿已过期，请重新生成"
               : (p.baseVersionId ?? null) !==
                   (nutrition?.activeVersionId ?? null)
@@ -132,7 +139,25 @@ export class CoachSuggestionsService {
                 : context.planVersionId !== undefined &&
                     context.planVersionId !== (plan?.activeVersionId ?? null)
                   ? "关联训练版本已变化，请重新生成"
-                  : null,
+                  : generated.profileVersion !== undefined &&
+                      generated.profileVersion !== user.profileVersion
+                    ? "基本资料已变化，请重新生成"
+                    : generated.nutritionProfileVersion !== undefined &&
+                        generated.nutritionProfileVersion !==
+                          nutritionProfile?.version
+                      ? "饮食档案已变化，请重新生成"
+                      : generated.trainingPlanVersionId !== undefined &&
+                          generated.trainingPlanVersionId !==
+                            (plan?.activeVersionId ?? null)
+                        ? "关联训练版本已变化，请重新生成"
+                        : generated.raceId &&
+                            !races.some(
+                              (race) =>
+                                race.id === generated.raceId &&
+                                race.version === generated.raceVersion,
+                            )
+                          ? "关联赛事已变化，请重新生成"
+                          : null,
         };
       }),
     );
@@ -184,12 +209,41 @@ export class CoachSuggestionsService {
         goalId: null,
       })),
     );
-    items.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     const isPending = (i: CoachSuggestion) =>
       [...pendingStatuses, "QUEUED", "RUNNING"].includes(i.status);
+    const invalid: CoachSuggestion[] = [];
+    const terminal: CoachSuggestion[] = [];
+    const pending: CoachSuggestion[] = [];
+    for (const item of items) {
+      if (isPending(item) && item.staleReason) {
+        invalid.push({
+          ...item,
+          status:
+            item.staleReason === supersededReason ? "SUPERSEDED" : "EXPIRED",
+        });
+      } else if (isPending(item)) pending.push(item);
+      else
+        terminal.push({
+          ...item,
+          status:
+            item.status === "EXPIRED" && item.staleReason === supersededReason
+              ? "SUPERSEDED"
+              : item.status,
+          staleReason:
+            item.status === "SUPERSEDED"
+              ? supersededReason
+              : item.status === "EXPIRED"
+                ? item.staleReason
+                : null,
+        });
+    }
+    const newest = (a: CoachSuggestion, b: CoachSuggestion) =>
+      b.createdAt.localeCompare(a.createdAt);
     return coachSuggestionsSchema.parse({
-      pending: items.filter(isPending),
-      recent: items.filter((i) => !isPending(i)).slice(0, 10),
+      pending: pending.sort(newest),
+      // Include every currently invalid draft, even if newer completed records
+      // would otherwise push it out of the recent ten. Reads remain read-only.
+      recent: [...invalid, ...terminal.sort(newest).slice(0, 10)].sort(newest),
     });
   }
 

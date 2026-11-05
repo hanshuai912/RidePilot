@@ -95,7 +95,10 @@ export function useGoalPlanning(goalId: string, assessmentId?: string) {
     }, [token, goalId, assessmentId, attempt]),
   );
 
-  const generate = async (kind: "STAGES" | "COURSES") => {
+  const generate = async (
+    kind: "STAGES" | "COURSES",
+    forceRegenerate = false,
+  ) => {
     if (!token || !data || pending.current || !data.ftp) return;
     pending.current = true;
     setBusy(true);
@@ -118,6 +121,7 @@ export function useGoalPlanning(goalId: string, assessmentId?: string) {
       } else if (!stageId || data.stages?.stale)
         throw new Error("请选择当前有效阶段，阶段过期时请重新生成");
       const signature = JSON.stringify({
+        forceRegenerate,
         kind,
         scope,
         stageId,
@@ -159,6 +163,7 @@ export function useGoalPlanning(goalId: string, assessmentId?: string) {
                       }
                     : {}),
                 };
+        if (forceRegenerate) input.forceRegenerate = true;
         request.current = {
           kind,
           signature,

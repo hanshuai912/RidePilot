@@ -14,6 +14,11 @@ import {
 import { z } from "zod";
 import { AiService } from "../../ai/ai.service";
 import { Prisma, type AiGeneration } from "../../generated/prisma/client";
+import {
+  generationFingerprint,
+  reusableGeneration,
+  supersedeGenerationCandidates,
+} from "../../infra/prisma/generation-candidates";
 import { PrismaService } from "../../infra/prisma/prisma.service";
 import { dateToDb, dbToDate } from "../training/training.validation";
 import { CoachDataService } from "./coach-data.service";
@@ -29,14 +34,33 @@ export class StagePlansService {
     private readonly skills: SkillLoaderService,
   ) {}
 
-  async submit(userId: string, input: StagePlanGeneration, key: string) {
+  async submit(
+    userId: string,
+    input: StagePlanGeneration,
+    key: string,
+    db?: Prisma.TransactionClient,
+  ): Promise<{
+    generationId: string;
+    status: string;
+    proposalId: string | null;
+    errorCode: string | null;
+    requestId: string | null;
+  }> {
+    if (!db)
+      return this.prisma.$transaction(
+        async (tx) => {
+          await tx.$queryRaw`SELECT "id" FROM "users" WHERE "id" = ${userId}::uuid FOR UPDATE`;
+          return this.submit(userId, input, key, tx);
+        },
+        { timeout: 15_000 },
+      );
     if (!key || key.length > 255)
       throw new BadRequestException({
         code: "IDEMPOTENCY_KEY_REQUIRED",
         message: "缺少有效幂等键",
       });
     const find = () =>
-      this.prisma.aiGeneration.findUnique({
+      db.aiGeneration.findUnique({
         where: { userId_idempotencyKey: { userId, idempotencyKey: key } },
       });
     const response = (job: AiGeneration) => {
@@ -59,10 +83,37 @@ export class StagePlansService {
     };
     const existing = await find();
     if (existing) return response(existing);
-    await this.context(userId, input);
+    const context = await this.context(userId, input);
+    const reusable = await reusableGeneration(
+      db,
+      userId,
+      "STAGE_PLAN",
+      input,
+      async (id) => {
+        const p = await db.trainingStagePlan.findFirst({
+          where: { id, userId, status: "DRAFT" },
+        });
+        return (
+          !!p &&
+          p.goalVersion === context.goal.version &&
+          p.ftpMeasurementId === context.ftp.id &&
+          p.profileVersion === context.user.profileVersion &&
+          p.availabilityVersion === context.availability.version &&
+          p.baseStagePlanId === (context.active?.id ?? null)
+        );
+      },
+    );
+    if (reusable)
+      return {
+        generationId: reusable.id,
+        status: reusable.status,
+        proposalId: reusable.proposalId,
+        errorCode: reusable.errorCode,
+        requestId: reusable.requestId,
+      };
     try {
       return response(
-        await this.prisma.aiGeneration.create({
+        await db.aiGeneration.create({
           data: {
             userId,
             scene: "STAGE_PLAN",
@@ -139,6 +190,15 @@ export class StagePlansService {
     }
     const output = validateStages(raw, input.startDate, input.endDate);
     await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT "id" FROM "users" WHERE "id" = ${job.userId}::uuid FOR UPDATE`;
+      if (
+        generationFingerprint(await this.context(job.userId, input)) !==
+        generationFingerprint(ctx)
+      )
+        throw new ConflictException({
+          code: "GENERATION_CONTEXT_CHANGED",
+          message: "生成期间训练资料已变化，请重新生成",
+        });
       const claimed = await tx.aiGeneration.updateMany({
         where: { id: job.id, status: "RUNNING", attempts: job.attempts },
         data: { leaseUntil: null },
@@ -169,6 +229,25 @@ export class StagePlansService {
           },
         },
       });
+      await supersedeGenerationCandidates(
+        tx,
+        job,
+        draft.id,
+        "STAGE",
+        async (id) => {
+          const p = await tx.trainingStagePlan.findFirst({
+            where: { id, userId: job.userId, status: "DRAFT" },
+          });
+          return (
+            !!p &&
+            p.goalVersion === ctx.goal.version &&
+            p.ftpMeasurementId === ctx.ftp.id &&
+            p.profileVersion === ctx.user.profileVersion &&
+            p.availabilityVersion === ctx.availability.version &&
+            p.baseStagePlanId === (ctx.active?.id ?? null)
+          );
+        },
+      );
       await tx.aiGeneration.update({
         where: { id: job.id },
         data: {
@@ -199,10 +278,13 @@ export class StagePlansService {
         code: "STAGE_PLAN_NOT_FOUND",
         message: "阶段安排不存在",
       });
-    const [ftp, availability, user] = await Promise.all([
+    const [ftp, availability, user, active] = await Promise.all([
       this.data.latestFtp(userId),
       this.prisma.trainingAvailability.findUnique({ where: { userId } }),
       this.prisma.user.findUniqueOrThrow({ where: { id: userId } }),
+      this.prisma.trainingStagePlan.findFirst({
+        where: { userId, goalId: plan.goalId, status: "ACTIVE" },
+      }),
     ]);
     return stagePlanResponseSchema.parse({
       id: plan.id,
@@ -214,6 +296,8 @@ export class StagePlansService {
       startDate: dbToDate(plan.startDate),
       endDate: dbToDate(plan.endDate),
       stale:
+        (plan.status === "DRAFT" &&
+          (active?.id ?? null) !== plan.baseStagePlanId) ||
         plan.goal.status !== "ACTIVE" ||
         plan.goal.version !== plan.goalVersion ||
         ftp?.id !== plan.ftpMeasurementId ||

@@ -17,7 +17,9 @@ export function CoachSuggestionScreen() {
   const state = useCoachSuggestion(session?.accessToken, id, kind);
   const proposal = state.data?.proposal;
   const editable =
-    !!proposal && ["DRAFT", "READY", "BLOCKED"].includes(proposal.status);
+    !!proposal &&
+    !state.data?.staleReason &&
+    ["DRAFT", "READY", "BLOCKED"].includes(proposal.status);
   return (
     <TrainingPage
       title="教练建议预览"
@@ -38,6 +40,29 @@ export function CoachSuggestionScreen() {
             : editable
               ? "建议草稿 · 尚未应用"
               : `历史建议 · ${proposal.status}`}
+        </AppText>
+      ) : null}
+      {state.data?.staleReason ? (
+        <Card>
+          <AppText className="text-warning">{state.data.staleReason}</AppText>
+          <AppText muted className="mt-2">
+            此建议已失效，可返回原入口选择范围并主动生成新草稿。
+          </AppText>
+          <Button
+            variant="secondary"
+            onPress={() =>
+              router.replace(
+                kind === "NUTRITION" ? "/(tabs)/nutrition" : "/(tabs)/coach",
+              )
+            }
+          >
+            {kind === "NUTRITION" ? "前往饮食与补给" : "前往 AI 教练"}
+          </Button>
+        </Card>
+      ) : null}
+      {state.invalidatedCount > 0 ? (
+        <AppText className="text-warning">
+          已有 {state.invalidatedCount} 份关联建议失效，可在建议历史查看原因。
         </AppText>
       ) : null}
       {state.data?.kind === "TRAINING" ? (

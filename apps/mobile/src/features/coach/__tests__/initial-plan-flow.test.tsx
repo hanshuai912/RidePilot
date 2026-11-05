@@ -729,9 +729,10 @@ test("NEXT_WORKOUT targets only the actual next course and retains the scope on 
   expect(api.generate).not.toHaveBeenCalled();
   await act(async () => result.current.retryGeneration());
   expect(api.adjustWorkout).toHaveBeenCalledTimes(2);
-  expect(api.adjustWorkout.mock.calls[1][2]).toEqual(
-    api.adjustWorkout.mock.calls[0][2],
-  );
+  expect(api.adjustWorkout.mock.calls[1][2]).toEqual({
+    ...api.adjustWorkout.mock.calls[0][2],
+    forceRegenerate: true,
+  });
 });
 
 test("missing next course keeps planning scope and user notes instead of generating another range", async () => {

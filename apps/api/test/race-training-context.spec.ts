@@ -276,12 +276,17 @@ test.each([false, true])(
     };
     const prisma = {
       ...db,
+      $queryRaw: jest.fn(),
       aiGeneration: {
+        findMany: jest.fn().mockResolvedValue([]),
         findUnique: jest.fn().mockImplementation(async () => job),
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
         update: jest.fn(),
       },
-      changeProposal: { create: jest.fn().mockResolvedValue({ id: "draft" }) },
+      changeProposal: {
+        create: jest.fn().mockResolvedValue({ id: "draft" }),
+        findMany: jest.fn().mockResolvedValue([]),
+      },
       $transaction: jest.fn(),
     };
     prisma.$transaction.mockImplementation(async (callback) =>

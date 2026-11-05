@@ -6,6 +6,7 @@ describe("NutritionGenerationService linked contexts", () => {
   function buildService(trainingProposal: object | null) {
     const prisma = {
       aiGeneration: {
+        findMany: jest.fn().mockResolvedValue([]),
         findUnique: jest.fn().mockResolvedValue(null),
         create: jest.fn().mockResolvedValue({
           id: "00000000-0000-4000-8000-000000000010",
@@ -219,7 +220,10 @@ describe("NutritionGenerationService linked contexts", () => {
         ...prisma,
         aiGeneration: prisma.aiGeneration,
         nutritionPlan: { findFirst: jest.fn().mockResolvedValue(null) },
-        nutritionProposal: { create },
+        nutritionProposal: {
+          create,
+          findMany: jest.fn().mockResolvedValue([]),
+        },
       }),
     );
     ai.generate.mockResolvedValue({

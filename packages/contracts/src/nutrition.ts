@@ -238,6 +238,16 @@ export const nutritionProposalMetadataSchema = z.strictObject({
   skillVersion: z.string(),
   skillHash: z.string(),
   trainingContext: nutritionTrainingContextSchema.optional(),
+  generationContext: z
+    .object({
+      fingerprint: z.string(),
+      profileVersion: z.number().int().positive(),
+      nutritionProfileVersion: z.number().int().positive(),
+      trainingPlanVersionId: z.uuid().nullable(),
+      raceId: z.uuid().optional(),
+      raceVersion: z.number().int().positive().optional(),
+    })
+    .optional(),
 });
 
 export const nutritionProposalResponseSchema = z.strictObject({

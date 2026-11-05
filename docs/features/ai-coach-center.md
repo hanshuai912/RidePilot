@@ -36,12 +36,12 @@
 
 移动端新增 `CoachOverviewPanel`、`CoachSuggestionsPanel`、独立问答和建议预览 screens，以及专用 API/hooks。`CoachScreen` 仅装配，不扩大原始建计划 hook 的业务范围。沿用仓库已有 focus-based resource hook 模式，无新增依赖。
 
-| Method | Path                                | 行为                                                                               |
-| ------ | ----------------------------------- | ---------------------------------------------------------------------------------- |
-| GET    | `/ai-coach/overview`                | 本人目标、阶段、状态依据、下一训练/测试、最多十四节未来未记录课程和最近版本        |
-| GET    | `/ai-coach/suggestions`             | 本人 pending 与 recent；只限制终态历史数量，不让较早待处理草稿被新记录挤掉         |
-| POST   | `/ai-coach/suggestions/:id/dismiss` | `{kind: TRAINING/NUTRITION/STAGE, expectedVersion}`，返回 `{dismissed:true}`       |
-| POST   | `/ai-coach/chat`                    | `{message, history?}`，只读答复；history 最多六条 user/assistant，禁止 system 角色 |
+| Method | Path                                | 行为                                                                                           |
+| ------ | ----------------------------------- | ---------------------------------------------------------------------------------------------- |
+| GET    | `/ai-coach/overview`                | 本人目标、阶段、状态依据、下一训练/测试、最多十四节未来未记录课程和最近版本                    |
+| GET    | `/ai-coach/suggestions`             | 本人有效 pending 与 recent；失效草稿进入历史并显示原因，保留全部当前失效草稿及最近十条终态记录 |
+| POST   | `/ai-coach/suggestions/:id/dismiss` | `{kind: TRAINING/NUTRITION/STAGE, expectedVersion}`，返回 `{dismissed:true}`                   |
+| POST   | `/ai-coach/chat`                    | `{message, history?}`，只读答复；history 最多六条 user/assistant，禁止 system 角色             |
 
 应用复用已有训练/饮食接口，新增可选 `expectedProposalVersion`。教练中心总是发送；不匹配返回 `409 PROPOSAL_VERSION_CONFLICT`。已经应用的提案重复请求返回原结果，旧调用方兼容。
 
@@ -84,3 +84,7 @@ Provider 检测到 `finish_reason=length` 返回可重试的 `AI_PROVIDER_OUTPUT
 验证包含 Provider 的截断/空白/仅思考响应测试、原生 DeepSeek 参数与其他兼容端点隔离测试，以及问答真实 HTTP 错误映射/失败重试/无数据写入集成测试。额外真实模型联调只使用合成上下文，不读取或输出用户训练记录、API Key 或模型思考文本。本次执行 `./node_modules/.bin/tsc -p apps/api/tsconfig.json --noEmit`、`./node_modules/.bin/tsc -p apps/api/tsconfig.build.json` 和 `./node_modules/.bin/oxlint apps/api/src apps/api/test packages/contracts/src` 均通过。API 全量普通 Jest 24组137项通过，11组71项因数据库/真实模型条件未启用跳过；额外隔离数据库运行 coach-center、coach、nutrition 三组集成20项通过。Provider/AI 编排针对性测试2组18项通过。
 
 真实模型以临时脚本 `node /tmp/ridepilot-coach-chat-live.cjs` 直接调用构建后的 `CoachChatService → AiService → AiOrchestratorService → OpenAiCompatibleProvider`，概览数据为合成输入，实际 Skill 与 Provider 使用当前代码；返回只读有效正文247字，模型调用约2.5秒。修复参数的独立请求检查也返回 `finish_reason=stop` 且没有 reasoning 字段。此验证不等于真机完整端到端验证。
+
+## 2026-11-05：建议生命周期补全
+
+已接入失效建议历史投影、按输入复用生成、显式重新生成及成功替代、生成中上下文变化检查和应用后关联建议刷新。训练/补给被替代草稿使用 EXPIRED，列表显示 SUPERSEDED；阶段使用 SUPERSEDED。无新增迁移。当前规则及验证见 [建议生命周期与生成去重](coach-suggestion-lifecycle.md)。

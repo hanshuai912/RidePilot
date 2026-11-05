@@ -1,3 +1,4 @@
+import { nutritionGenerationStaleReason } from "./nutrition-generation-validity";
 import {
   BadRequestException,
   ConflictException,
@@ -87,11 +88,24 @@ export class TrainingNutritionService {
       },
       include: { baseVersion: true },
     });
+    const staleIds = new Set(
+      (
+        await Promise.all(
+          proposals.map(async (p) =>
+            p.status !== "APPLIED" &&
+            (await nutritionGenerationStaleReason(db, userId, p.metadata))
+              ? p.id
+              : null,
+          ),
+        )
+      ).filter((id): id is string => !!id),
+    );
     const valid = proposals.filter(
       (item) =>
         (item.status === "APPLIED" &&
           item.appliedVersionId === nutrition?.activeVersionId) ||
-        (["DRAFT", "READY", "BLOCKED"].includes(item.status) &&
+        (!staleIds.has(item.id) &&
+          ["DRAFT", "READY", "BLOCKED"].includes(item.status) &&
           (item.baseVersionId ?? null) ===
             (nutrition?.activeVersionId ?? null) &&
           (!item.expiresAt || item.expiresAt > new Date())),

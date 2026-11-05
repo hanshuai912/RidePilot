@@ -593,11 +593,22 @@ export function CoachScreen() {
         error={error}
       >
         {flow.proposal ? (
-          <PlanCandidates
-            proposal={flow.proposal}
-            selected
-            onSelect={() => undefined}
-          />
+          <>
+            <PlanCandidates
+              proposal={flow.proposal}
+              selected
+              onSelect={() => undefined}
+            />
+            <Button
+              variant="secondary"
+              onPress={() => {
+                flow.retryGeneration();
+                router.replace(coachRoute("loading"));
+              }}
+            >
+              重新生成草稿
+            </Button>
+          </>
         ) : (
           <Spinner accessibilityLabel="读取候选草稿" />
         )}

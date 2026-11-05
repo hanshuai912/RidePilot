@@ -87,12 +87,18 @@ export function CoursePreviewScreen() {
             </AppText>
           ) : null}
           {error ? <AppText className="text-negative">{error}</AppText> : null}
-          {resource.data.proposal.status !== "APPLIED" ? (
+          {["DRAFT", "READY", "BLOCKED"].includes(
+            resource.data.proposal.status,
+          ) ? (
             <Button loading={busy} onPress={() => void confirm()}>
               {validated ? "确认应用课程" : "校验课程草稿"}
             </Button>
           ) : (
-            <AppText>此草稿已应用</AppText>
+            <AppText>
+              {resource.data.proposal.status === "APPLIED"
+                ? "此草稿已应用"
+                : "此草稿已失效，请返回目标重新生成"}
+            </AppText>
           )}
           <Button variant="secondary" disabled={busy} onPress={back}>
             返回修改条件

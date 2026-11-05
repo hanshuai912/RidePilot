@@ -209,6 +209,11 @@ export class CoachProposalService {
           code: "PROPOSAL_VERSION_CONFLICT",
           message: "草稿已变化，请重新预览和校验",
         });
+      if (proposal.expiresAt && proposal.expiresAt <= new Date())
+        throw new ConflictException({
+          code: "PROPOSAL_EXPIRED",
+          message: "草稿已过期，请重新生成",
+        });
       if (proposal.status !== "READY" || !proposal.validationPassed)
         throw new ConflictException({
           code: "PROPOSAL_NOT_READY",

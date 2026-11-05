@@ -237,6 +237,7 @@ export class NutritionGenerationContextService {
       race: race
         ? {
             id: race.id,
+            version: race.version,
             name: race.name,
             localDate: dbToDate(race.localDate),
             distanceKm: Number(race.distanceKm),

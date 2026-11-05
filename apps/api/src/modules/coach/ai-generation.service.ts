@@ -17,6 +17,11 @@ import { z } from "zod";
 import { AiService } from "../../ai/ai.service";
 import { AiException } from "../../ai/exceptions/ai.exception";
 import { Prisma } from "../../generated/prisma/client";
+import {
+  generationFingerprint,
+  reusableGeneration,
+  supersedeGenerationCandidates,
+} from "../../infra/prisma/generation-candidates";
 import { PrismaService } from "../../infra/prisma/prisma.service";
 import { CoachGenerationContextService } from "./coach-generation-context.service";
 import {
@@ -75,8 +80,22 @@ export class AiGenerationService implements OnModuleInit, OnModuleDestroy {
       | "PLAN_ADJUST"
       | "ASSESSMENT_REVIEW"
       | "RACE_REPLAN" = "WEEK_PLAN",
-    db: Prisma.TransactionClient = this.prisma,
-  ) {
+    db?: Prisma.TransactionClient,
+  ): Promise<{
+    generationId: string;
+    status: string;
+    proposalId: string | null;
+    errorCode: string | null;
+    requestId: string | null;
+  }> {
+    if (!db)
+      return this.prisma.$transaction(
+        async (tx) => {
+          await tx.$queryRaw`SELECT "id" FROM "users" WHERE "id" = ${userId}::uuid FOR UPDATE`;
+          return this.submit(userId, input, key, scene, tx);
+        },
+        { timeout: 15_000 },
+      );
     if (!key || key.length > 255)
       throw new BadRequestException({
         code: "IDEMPOTENCY_KEY_REQUIRED",
@@ -97,7 +116,11 @@ export class AiGenerationService implements OnModuleInit, OnModuleDestroy {
         });
       return this.toResponse(existing);
     }
-    await this.context(userId, input, scene);
+    const context = await this.context(userId, input, scene);
+    const reusable = await reusableGeneration(db, userId, scene, input, (id) =>
+      this.candidateIsCurrent(db, userId, context, id),
+    );
+    if (reusable) return this.toResponse(reusable);
     let job;
     try {
       job = await db.aiGeneration.create({
@@ -275,6 +298,13 @@ export class AiGenerationService implements OnModuleInit, OnModuleDestroy {
           message: "单节调整只能返回一节课程",
         });
       await this.prisma.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT "id" FROM "users" WHERE "id" = ${job.userId}::uuid FOR UPDATE`;
+        const current = await this.context(job.userId, input, scene);
+        if (generationFingerprint(current) !== generationFingerprint(context))
+          throw new ConflictException({
+            code: "GENERATION_CONTEXT_CHANGED",
+            message: "生成期间训练资料已变化，请重新生成",
+          });
         const updated = await tx.aiGeneration.updateMany({
           where: { id: job.id, status: "RUNNING", attempts: job.attempts },
           data: { leaseUntil: null },
@@ -299,6 +329,7 @@ export class AiGenerationService implements OnModuleInit, OnModuleDestroy {
             validationBlockers: [],
             draft: {
               ...output,
+              contextFingerprint: generationFingerprint(context),
               weekStartDate: input.weekStartDate,
               ...(input.endDate ? { endDate: input.endDate } : {}),
               ...(input.stageId ? { stageId: input.stageId } : {}),
@@ -328,6 +359,13 @@ export class AiGenerationService implements OnModuleInit, OnModuleDestroy {
             },
           },
         });
+        await supersedeGenerationCandidates(
+          tx,
+          job,
+          proposal.id,
+          "TRAINING",
+          (id) => this.candidateIsCurrent(tx, job.userId, context, id),
+        );
         await tx.aiGeneration.update({
           where: { id: job.id },
           data: {
@@ -407,6 +445,31 @@ export class AiGenerationService implements OnModuleInit, OnModuleDestroy {
     } finally {
       this.working = false;
     }
+  }
+
+  private async candidateIsCurrent(
+    db: Prisma.TransactionClient,
+    userId: string,
+    context: Awaited<ReturnType<CoachGenerationContextService["load"]>>,
+    id: string,
+  ) {
+    const p = await db.changeProposal.findFirst({ where: { id, userId } });
+    if (
+      !p ||
+      !["DRAFT", "READY", "BLOCKED"].includes(p.status) ||
+      (p.expiresAt && p.expiresAt <= new Date()) ||
+      (p.baseVersionId ?? null) !== (context.plan?.activeVersionId ?? null)
+    )
+      return false;
+    const draft = p.draft as Record<string, unknown>;
+    return (
+      draft.profileVersion === context.profileVersion &&
+      draft.availabilityVersion === context.availability.version &&
+      draft.ftpMeasurementId === context.ftp.id &&
+      draft.goalVersion === context.goal.version &&
+      (!draft.contextFingerprint ||
+        draft.contextFingerprint === generationFingerprint(context))
+    );
   }
 
   private context(

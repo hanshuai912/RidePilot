@@ -15,12 +15,13 @@ export const stagePlanGenerationSchema = z.strictObject({
   goalId: z.uuid(),
   startDate: z.iso.date(),
   endDate: z.iso.date(),
+  forceRegenerate: z.boolean().optional(),
 });
 export const stagePlanResponseSchema = stagePlanOutputSchema.extend({
   id: z.uuid(),
   goalId: z.uuid(),
   goalVersion: z.number().int().positive(),
-  status: z.enum(["DRAFT", "ACTIVE", "ARCHIVED"]),
+  status: z.enum(["DRAFT", "ACTIVE", "ARCHIVED", "SUPERSEDED"]),
   version: z.number().int().positive(),
   startDate: z.iso.date(),
   endDate: z.iso.date(),
@@ -47,6 +48,7 @@ export const rangeGenerationSchema = z.discriminatedUnion("scope", [
     assessmentId: z.uuid().optional(),
     assessmentVersion: z.number().int().positive().optional(),
     notes: z.string().trim().max(200).optional(),
+    forceRegenerate: z.boolean().optional(),
   }),
   z.strictObject({
     scope: z.literal("DATES"),
@@ -57,6 +59,7 @@ export const rangeGenerationSchema = z.discriminatedUnion("scope", [
     assessmentId: z.uuid().optional(),
     assessmentVersion: z.number().int().positive().optional(),
     notes: z.string().trim().max(200).optional(),
+    forceRegenerate: z.boolean().optional(),
   }),
 ]);
 export type StagePlanGeneration = z.infer<typeof stagePlanGenerationSchema>;

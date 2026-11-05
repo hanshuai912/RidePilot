@@ -36,6 +36,7 @@ export class CoachSuggestionsRepository {
           jobs,
           races,
           assessments,
+          nutritionProfile,
         ] = await Promise.all([
           tx.trainingPlan.findFirst({ where: { userId, status: "ACTIVE" } }),
           tx.nutritionPlan.findFirst({ where: { userId, status: "ACTIVE" } }),
@@ -82,7 +83,7 @@ export class CoachSuggestionsRepository {
               orderBy: { createdAt: "desc" },
             }),
             tx.trainingStagePlan.findMany({
-              where: { userId, status: "ARCHIVED" },
+              where: { userId, status: { in: ["ARCHIVED", "SUPERSEDED"] } },
               orderBy: { createdAt: "desc" },
               take: 10,
             }),
@@ -106,6 +107,7 @@ export class CoachSuggestionsRepository {
             where: { userId },
             select: { id: true, version: true },
           }),
+          tx.nutritionProfile.findUnique({ where: { userId } }),
         ]);
         return {
           plan,
@@ -120,6 +122,7 @@ export class CoachSuggestionsRepository {
           jobs,
           races,
           assessments,
+          nutritionProfile,
         };
       },
       { isolationLevel: "RepeatableRead" },

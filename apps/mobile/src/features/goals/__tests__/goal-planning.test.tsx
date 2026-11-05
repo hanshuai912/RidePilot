@@ -327,3 +327,19 @@ test("returning from FTP settings keeps date choices and notes", async () => {
   expect(screen.getByLabelText("开始日期").props.value).toBe(start);
   expect(screen.getByLabelText("结束日期").props.value).toBe(end);
 });
+
+test("explicit course regeneration sends forceRegenerate only after clicking", async () => {
+  await detail();
+  await fireEvent.changeText(await screen.findByLabelText("开始日期"), start);
+  await fireEvent.changeText(screen.getByLabelText("结束日期"), end);
+  expect(api.generateCourses).not.toHaveBeenCalled();
+  await fireEvent.press(screen.getByText("重新生成课程草稿"));
+  await screen.findByText("跨周耐力训练");
+  expect(api.generateCourses.mock.calls[0][1]).toMatchObject({
+    goalId,
+    startDate: start,
+    endDate: end,
+    forceRegenerate: true,
+  });
+  expect(coach.apply).not.toHaveBeenCalled();
+});

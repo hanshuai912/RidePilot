@@ -1,3 +1,4 @@
+import { nutritionGenerationStaleReason } from "./nutrition-generation-validity";
 import {
   BadRequestException,
   ConflictException,
@@ -59,6 +60,11 @@ export class NutritionApplicationService {
           code: "IDEMPOTENCY_KEY_CONFLICT",
           message: "幂等键已被其他提案使用",
         });
+      if (proposal.expiresAt && proposal.expiresAt <= new Date())
+        throw new ConflictException({
+          code: "PROPOSAL_EXPIRED",
+          message: "草稿已过期，请重新生成",
+        });
       if (proposal.status !== "READY" || !proposal.validationPassed)
         throw new ConflictException({
           code: "NUTRITION_PROPOSAL_NOT_READY",
@@ -111,6 +117,16 @@ export class NutritionApplicationService {
             message: "训练计划已更新，请重新生成联动补给草稿",
           });
       }
+      const staleReason = await nutritionGenerationStaleReason(
+        tx,
+        userId,
+        proposal.metadata,
+      );
+      if (staleReason)
+        throw new ConflictException({
+          code: "NUTRITION_GENERATION_STALE",
+          message: staleReason,
+        });
       const profile = await tx.nutritionProfile.findUnique({
         where: { userId },
       });

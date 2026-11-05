@@ -18,6 +18,11 @@ import { randomUUID } from "node:crypto";
 import { AiException } from "../../ai/exceptions/ai.exception";
 import { AiService } from "../../ai/ai.service";
 import { Prisma } from "../../generated/prisma/client";
+import {
+  generationFingerprint,
+  reusableGeneration,
+  supersedeGenerationCandidates,
+} from "../../infra/prisma/generation-candidates";
 import { PrismaService } from "../../infra/prisma/prisma.service";
 import { dbToDate, dateToDb } from "../training/training.validation";
 import { toPlanDraft, toProfileResponse } from "./nutrition.mapper";
@@ -89,68 +94,75 @@ export class NutritionGenerationService
         });
       return this.toResponse(existing);
     }
-    if (parsed.mode === "RACE_LINKED") {
-      return this.races.reuseOrCreate(userId, parsed, key, async (tx) => {
-        await this.context.read(userId, parsed);
-        const job = await tx.aiGeneration.create({
-          data: {
-            userId,
-            scene: "NUTRITION_PLAN",
-            input: parsed,
-            idempotencyKey: key,
-            requestId: randomUUID(),
-          },
-        });
-        return generationResponseSchema.parse(this.toResponse(job));
-      });
-    }
-    if (parsed.mode === "TRAINING_LINKED") {
-      return this.training.reuseOrCreate(userId, parsed, key, async (tx) => {
-        await this.context.read(userId, parsed, tx);
-        const job = await tx.aiGeneration.create({
-          data: {
-            userId,
-            scene: "NUTRITION_PLAN",
-            input: parsed,
-            idempotencyKey: key,
-            requestId: randomUUID(),
-          },
-        });
-        return generationResponseSchema.parse(this.toResponse(job));
-      });
-    }
-    await this.context.read(userId, parsed);
-    try {
-      const job = await this.prisma.aiGeneration.create({
-        data: {
-          userId,
-          scene: "NUTRITION_PLAN",
-          input: parsed,
-          idempotencyKey: key,
-          requestId: randomUUID(),
-        },
-      });
-      return this.toResponse(job);
-    } catch (error) {
-      if (
-        !(error instanceof Prisma.PrismaClientKnownRequestError) ||
-        error.code !== "P2002"
-      )
-        throw error;
-      const raced = await this.prisma.aiGeneration.findUniqueOrThrow({
+    const create = async (tx: Prisma.TransactionClient) => {
+      const previous = await tx.aiGeneration.findUnique({
         where: { userId_idempotencyKey: { userId, idempotencyKey: key } },
       });
-      const previous = nutritionGenerationInputSchema.parse(raced.input);
-      if (
-        raced.scene !== "NUTRITION_PLAN" ||
-        JSON.stringify(previous) !== JSON.stringify(parsed)
-      )
-        throw new ConflictException({
-          code: "IDEMPOTENCY_KEY_CONFLICT",
-          message: "幂等键已用于不同请求",
-        });
-      return this.toResponse(raced);
-    }
+      if (previous) {
+        if (
+          previous.scene !== "NUTRITION_PLAN" ||
+          JSON.stringify(
+            nutritionGenerationInputSchema.parse(previous.input),
+          ) !== JSON.stringify(parsed)
+        )
+          throw new ConflictException({
+            code: "IDEMPOTENCY_KEY_CONFLICT",
+            message: "幂等键已用于不同请求",
+          });
+        return generationResponseSchema.parse(this.toResponse(previous));
+      }
+      const context = await this.context.read(userId, parsed, tx);
+      const reusable = await reusableGeneration(
+        tx,
+        userId,
+        "NUTRITION_PLAN",
+        parsed,
+        async (id) => {
+          const p = await tx.nutritionProposal.findFirst({
+            where: { id, userId },
+          });
+          if (
+            !p ||
+            !["DRAFT", "READY", "BLOCKED"].includes(p.status) ||
+            (p.expiresAt && p.expiresAt <= new Date())
+          )
+            return false;
+          const metadata = p.metadata as {
+            generationContext?: { fingerprint: string };
+          } | null;
+          return (
+            metadata?.generationContext?.fingerprint ===
+            generationFingerprint(context)
+          );
+        },
+      );
+      if (reusable)
+        return generationResponseSchema.parse(this.toResponse(reusable));
+      return generationResponseSchema.parse(
+        this.toResponse(
+          await tx.aiGeneration.create({
+            data: {
+              userId,
+              scene: "NUTRITION_PLAN",
+              input: parsed,
+              idempotencyKey: key,
+              requestId: randomUUID(),
+            },
+          }),
+        ),
+      );
+    };
+    if (parsed.mode === "RACE_LINKED")
+      return this.races.reuseOrCreate(userId, parsed, key, create);
+    if (parsed.mode === "TRAINING_LINKED")
+      return this.training.reuseOrCreate(userId, parsed, key, create);
+    return this.prisma.$transaction(
+      async (tx) => {
+        await tx.$queryRaw`SELECT "id" FROM "users" WHERE "id" = ${userId}::uuid FOR UPDATE`;
+        return create(tx);
+      },
+      { timeout: 15_000 },
+    );
   }
 
   async get(userId: string, id: string) {
@@ -316,6 +328,15 @@ export class NutritionGenerationService
         model: response.model,
         skillVersion: skill.version,
         skillHash: skill.hash,
+        generationContext: {
+          fingerprint: generationFingerprint(context),
+          profileVersion: context.profileVersion,
+          nutritionProfileVersion: context.nutritionProfile.version,
+          trainingPlanVersionId: context.trainingContext.planVersionId,
+          ...(context.race
+            ? { raceId: context.race.id, raceVersion: context.race.version }
+            : {}),
+        },
         ...(input.mode === "TRAINING_LINKED"
           ? { trainingContext: context.trainingContext }
           : {}),
@@ -323,7 +344,15 @@ export class NutritionGenerationService
       await this.prisma.$transaction(async (tx) => {
         await tx.$queryRaw`SELECT "id" FROM "users" WHERE "id" = ${job.userId}::uuid FOR UPDATE`;
         // Recheck both official versions after the potentially long model call.
-        await this.context.read(job.userId, input, tx);
+        if (
+          generationFingerprint(
+            await this.context.read(job.userId, input, tx),
+          ) !== generationFingerprint(context)
+        )
+          throw new ConflictException({
+            code: "GENERATION_CONTEXT_CHANGED",
+            message: "生成期间训练或饮食资料已变化，请重新生成",
+          });
         const updated = await tx.aiGeneration.updateMany({
           where: {
             id: job.id,
@@ -370,6 +399,28 @@ export class NutritionGenerationService
             validationBlockers: blockers,
           },
         });
+        if (!blockers.length)
+          await supersedeGenerationCandidates(
+            tx,
+            job,
+            proposal.id,
+            "NUTRITION",
+            async (id) => {
+              const p = await tx.nutritionProposal.findFirst({
+                where: { id, userId: job.userId },
+              });
+              const snapshot = (
+                p?.metadata as {
+                  generationContext?: { fingerprint: string };
+                } | null
+              )?.generationContext;
+              return (
+                !!snapshot &&
+                snapshot.fingerprint === generationFingerprint(context) &&
+                (!p?.expiresAt || p.expiresAt > new Date())
+              );
+            },
+          );
         await tx.aiGeneration.update({
           where: { id: job.id },
           data: {
