@@ -14,9 +14,14 @@ import {
 import { localDateInTimezone } from "../../coach/model/plan-dates";
 
 export function RaceTrainingSetupScreen() {
-  const { raceId = "", recovery } = useLocalSearchParams<{
+  const {
+    raceId = "",
+    recovery,
+    phase,
+  } = useLocalSearchParams<{
     raceId?: string;
     recovery?: string;
+    phase?: string;
   }>();
   const flow = useInitialPlan();
   const { resources } = flow;
@@ -27,7 +32,11 @@ export function RaceTrainingSetupScreen() {
   const resume = () =>
     router.dismissTo({
       pathname: "/races/proposal",
-      params: { raceId, ...(recovery ? { recovery } : {}) },
+      params: {
+        raceId,
+        ...(recovery ? { recovery } : {}),
+        ...(phase ? { phase } : {}),
+      },
     });
   const save = () => {
     if (step === "basics") void flow.nextFromBasics();

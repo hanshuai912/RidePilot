@@ -2,6 +2,8 @@ import { AssessmentsService } from "./assessments.service";
 import { AssessmentScheduleService } from "./assessment-schedule.service";
 import { AssessmentReviewService } from "./assessment-review.service";
 import { AssessmentsController } from "./assessments.controller";
+import { RaceImpactService } from "./race-impact.service";
+import { RaceTrainingService } from "./race-training.service";
 import { Module } from "@nestjs/common";
 import { AiModule } from "../../ai/ai.module";
 import { InfraModule } from "../../infra/infra.module";
@@ -51,6 +53,8 @@ import { TrainingRangeService } from "./training-range.service";
     CoachPlanValidator,
     CoachProposalService,
     AiGenerationService,
+    RaceTrainingService,
+    RaceImpactService,
   ],
   exports: [CoachProposalService, PlanRestoreService],
 })

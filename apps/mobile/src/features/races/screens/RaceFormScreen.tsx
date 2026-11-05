@@ -1,11 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { router, useLocalSearchParams } from "expo-router";
 import { View } from "react-native";
 import { AppText, Button, Card, Input } from "../../../components/ui";
 import { TrainingPage } from "../../training/components/TrainingPage";
 import { useAuth } from "../../auth/hooks/AuthProvider";
 import { coachApi } from "../../coach/services/coach.api";
-import type { RaceInput } from "@ridepilot/contracts";
+import { raceInputSchema, type RaceInput } from "@ridepilot/contracts";
 
 const types = [
   ["ROAD_RACE", "公路赛"],
@@ -27,6 +27,8 @@ export function RaceFormScreen() {
   const [priority, setPriority] = useState<RaceInput["priority"]>("A");
   const [intent, setIntent] =
     useState<NonNullable<RaceInput["intent"]>>("FINISH");
+  const [version, setVersion] = useState<number | null>(null);
+  const pending = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   useEffect(() => {
@@ -34,6 +36,7 @@ export function RaceFormScreen() {
     void coachApi
       .race(session.accessToken, raceId)
       .then((race) => {
+        setVersion(race.version);
         setName(race.name);
         setLocalDate(race.localDate);
         setTimezone(race.timezone);
@@ -50,7 +53,7 @@ export function RaceFormScreen() {
       );
   }, [raceId, session?.accessToken]);
   const save = async () => {
-    if (!session?.accessToken) return;
+    if (!session?.accessToken || pending.current) return;
     const input: RaceInput = {
       name: name.trim(),
       localDate,
@@ -61,20 +64,33 @@ export function RaceFormScreen() {
       priority,
       intent,
     };
+    const parsed = raceInputSchema.safeParse(input);
+    if (!parsed.success) {
+      setError("请检查赛事名称、日期、距离和爬升等信息");
+      return;
+    }
+    if (raceId && version === null) {
+      setError("请等待赛事读取完成后再保存");
+      return;
+    }
+    pending.current = true;
     setBusy(true);
     setError(null);
     try {
-      if (raceId) {
-        const current = await coachApi.race(session.accessToken, raceId);
-        await coachApi.updateRace(session.accessToken, raceId, {
-          ...input,
-          expectedVersion: current.version,
-        });
-      } else await coachApi.createRace(session.accessToken, input);
-      router.replace("/races" as never);
+      const saved = raceId
+        ? await coachApi.updateRace(session.accessToken, raceId, {
+            ...parsed.data,
+            expectedVersion: version!,
+          })
+        : await coachApi.createRace(session.accessToken, parsed.data);
+      router.replace({
+        pathname: "/races/[raceId]",
+        params: { raceId: saved.id },
+      });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "保存赛事失败");
     } finally {
+      pending.current = false;
       setBusy(false);
     }
   };

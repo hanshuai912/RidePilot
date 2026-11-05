@@ -1,3 +1,5 @@
+import { coachApi } from "../../coach/services/coach.api";
+import { RaceDayEvents } from "../../races/components/RaceDayEvents";
 import { assessmentsApi } from "../../assessments/services/assessments.api";
 import { AssessmentList } from "../../assessments/components/AssessmentList";
 import { useCallback, useState } from "react";
@@ -40,6 +42,10 @@ function TrainingCalendar({
     ),
   );
   const [calendar, setCalendar] = useState<CalendarResponse | null>(null);
+  const [races, setRaces] = useState<
+    Awaited<ReturnType<typeof coachApi.races>>
+  >([]);
+  const [raceError, setRaceError] = useState<string | null>(null);
   const [assessments, setAssessments] = useState<Assessment[]>([]);
   const [assessmentError, setAssessmentError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -60,7 +66,8 @@ function TrainingCalendar({
       Promise.allSettled([
         trainingApi.getCalendar(token, weekStart, weekEnd),
         assessmentsApi.list(token, { from: weekStart, to: weekEnd }),
-      ]).then(([courses, tests]) => {
+        Promise.resolve().then(() => coachApi.races(token)),
+      ]).then(([courses, tests, events]) => {
         if (!active) return;
         if (courses.status === "fulfilled") setCalendar(courses.value);
         else
@@ -78,6 +85,10 @@ function TrainingCalendar({
               ? tests.reason.message
               : "测试日程加载失败",
           );
+        if (events.status === "fulfilled") {
+          setRaces(events.value.filter((race) => race.status !== "CANCELLED"));
+          setRaceError(null);
+        } else setRaceError("赛事日程读取失败，请刷新重试");
         setLoading(false);
       });
       return () => {
@@ -109,6 +120,7 @@ function TrainingCalendar({
       <Home
         days={days}
         assessmentDates={assessments.map((item) => item.localDate)}
+        raceDates={races.map((item) => item.localDate)}
         selectedDate={selectedDate}
         workouts={calendar?.items ?? []}
         selectedWorkouts={
@@ -141,6 +153,12 @@ function TrainingCalendar({
           })
         }
         onEdit={edit}
+      />
+      {raceError ? (
+        <AppText className="text-negative">{raceError}</AppText>
+      ) : null}
+      <RaceDayEvents
+        races={races.filter((race) => race.localDate === selectedDate)}
       />
       <AppText variant="section">当日阶段测试</AppText>
       {assessments.some(

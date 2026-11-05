@@ -29,3 +29,9 @@ FTP 使用现有 `AbilityMeasurement` 的 `metricType=FTP`、`unit=W`。课程�
 迁移仅新增表，不改写既有课程。验证先在隔离 `_test` 库执行 `prisma migrate deploy`，再执行集成测试。部署前运行 `pnpm --filter @ridepilot/api db:generate` 和 `db:deploy`。回退应用版本可保留新增表；需要物理回滚时须先备份阶段数据并确认没有引用，再单独制定删除表迁移，本任务不执行删除。
 
 阶段测试新增类型、实际日期、来源/RPE、阶段关联及幂等日志，见 [阶段测试数据](assessments.md)。旧版测试保留为 LEGACY，不可自动用来更新 FTP。
+
+## 赛事范围与草稿失效（2026-11-04）
+
+无需新增列或迁移。赛事训练的 AiGeneration.input 增加可选 racePhase、forceRegenerate、endDate 和 relatedVersion；ChangeProposal.draft 保留对应日期范围、场景及赛事版本快照。旧周请求和提案继续读取。恢复查询只返回当前赛事和正式版本匹配的方案，明确重新生成的候选优先于旧已应用方案。
+
+赛事改期、取消或更新结果在同一用户行锁事务中递增赛事版本、停止关联排队/运行任务（FAILED / RACE_VERSION_CONFLICT）、将未应用训练及营养提案置为 EXPIRED。通过 AiGeneration.input 的 relatedId/raceId 关联既有提案。正式训练/营养版本及实际训练记录不修改；用户确认新草稿时才创建新的正式版本。

@@ -10,6 +10,8 @@ const generationErrorMessages: Record<string, string> = {
   NO_REMAINING_TRAINING_DATES: "本周没有剩余可训练日期，请改为从下周开始",
   TRAINING_DATE_CONFLICT: "生成课程包含不可用日期，请改为从下周开始",
   TRAINING_TIME_CONFLICT: "生成课程超出可训练时间，请检查训练时间设置",
+  RACE_VERSION_CONFLICT: "赛事或比赛结果已变化，请返回赛事详情重新选择范围生成",
+  RACE_PHASE_CONFLICT: "赛事状态已变化，请返回赛事详情选择当前可用的计划类型",
   PLAN_VERSION_CONFLICT: "训练计划已更新，请返回 AI 教练重新生成",
 };
 

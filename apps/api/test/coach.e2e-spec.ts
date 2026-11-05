@@ -743,4 +743,274 @@ describeWithDatabase("AI coach weekly plan API", () => {
       })
       .expect(409);
   });
+  it("race lifecycle covers cross-week draft, reentry, regeneration, reschedule and cancellation", async () => {
+    const shift = (day: string, days: number) =>
+      new Date(Date.parse(day) + days * 86400000).toISOString().slice(0, 10);
+    const start = monday();
+    const end = shift(start, 13);
+    await post("me/ability-measurements/ftp")
+      .send({
+        valueWatts: 200,
+        measuredAt: new Date().toISOString(),
+        source: "MANUAL",
+      })
+      .expect(201);
+    await request(app.getHttpServer())
+      .put("/api/v1/me/availability")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        timezone: "Asia/Shanghai",
+        weekdays: [0, 1, 2, 3, 4, 5, 6].map((weekday) => ({
+          weekday,
+          availableMinutes: 90,
+        })),
+        maxSessionMinutes: 90,
+      })
+      .expect(200);
+    const goal = (
+      await post("goals")
+        .send({
+          type: "ENDURANCE",
+          targetDate: "2030-12-31",
+          priority: "PRIMARY",
+        })
+        .expect(201)
+    ).body;
+    const race = (
+      await post("races")
+        .send({
+          name: "跨周赛事",
+          localDate: shift(start, 6),
+          timezone: "Asia/Shanghai",
+          distanceKm: 100,
+          priority: "A",
+        })
+        .expect(201)
+    ).body;
+    model.generate.mockImplementation(
+      async (req: { messages: { content: string }[] }) => {
+        const context = JSON.parse(req.messages[2].content) as {
+          allowedDates: string[];
+          weekStartDate: string;
+          endDate?: string;
+        };
+        const eligibleWeeks = new Map<string, string>();
+        for (const day of context.allowedDates) {
+          const weekday = new Date(day).getUTCDay();
+          const week = shift(day, -((weekday + 6) % 7));
+          if (!eligibleWeeks.has(week)) eligibleWeeks.set(week, day);
+        }
+        return {
+          text: JSON.stringify({
+            summary: "赛事范围计划",
+            stageSummary: "兼顾减量和恢复",
+            assessmentSuggestion: "恢复后复评",
+            workouts: [...eligibleWeeks.values()].map((day) => ({
+              scheduledDate: day,
+              title: "低强度骑行",
+              purpose: "恢复与耐力",
+              segments: [
+                {
+                  type: "work",
+                  target: { kind: "duration", value: 30, unit: "min" },
+                  intensity: { kind: "ftp_percent", min: 50, max: 65 },
+                },
+              ],
+            })),
+          }),
+          requestId: randomUUID(),
+          model: "mock-coach",
+        };
+      },
+    );
+    const stateUrl = `races/${race.id}/training-proposal`;
+    const before = await get(stateUrl).expect(200);
+    expect(before.body.proposal).toBeNull();
+    expect(before.body.endDate).toBe(shift(race.localDate, 7));
+    await request(app.getHttpServer()).get(`/api/v1/${stateUrl}`).expect(401);
+    const other = await register();
+    await get(stateUrl, other.tokens.accessToken).expect(404);
+    const payload = {
+      weekStartDate: start,
+      endDate: end,
+      goalId: goal.id,
+      mode: "range",
+      expectedBaseVersion: 0,
+      relatedVersion: 1,
+      racePhase: "PREPARATION",
+    };
+    const submitted = await post(`races/${race.id}/replan-proposal`)
+      .set("Idempotency-Key", randomUUID())
+      .send(payload)
+      .expect(202);
+    const job = await waitForGeneration(submitted.body.generationId);
+    expect(job.status).toBe("READY");
+    expect((await get(stateUrl).expect(200)).body.proposal.proposalId).toBe(
+      job.proposalId,
+    );
+    const applyKey = randomUUID();
+    await post(`proposals/${job.proposalId}/apply`)
+      .set("Idempotency-Key", applyKey)
+      .send({ expectedBaseVersion: 0 })
+      .expect(201);
+    await post(`proposals/${job.proposalId}/apply`)
+      .set("Idempotency-Key", applyKey)
+      .send({ expectedBaseVersion: 0 })
+      .expect(201);
+    expect((await get(stateUrl).expect(200)).body.proposal.status).toBe(
+      "APPLIED",
+    );
+    const count = await prisma.aiGeneration.count({
+      where: { userId, scene: "RACE_REPLAN" },
+    });
+    const reused = await post(`races/${race.id}/replan-proposal`)
+      .set("Idempotency-Key", randomUUID())
+      .send({ ...payload, expectedBaseVersion: 1 })
+      .expect(202);
+    expect(reused.body.generationId).toBe(job.generationId);
+    expect(
+      await prisma.aiGeneration.count({
+        where: { userId, scene: "RACE_REPLAN" },
+      }),
+    ).toBe(count);
+    const regenerated = await post(`races/${race.id}/replan-proposal`)
+      .set("Idempotency-Key", randomUUID())
+      .send({ ...payload, expectedBaseVersion: 1, forceRegenerate: true })
+      .expect(202);
+    const newJob = await waitForGeneration(regenerated.body.generationId);
+    expect(newJob.status).toBe("READY");
+    expect(
+      (await get("plans/active/status").expect(200)).body.planVersion,
+    ).toBe(1);
+    expect((await get(stateUrl).expect(200)).body.proposal.proposalId).toBe(
+      newJob.proposalId,
+    );
+    const pendingRaceJob = await prisma.aiGeneration.create({
+      data: {
+        userId,
+        scene: "RACE_REPLAN",
+        status: "RUNNING",
+        input: { ...payload, relatedId: race.id },
+        idempotencyKey: randomUUID(),
+        leaseUntil: new Date(Date.now() + 60000),
+      },
+    });
+    const nutritionDraft = await prisma.nutritionProposal.create({
+      data: { userId, proposalType: "AI_PLAN", status: "READY", draft: {} },
+    });
+    await prisma.aiGeneration.create({
+      data: {
+        userId,
+        scene: "NUTRITION_PLAN",
+        status: "READY",
+        input: { raceId: race.id },
+        proposalId: nutritionDraft.id,
+        idempotencyKey: randomUUID(),
+      },
+    });
+    await request(app.getHttpServer())
+      .patch(`/api/v1/races/${race.id}`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ expectedVersion: 1, localDate: shift(start, 7) })
+      .expect(200);
+    expect(
+      (
+        await prisma.aiGeneration.findUniqueOrThrow({
+          where: { id: pendingRaceJob.id },
+        })
+      ).status,
+    ).toBe("FAILED");
+    expect(
+      (
+        await prisma.nutritionProposal.findUniqueOrThrow({
+          where: { id: nutritionDraft.id },
+        })
+      ).status,
+    ).toBe("EXPIRED");
+
+    expect((await get(stateUrl).expect(200)).body.proposal).toBeNull();
+    await post(`proposals/${newJob.proposalId}/apply`)
+      .set("Idempotency-Key", randomUUID())
+      .send({ expectedBaseVersion: 1 })
+      .expect(409);
+    await request(app.getHttpServer())
+      .patch(`/api/v1/races/${race.id}`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ expectedVersion: 2, status: "CANCELLED" })
+      .expect(200);
+    const cancelled = (await get(stateUrl).expect(200)).body;
+    expect(cancelled.phase).toBe("RETURN_TO_GOAL");
+    expect(cancelled.startDate).toBe(cancelled.today);
+    expect(
+      (await get("plans/active/status").expect(200)).body.planVersion,
+    ).toBe(1);
+    const rejoin = await post(`races/${race.id}/replan-proposal`)
+      .set("Idempotency-Key", randomUUID())
+      .send({
+        ...payload,
+        weekStartDate: cancelled.startDate,
+        endDate: cancelled.endDate,
+        expectedBaseVersion: 1,
+        relatedVersion: 3,
+        racePhase: "RETURN_TO_GOAL",
+      })
+      .expect(202);
+    expect((await waitForGeneration(rejoin.body.generationId)).status).toBe(
+      "READY",
+    );
+    const old = (
+      await post("races")
+        .send({
+          name: "已结束赛事",
+          localDate: shift(cancelled.today, -20),
+          timezone: "Asia/Shanghai",
+          distanceKm: 80,
+          priority: "B",
+        })
+        .expect(201)
+    ).body;
+    await post(`races/${old.id}/result`)
+      .send({ actualDate: old.localDate, status: "COMPLETED", fatigue: 7 })
+      .expect(201);
+    const recovery = (
+      await get(`races/${old.id}/training-proposal`).expect(200)
+    ).body;
+    await post(`races/${old.id}/result`)
+      .send({ actualDate: old.localDate, status: "COMPLETED", fatigue: 5 })
+      .expect(409);
+    await post(`races/${old.id}/result`)
+      .send({
+        actualDate: shift(recovery.today, 1),
+        status: "COMPLETED",
+        expectedVersion: 1,
+      })
+      .expect(400);
+    const repeatedResult = await post(`races/${old.id}/result`)
+      .send({ actualDate: old.localDate, status: "COMPLETED", fatigue: 7 })
+      .expect(201);
+    expect(repeatedResult.body.version).toBe(1);
+    expect(recovery.phase).toBe("RECOVERY");
+    expect(recovery.startDate).toBe(recovery.today);
+    const recovering = await post(`races/${old.id}/replan-proposal`)
+      .set("Idempotency-Key", randomUUID())
+      .send({
+        ...payload,
+        weekStartDate: recovery.startDate,
+        endDate: recovery.endDate,
+        expectedBaseVersion: 1,
+        relatedVersion: 2,
+        racePhase: "RECOVERY",
+      })
+      .expect(202);
+    expect((await waitForGeneration(recovering.body.generationId)).status).toBe(
+      "READY",
+    );
+    const impact = (
+      await get(
+        `races/${race.id}/impact-preview?startDate=${start}&endDate=${end}`,
+      ).expect(200)
+    ).body;
+    expect(impact.workouts.length).toBeGreaterThan(0);
+    expect(impact.affectedDates).toHaveLength(14);
+  });
 });

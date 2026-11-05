@@ -1,3 +1,4 @@
+import { racePlanningWindow } from "./race-planning.validation";
 import { AssessmentReviewService } from "./assessment-review.service";
 import {
   BadRequestException,
@@ -48,7 +49,11 @@ export class CoachGenerationContextService {
       });
     if (
       !["WEEK_PLAN", "RANGE_PLAN"].includes(scene) &&
-      !["replace_week", "replace_workout"].includes(input.mode)
+      !(
+        scene === "RACE_REPLAN"
+          ? ["replace_week", "range"]
+          : ["replace_week", "replace_workout"]
+      ).includes(input.mode)
     )
       throw new BadRequestException({
         code: "INVALID_GENERATION_MODE",
@@ -71,12 +76,18 @@ export class CoachGenerationContextService {
         message: "缺少测试或赛事",
       });
     if (
-      (scene === "RANGE_PLAN") !== (input.mode === "range") ||
+      (scene !== "RACE_REPLAN" &&
+        (scene === "RANGE_PLAN") !== (input.mode === "range")) ||
       (input.mode !== "range" && (input.endDate || input.stageId))
     )
       throw new BadRequestException({
         code: "INVALID_GENERATION_MODE",
         message: "范围生成请使用范围接口",
+      });
+    if (scene !== "RACE_REPLAN" && (input.racePhase || input.forceRegenerate))
+      throw new BadRequestException({
+        code: "INVALID_GENERATION_MODE",
+        message: "赛事参数只能用于赛事规划",
       });
     if (input.mode === "range") {
       if (!input.endDate)
@@ -285,13 +296,25 @@ export class CoachGenerationContextService {
           code: "RACE_NOT_FOUND",
           message: "赛事不存在",
         });
+      racePlanningWindow(race, localToday, input.racePhase);
+      if (input.relatedVersion && input.relatedVersion !== race.version)
+        throw new ConflictException({
+          code: "RACE_VERSION_CONFLICT",
+          message: "赛事或结果已变化，请重新生成",
+        });
       relatedEvent = {
+        phase: input.racePhase,
         id: race.id,
         version: race.version,
         name: race.name,
         localDate: dbToDate(race.localDate),
         priority: race.priority,
         distanceKm: Number(race.distanceKm),
+        elevationGainM: race.elevationGainM
+          ? Number(race.elevationGainM)
+          : null,
+        intent: race.intent,
+        timezone: race.timezone,
         status: race.status,
         result: race.result
           ? {
@@ -377,6 +400,23 @@ export class CoachGenerationContextService {
       : null;
     return {
       stage,
+      nearbyRaces:
+        scene === "RACE_REPLAN"
+          ? races
+              .filter(
+                (race) =>
+                  race.id !== input.relatedId &&
+                  dbToDate(race.localDate) >= input.weekStartDate &&
+                  dbToDate(race.localDate) <= end,
+              )
+              .map((race) => ({
+                id: race.id,
+                date: dbToDate(race.localDate),
+                name: race.name,
+                priority: race.priority,
+                distanceKm: Number(race.distanceKm),
+              }))
+          : [],
       ftp,
       goal: {
         id: goal.id,

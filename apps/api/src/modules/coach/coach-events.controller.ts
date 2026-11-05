@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Param, Patch, Post } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  BadRequestException,
+} from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import {
   activityInputSchema,
@@ -13,13 +22,18 @@ import {
 import { ZodBodyPipe } from "../../common/zod-body.pipe";
 import { CurrentPrincipal } from "../auth/current-principal.decorator";
 import type { AuthPrincipal } from "../auth/auth.types";
+import { z } from "zod";
+import { RaceImpactService } from "./race-impact.service";
 import { CoachEventsService } from "./coach-events.service";
 
 @ApiTags("training-events")
 @ApiBearerAuth("access-token")
 @Controller()
 export class CoachEventsController {
-  constructor(private readonly events: CoachEventsService) {}
+  constructor(
+    private readonly events: CoachEventsService,
+    private readonly impacts: RaceImpactService,
+  ) {}
 
   @Get("activities")
   activities(@CurrentPrincipal() user: AuthPrincipal) {
@@ -43,8 +57,22 @@ export class CoachEventsController {
   impactPreview(
     @CurrentPrincipal() user: AuthPrincipal,
     @Param("id") id: string,
+    @Query("startDate") startDate?: string,
+    @Query("endDate") endDate?: string,
   ) {
-    return this.events.impactPreview(user.userId, id);
+    const parsed = z
+      .object({ startDate: z.iso.date(), endDate: z.iso.date() })
+      .safeParse({ startDate, endDate });
+    if ((startDate || endDate) && !parsed.success)
+      throw new BadRequestException({
+        code: "INVALID_DATE_RANGE",
+        message: "请选择有效的起止日期",
+      });
+    return this.impacts.preview(
+      user.userId,
+      id,
+      parsed.success ? parsed.data : undefined,
+    );
   }
 
   @Post("races")

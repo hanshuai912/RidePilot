@@ -48,7 +48,9 @@ export function PlanPreview({
     <>
       <View className="rounded-[18px] border border-border border-l-4 border-l-brand bg-surface p-4">
         <AppText variant="label" className="text-brand">
-          AI 训练草稿 · 尚未应用
+          {proposal.status === "APPLIED"
+            ? "AI 训练方案 · 已应用"
+            : "AI 训练草稿 · 尚未应用"}
         </AppText>
         <AppText variant="section" className="mt-2">
           {proposal.summary}
@@ -87,9 +89,11 @@ export function PlanPreview({
           </View>
         </View>
         <AppText variant="caption" muted className="mt-3">
-          {proposal.basePlanVersion === 0
-            ? "首次应用：无正式计划 → 正式计划 v1"
-            : `应用后：正式计划 v${proposal.basePlanVersion} → v${proposal.basePlanVersion + 1}`}
+          {proposal.status === "APPLIED"
+            ? `应用时：正式计划 v${proposal.basePlanVersion} → v${proposal.basePlanVersion + 1}`
+            : proposal.basePlanVersion === 0
+              ? "首次应用：无正式计划 → 正式计划 v1"
+              : `应用后：正式计划 v${proposal.basePlanVersion} → v${proposal.basePlanVersion + 1}`}
           {proposal.replaceWorkoutIds.length
             ? ` · 将替换 ${proposal.replaceWorkoutIds.length} 节未来课程`
             : " · 保留已有课程"}

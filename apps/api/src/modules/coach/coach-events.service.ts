@@ -114,66 +114,6 @@ export class CoachEventsService {
     return items.map((item) => this.raceResponse(item));
   }
 
-  async impactPreview(userId: string, id: string) {
-    const race = await this.getRace(userId, id);
-    const [plan, assessments, races] = await Promise.all([
-      this.prisma.trainingPlan.findFirst({
-        where: { userId, status: "ACTIVE" },
-        include: { activeVersion: { include: { workouts: true } } },
-      }),
-      this.prisma.trainingAssessment.findMany({
-        where: { userId, localDate: dateToDb(dbToDate(race.localDate)) },
-      }),
-      this.prisma.trainingRace.findMany({
-        where: {
-          userId,
-          localDate: dateToDb(dbToDate(race.localDate)),
-          id: { not: race.id },
-          status: "CONFIRMED",
-        },
-      }),
-    ]);
-    const raceDate = dbToDate(race.localDate);
-    const conflicts = [
-      ...(plan?.activeVersion?.workouts ?? [])
-        .filter((workout) => dbToDate(workout.scheduledDate) === raceDate)
-        .map((workout) => ({
-          date: raceDate,
-          kind: "WORKOUT" as const,
-          title: workout.title ?? "骑行训练",
-          severity: "BLOCKER" as const,
-        })),
-      ...assessments.map((assessment) => ({
-        date: raceDate,
-        kind: "ASSESSMENT" as const,
-        title: `阶段测试 · ${assessment.protocol}`,
-        severity: "WARNING" as const,
-      })),
-      ...races.map((item) => ({
-        date: raceDate,
-        kind: "RACE" as const,
-        title: `赛事 · ${item.name}`,
-        severity:
-          item.priority === "A" && race.priority === "A"
-            ? ("BLOCKER" as const)
-            : ("WARNING" as const),
-      })),
-    ];
-    const affectedDates = new Set<string>([raceDate]);
-    for (let offset = -7; offset <= 7; offset += 1) {
-      const date = new Date(`${raceDate}T00:00:00.000Z`);
-      date.setUTCDate(date.getUTCDate() + offset);
-      affectedDates.add(date.toISOString().slice(0, 10));
-    }
-    return {
-      race: this.raceResponse(race),
-      conflicts,
-      affectedDates: [...affectedDates].sort(),
-      currentTrainingVersion: plan?.activeVersion?.versionNo ?? 0,
-      requiresReplan: race.status === "CONFIRMED",
-    };
-  }
-
   async getRaceResult(userId: string, raceId: string) {
     await this.getRace(userId, raceId);
     const result = await this.prisma.trainingRaceResult.findFirst({
@@ -191,13 +131,37 @@ export class CoachEventsService {
           code: "RACE_NOT_COMPLETED",
           message: "已取消赛事不能录入结果",
         });
+      const user = await tx.user.findUniqueOrThrow({
+        where: { id: userId },
+        select: { timezone: true },
+      });
+      const today = new Intl.DateTimeFormat("en-CA", {
+        timeZone: user.timezone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(new Date());
+      if (input.actualDate > today)
+        throw new BadRequestException({
+          code: "FUTURE_RACE_RESULT",
+          message: "不能记录未来比赛结果，请填写实际完成日期",
+        });
       const current = await tx.trainingRaceResult.findFirst({
         where: { userId, raceId },
       });
       if (
-        input.expectedVersion !== undefined &&
         current &&
-        input.expectedVersion !== current.version
+        current.status === input.status &&
+        dbToDate(current.actualDate) === input.actualDate &&
+        current.durationSeconds === (input.durationSeconds ?? null) &&
+        current.rpe === (input.rpe ?? null) &&
+        current.fatigue === (input.fatigue ?? null) &&
+        current.notes === (input.notes ?? null)
+      )
+        return this.raceResultResponse(current);
+      if (
+        (current && input.expectedVersion !== current.version) ||
+        (!current && input.expectedVersion !== undefined)
       )
         throw new ConflictException({
           code: "RACE_RESULT_VERSION_CONFLICT",
@@ -232,6 +196,7 @@ export class CoachEventsService {
         where: { id: raceId },
         data: { status: "COMPLETED", version: { increment: 1 } },
       });
+      await this.invalidateRaceDrafts(tx, userId, raceId);
       return this.raceResultResponse(result);
     });
   }
@@ -276,7 +241,69 @@ export class CoachEventsService {
           code: "RACE_VERSION_CONFLICT",
           message: "赛事已更新，请重新读取",
         });
+      await this.invalidateRaceDrafts(tx, userId, id);
       return this.raceResponse(await this.getRace(userId, id, tx));
+    });
+  }
+
+  private async invalidateRaceDrafts(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    raceId: string,
+  ) {
+    const linked = {
+      userId,
+      OR: [
+        {
+          scene: "RACE_REPLAN",
+          input: { path: ["relatedId"], equals: raceId },
+        },
+        {
+          scene: "NUTRITION_PLAN",
+          input: { path: ["raceId"], equals: raceId },
+        },
+      ],
+    };
+    await tx.aiGeneration.updateMany({
+      where: { ...linked, status: { in: ["QUEUED", "RUNNING"] } },
+      data: {
+        status: "FAILED",
+        errorCode: "RACE_VERSION_CONFLICT",
+        leaseUntil: null,
+      },
+    });
+    const jobs = await tx.aiGeneration.findMany({
+      where: linked,
+      select: { proposalId: true, scene: true },
+    });
+    const mutable: ("DRAFT" | "READY" | "BLOCKED")[] = [
+      "DRAFT",
+      "READY",
+      "BLOCKED",
+    ];
+    await tx.changeProposal.updateMany({
+      where: {
+        userId,
+        status: { in: mutable },
+        id: {
+          in: jobs
+            .filter((job) => job.scene === "RACE_REPLAN")
+            .flatMap((job) => (job.proposalId ? [job.proposalId] : [])),
+        },
+      },
+      data: { status: "EXPIRED" },
+    });
+    await tx.nutritionProposal.updateMany({
+      where: {
+        userId,
+        status: { in: mutable },
+        id: {
+          in: jobs
+            .filter((job) => job.scene === "NUTRITION_PLAN")
+            .flatMap((job) => (job.proposalId ? [job.proposalId] : [])),
+        },
+      },
+      data: { status: "EXPIRED" },
     });
   }
 

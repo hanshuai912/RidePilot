@@ -487,6 +487,11 @@ export class NutritionGenerationService
         code: "RACE_NOT_FOUND",
         message: "赛事不存在",
       });
+    if (input.mode === "RACE_LINKED" && race?.status === "CANCELLED")
+      throw new ConflictException({
+        code: "RACE_CANCELLED",
+        message: "赛事已取消，请调整日常饮食，不再生成该赛事的补给",
+      });
     const selectedWorkout = input.workoutId
       ? workouts.find((workout) => workout.id === input.workoutId)
       : null;

@@ -38,6 +38,7 @@ jest.mock("../../auth/hooks/AuthProvider", () => ({ useAuth: jest.fn() }));
 jest.mock("../../coach/services/coach.api", () => ({
   coachApi: {
     goals: jest.fn(),
+    races: jest.fn(),
     ftp: jest.fn(),
     adjustWorkout: jest.fn(),
     generation: jest.fn(),
@@ -144,6 +145,7 @@ const routes = {
   "workouts/segment": WorkoutSegmentScreen,
   "workouts/preview": WorkoutPreviewScreen,
   "workouts/[workoutId]": WorkoutDetailScreen,
+  "races/[raceId]": () => <Text>已打开日历赛事</Text>,
   "assessments/[assessmentId]": () => <Text>已打开日历测试</Text>,
   "cycling-power-zones": function FtpSettings() {
     return (
@@ -165,6 +167,7 @@ const routes = {
 };
 
 beforeEach(() => {
+  coach.races.mockResolvedValue([]);
   jest.mocked(assessmentsApi).list.mockResolvedValue([]);
   jest.clearAllMocks();
   jest.mocked(useAuth).mockReturnValue({
@@ -1228,4 +1231,25 @@ test("failed test refresh preserves readable workout data and offers a retry", a
   await waitFor(() =>
     expect(screen.queryByText("测试日程暂不可用")).toBeNull(),
   );
+});
+
+test("calendar displays race events and opens the race lifecycle", async () => {
+  coach.races.mockResolvedValue([
+    {
+      id: "race-1",
+      name: "周日公路赛",
+      localDate: today,
+      priority: "A",
+      distanceKm: 100,
+      status: "CONFIRMED",
+      timezone: "Asia/Shanghai",
+    },
+  ] as Awaited<ReturnType<typeof coachApi.races>>);
+  await renderRouter(routes, { initialUrl: "/(tabs)/training" });
+  await waitFor(() =>
+    expect(screen.getByText("比赛 · 周日公路赛")).toBeTruthy(),
+  );
+  expect(screen.getByLabelText(new RegExp(`${today}.*有比赛`))).toBeTruthy();
+  await fireEvent.press(screen.getByText("查看赛事与备赛安排"));
+  await waitFor(() => expect(screen.getByText("已打开日历赛事")).toBeTruthy());
 });

@@ -27,6 +27,8 @@ jest.mock("../../coach/services/coach.api", () => ({
     .CoachApiError,
   coachApi: {
     race: jest.fn(),
+    raceTrainingState: jest.fn(),
+    raceImpact: jest.fn(),
     goals: jest.fn(),
     planStatus: jest.fn(),
     readiness: jest.fn(),
@@ -135,6 +137,23 @@ beforeEach(() => {
     missingFields: [],
     activePlanVersion: 2,
   });
+  coach.raceTrainingState.mockResolvedValue({
+    phase: "PREPARATION",
+    today: "2030-06-03",
+    startDate: "2030-06-03",
+    endDate: "2030-06-16",
+    generation: null,
+    proposal: null,
+    message: null,
+  });
+  coach.raceImpact.mockResolvedValue({
+    startDate: "2030-06-03",
+    endDate: "2030-06-16",
+    conflicts: [],
+    workouts: [],
+    stages: [],
+    messages: [],
+  } as unknown as Awaited<ReturnType<typeof coachApi.raceImpact>>);
   coach.replanRace.mockResolvedValue(ready);
   coach.generation.mockResolvedValue(ready);
   coach.proposal.mockResolvedValue(draft);
@@ -399,4 +418,153 @@ test("恢复不足显示中文错误，只有手动重新生成才创建新任�
   await fireEvent.press(view.getByText("重新生成备赛计划草稿"));
   await waitFor(() => expect(view.getByText("备赛训练预览")).toBeTruthy());
   expect(coach.replanRace).toHaveBeenCalledTimes(2);
+});
+
+test("已应用备赛方案重新进入时恢复展示，不重新生成或重复应用", async () => {
+  coach.raceTrainingState.mockResolvedValue({
+    phase: "PREPARATION",
+    today: "2030-06-03",
+    startDate: "2030-06-03",
+    endDate: "2030-06-16",
+    generation: ready,
+    proposal: { ...draft, status: "APPLIED" },
+    message: null,
+  });
+  const view = await render(<RaceProposalScreen />);
+  await waitFor(() => expect(view.getByText("已应用备赛计划")).toBeTruthy());
+  expect(coach.replanRace).not.toHaveBeenCalled();
+  expect(view.queryByText("确认应用备赛计划")).toBeNull();
+  await fireEvent.press(view.getByText("重新生成备赛计划草稿"));
+  await waitFor(() =>
+    expect(coach.replanRace).toHaveBeenCalledWith(
+      "token",
+      "race-1",
+      expect.objectContaining({
+        forceRegenerate: true,
+        mode: "range",
+        endDate: "2030-06-16",
+      }),
+      expect.any(String),
+    ),
+  );
+  expect(coach.apply).not.toHaveBeenCalled();
+});
+
+test("自选跨周范围先预览影响，再由点击生成", async () => {
+  const view = await render(<RaceProposalScreen />);
+  await waitFor(() => expect(view.getByText("生成备赛计划草稿")).toBeTruthy());
+  await fireEvent.changeText(view.getByLabelText("结束日期"), "2030-06-23");
+  await fireEvent.press(view.getByText("查看范围影响"));
+  await waitFor(() =>
+    expect(coach.raceImpact).toHaveBeenCalledWith("token", "race-1", {
+      startDate: "2030-06-03",
+      endDate: "2030-06-23",
+    }),
+  );
+  expect(coach.replanRace).not.toHaveBeenCalled();
+  await fireEvent.press(view.getByText("生成备赛计划草稿"));
+  await waitFor(() =>
+    expect(coach.replanRace).toHaveBeenCalledWith(
+      "token",
+      "race-1",
+      expect.objectContaining({
+        weekStartDate: "2030-06-03",
+        endDate: "2030-06-23",
+        mode: "range",
+      }),
+      expect.any(String),
+    ),
+  );
+});
+
+test.each(["RECOVERY", "RETURN_TO_GOAL"] as const)(
+  "%s 从当前日期生成并明确确认",
+  async (phase) => {
+    const label = phase === "RECOVERY" ? "赛后恢复" : "回归目标";
+    coach.raceTrainingState.mockResolvedValue({
+      phase,
+      today: "2030-06-17",
+      startDate: "2030-06-17",
+      endDate: "2030-06-30",
+      generation: null,
+      proposal: null,
+      message: null,
+    });
+    const view = await render(<RaceProposalScreen />);
+    await waitFor(() =>
+      expect(view.getByText(`生成${label}计划草稿`)).toBeTruthy(),
+    );
+    expect(coach.replanRace).not.toHaveBeenCalled();
+    await fireEvent.press(view.getByText(`生成${label}计划草稿`));
+    await waitFor(() =>
+      expect(view.getByText(`确认应用${label}计划`)).toBeTruthy(),
+    );
+    expect(coach.replanRace).toHaveBeenCalledWith(
+      "token",
+      "race-1",
+      expect.objectContaining({
+        weekStartDate: "2030-06-17",
+        endDate: "2030-06-30",
+        racePhase: phase,
+      }),
+      expect.any(String),
+    );
+  },
+);
+
+test("应用失败重试沿用幂等键，成功后显示已应用", async () => {
+  coach.apply.mockRejectedValueOnce(new Error("网络中断"));
+  const view = await startRaceDraft();
+  await waitFor(() => expect(view.getByText("确认应用备赛计划")).toBeTruthy());
+  await fireEvent.press(view.getByText("确认应用备赛计划"));
+  await waitFor(() => expect(view.getByText("网络中断")).toBeTruthy());
+  const firstKey = coach.apply.mock.calls[0][3];
+  await fireEvent.press(view.getByText("确认应用备赛计划"));
+  await waitFor(() => expect(view.getByText("已应用备赛计划")).toBeTruthy());
+  expect(coach.apply.mock.calls[1][3]).toBe(firstKey);
+});
+
+test("读取任务无响应时整体超时退出 loading，重试只查询不创建任务", async () => {
+  jest.useFakeTimers();
+  try {
+    coach.raceTrainingState.mockImplementationOnce(() => new Promise(() => {}));
+    const view = await render(<RaceProposalScreen />);
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(180_000);
+    });
+    expect(view.getByText(/赛事训练等待超时/)).toBeTruthy();
+    expect(view.queryByText("加载中")).toBeNull();
+    await fireEvent.press(view.getByText("重试"));
+    await waitFor(() =>
+      expect(view.getByText("生成备赛计划草稿")).toBeTruthy(),
+    );
+    expect(coach.replanRace).not.toHaveBeenCalled();
+  } finally {
+    jest.useRealTimers();
+  }
+});
+
+test("修改范围后不能误应用旧范围草稿", async () => {
+  const matching = {
+    ...draft,
+    weekStartDate: "2030-06-03",
+    endDate: "2030-06-16",
+  };
+  coach.raceTrainingState.mockResolvedValue({
+    phase: "PREPARATION",
+    today: "2030-06-03",
+    startDate: "2030-06-03",
+    endDate: "2030-06-16",
+    generation: ready,
+    proposal: matching,
+    message: null,
+  });
+  const view = await render(<RaceProposalScreen />);
+  await waitFor(() => expect(view.getByText("确认应用备赛计划")).toBeTruthy());
+  await fireEvent.changeText(view.getByLabelText("结束日期"), "2030-06-23");
+  expect(
+    view.getByText("日期范围已修改，请重新生成后再确认应用。"),
+  ).toBeTruthy();
+  await fireEvent.press(view.getByText("确认应用备赛计划"));
+  expect(coach.apply).not.toHaveBeenCalled();
 });

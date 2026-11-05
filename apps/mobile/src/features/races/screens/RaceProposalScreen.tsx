@@ -1,21 +1,36 @@
+import { useRef } from "react";
 import { router, useLocalSearchParams } from "expo-router";
-import { AppText, Button, Card } from "../../../components/ui";
+import { racePlanningPhaseSchema } from "@ridepilot/contracts";
+import { AppText, Button, Card, Input } from "../../../components/ui";
 import { TrainingPage } from "../../training/components/TrainingPage";
 import { useAuth } from "../../auth/hooks/AuthProvider";
 import { coachApi } from "../../coach/services/coach.api";
 import { PlanPreview } from "../../coach/components/PlanPreview";
 import { missingTrainingData } from "../../coach/model/readiness";
 import { useRaceTrainingDraft } from "../hooks/useRaceTrainingDraft";
+import { RaceImpactCard } from "../components/RaceImpactCard";
 
 const key = () => `race-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 export function RaceProposalScreen() {
-  const { raceId = "", recovery } = useLocalSearchParams<{
+  const {
+    raceId = "",
+    recovery,
+    phase: phaseParam,
+  } = useLocalSearchParams<{
     raceId?: string;
     recovery?: string;
+    phase?: string;
   }>();
   const { session } = useAuth();
   const token = session?.accessToken;
+  const parsedPhase = racePlanningPhaseSchema.safeParse(phaseParam);
+  const draft = useRaceTrainingDraft(
+    token,
+    raceId,
+    recovery === "1",
+    parsedPhase.success ? parsedPhase.data : undefined,
+  );
   const {
     proposal,
     setProposal,
@@ -24,67 +39,58 @@ export function RaceProposalScreen() {
     setError,
     busy,
     setBusy,
-    retry,
-    generate,
-    weekStartDate,
-  } = useRaceTrainingDraft(token, raceId, recovery === "1");
-  const validate = async () => {
-    if (!token || !proposal) return;
-    setBusy(true);
-    setError(null);
-    try {
-      setProposal(await coachApi.validate(token, proposal.proposalId));
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "备赛草稿校验失败");
-    } finally {
-      setBusy(false);
-    }
-  };
+    phase,
+  } = draft;
+  const action = useRef(false);
+  const applyAttempt = useRef<{ id: string; key: string } | null>(null);
+  const label =
+    phase === "RECOVERY"
+      ? "赛后恢复"
+      : phase === "RETURN_TO_GOAL"
+        ? "回归目标"
+        : "备赛";
   const apply = async () => {
-    if (!token || !proposal) return;
+    if (!token || !proposal || action.current || busy) return;
+    action.current = true;
     setBusy(true);
     setError(null);
     try {
+      if (proposal.status !== "READY") {
+        setProposal(await coachApi.validate(token, proposal.proposalId));
+        return;
+      }
+      if (applyAttempt.current?.id !== proposal.proposalId)
+        applyAttempt.current = { id: proposal.proposalId, key: key() };
       await coachApi.apply(
         token,
         proposal.proposalId,
         proposal.basePlanVersion,
-        key(),
+        applyAttempt.current.key,
       );
-      router.replace("/(tabs)/training");
+      setProposal({ ...proposal, status: "APPLIED" });
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "应用备赛计划失败");
+      setError(cause instanceof Error ? cause.message : "应用赛事计划失败");
     } finally {
+      action.current = false;
       setBusy(false);
     }
   };
   return (
     <TrainingPage
-      title="备赛调整草稿"
+      title={`${label}计划`}
       loading={busy && !proposal}
-      error={!weekStartDate ? error : undefined}
-      retry={!proposal ? retry : undefined}
+      error={!draft.startDate ? error : undefined}
+      retry={draft.retry}
     >
-      {weekStartDate && error ? (
+      {draft.startDate && error ? (
         <AppText className="text-negative">{error}</AppText>
       ) : null}
-      {!proposal && !missingFields.length && weekStartDate ? (
-        <Card>
-          <AppText variant="card">
-            {recovery === "1" ? "生成赛后恢复计划" : "生成备赛计划"}
-          </AppText>
-          <AppText muted className="mt-2">
-            生成范围：{weekStartDate}{" "}
-            所在周。已有课程会提出调整，空白时段会创建训练草稿。
-          </AppText>
-          <Button className="mt-4" loading={busy} onPress={generate}>
-            {error ? "重新生成备赛计划草稿" : "生成备赛计划草稿"}
-          </Button>
-        </Card>
+      {draft.message ? (
+        <AppText className="text-warning">{draft.message}</AppText>
       ) : null}
       {missingFields.length ? (
         <Card>
-          <AppText variant="card">补全资料后生成备赛计划</AppText>
+          <AppText variant="card">补全资料后生成{label}计划</AppText>
           <AppText muted className="mt-2">
             还需要：{missingTrainingData(missingFields)}
             。补全后可继续为本赛事生成训练草稿，无需先建立正式计划。
@@ -94,7 +100,11 @@ export function RaceProposalScreen() {
             onPress={() =>
               router.push({
                 pathname: "/races/training-setup",
-                params: { raceId, ...(recovery ? { recovery } : {}) },
+                params: {
+                  raceId,
+                  ...(recovery ? { recovery } : {}),
+                  ...(phaseParam ? { phase: phaseParam } : {}),
+                },
               })
             }
           >
@@ -102,33 +112,112 @@ export function RaceProposalScreen() {
           </Button>
         </Card>
       ) : null}
+      {draft.startDate && !missingFields.length ? (
+        <Card>
+          <AppText variant="card">{label}日期范围</AppText>
+          <AppText variant="caption" muted className="mt-2">
+            支持跨周，单次 1–84
+            天。已有课程会提出调整，空白时段会创建训练草稿；确认前正式计划保持原样。
+          </AppText>
+          <AppText className="mt-3">开始日期</AppText>
+          <Input
+            accessibilityLabel="开始日期"
+            editable={!busy}
+            value={draft.startDate}
+            onChangeText={(value) => draft.changeDate("startDate", value)}
+            placeholder="YYYY-MM-DD"
+          />
+          <AppText className="mt-3">结束日期</AppText>
+          <Input
+            accessibilityLabel="结束日期"
+            editable={!busy}
+            value={draft.endDate}
+            onChangeText={(value) => draft.changeDate("endDate", value)}
+            placeholder="YYYY-MM-DD"
+          />
+          <Button
+            variant="secondary"
+            className="mt-3"
+            disabled={busy}
+            onPress={() => void draft.previewImpact()}
+          >
+            查看范围影响
+          </Button>
+          <Button
+            className="mt-3"
+            loading={busy}
+            onPress={proposal ? draft.regenerate : draft.generate}
+          >
+            {proposal
+              ? `重新生成${label}计划草稿`
+              : error
+                ? `重新生成${label}计划草稿`
+                : `生成${label}计划草稿`}
+          </Button>
+        </Card>
+      ) : null}
+      {draft.impact ? <RaceImpactCard impact={draft.impact} /> : null}
       {proposal ? (
         <>
-          <PlanPreview proposal={proposal} ftpWatts={null} />
+          {draft.rangeChanged && proposal.status !== "APPLIED" ? (
+            <AppText className="text-warning">
+              日期范围已修改，请重新生成后再确认应用。
+            </AppText>
+          ) : null}
+          <PlanPreview
+            proposal={proposal}
+            ftpWatts={null}
+            nutritionSummary="以饮食档案及独立补给方案为准"
+          />
+          {proposal.status === "APPLIED" ? (
+            <Card>
+              <AppText className="text-positive">已应用{label}计划</AppText>
+              <AppText muted className="mt-2">
+                再次进入可查看该方案。重新生成会先创建新草稿，确认后才会更新训练。
+              </AppText>
+            </Card>
+          ) : (
+            <Button
+              loading={busy}
+              disabled={
+                busy ||
+                draft.rangeChanged ||
+                proposal.blockers.length > 0 ||
+                ["EXPIRED", "REJECTED"].includes(proposal.status)
+              }
+              onPress={() => void apply()}
+            >
+              {proposal.status === "READY"
+                ? `确认应用${label}计划`
+                : "校验草稿"}
+            </Button>
+          )}
           <Button
-            loading={busy}
-            disabled={
-              proposal.status !== "READY" || proposal.blockers.length > 0
-            }
-            onPress={() =>
-              void (proposal.status === "READY" ? apply() : validate())
-            }
+            variant="secondary"
+            disabled={busy}
+            onPress={() => router.push("/(tabs)/training")}
           >
-            {proposal.status === "READY"
-              ? recovery === "1"
-                ? "确认应用恢复计划"
-                : "确认应用备赛计划"
-              : "校验草稿"}
+            查看训练日历
           </Button>
           <Button
             variant="secondary"
             disabled={busy}
-            onPress={() => router.back()}
+            onPress={() =>
+              phase === "PREPARATION"
+                ? router.push({
+                    pathname: "/races/nutrition-proposal",
+                    params: { raceId },
+                  })
+                : router.push("/(tabs)/nutrition")
+            }
           >
-            返回赛事
+            {phase === "PREPARATION" ? "查看或调整赛事补给" : "查看恢复期饮食"}
           </Button>
         </>
       ) : null}
+      <Button variant="secondary" disabled={busy} onPress={() => router.back()}>
+        返回赛事
+      </Button>
     </TrainingPage>
   );
 }

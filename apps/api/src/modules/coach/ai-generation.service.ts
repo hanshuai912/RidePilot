@@ -75,13 +75,14 @@ export class AiGenerationService implements OnModuleInit, OnModuleDestroy {
       | "PLAN_ADJUST"
       | "ASSESSMENT_REVIEW"
       | "RACE_REPLAN" = "WEEK_PLAN",
+    db: Prisma.TransactionClient = this.prisma,
   ) {
     if (!key || key.length > 255)
       throw new BadRequestException({
         code: "IDEMPOTENCY_KEY_REQUIRED",
         message: "缺少有效幂等键",
       });
-    const existing = await this.prisma.aiGeneration.findUnique({
+    const existing = await db.aiGeneration.findUnique({
       where: { userId_idempotencyKey: { userId, idempotencyKey: key } },
     });
     if (existing) {
@@ -99,7 +100,7 @@ export class AiGenerationService implements OnModuleInit, OnModuleDestroy {
     await this.context(userId, input, scene);
     let job;
     try {
-      job = await this.prisma.aiGeneration.create({
+      job = await db.aiGeneration.create({
         data: {
           userId,
           scene,
@@ -114,7 +115,7 @@ export class AiGenerationService implements OnModuleInit, OnModuleDestroy {
         error.code !== "P2002"
       )
         throw error;
-      const raced = await this.prisma.aiGeneration.findUniqueOrThrow({
+      const raced = await db.aiGeneration.findUniqueOrThrow({
         where: { userId_idempotencyKey: { userId, idempotencyKey: key } },
       });
       if (
@@ -204,6 +205,7 @@ export class AiGenerationService implements OnModuleInit, OnModuleDestroy {
                     ? "Generate cycling workouts covering the entire selected date range."
                     : "Propose safe replacement workouts only for the selected future scope. Explain changes and tradeoffs.",
               scene,
+              racePhase: input.racePhase,
               reason: input.reason,
               notes: input.notes,
               recoveryConstraints: {
@@ -220,6 +222,7 @@ export class AiGenerationService implements OnModuleInit, OnModuleDestroy {
                   }
                 : {}),
               relatedEvent: context.relatedEvent,
+              nearbyRaces: context.nearbyRaces,
               outputSchema: z.toJSONSchema(aiWeekOutputSchema),
               weekStartDate: input.weekStartDate,
               ...(input.endDate ? { endDate: input.endDate } : {}),
@@ -300,6 +303,7 @@ export class AiGenerationService implements OnModuleInit, OnModuleDestroy {
               ...(input.endDate ? { endDate: input.endDate } : {}),
               ...(input.stageId ? { stageId: input.stageId } : {}),
               scene,
+              ...(input.racePhase ? { racePhase: input.racePhase } : {}),
               mode: input.mode,
               replaceWorkoutIds: context.replaceWorkoutIds,
               replacedWorkouts: context.existingWorkouts

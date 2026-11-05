@@ -10,6 +10,8 @@ import {
   readinessSchema,
   raceResponseSchema,
   raceImpactPreviewSchema,
+  raceTrainingStateSchema,
+  type RacePlanningPhase,
   raceResultResponseSchema,
   type RaceInput,
   type RacePatch,
@@ -152,6 +154,16 @@ export const coachApi = {
       body: input,
       idempotencyKey: key,
     }),
+  raceTrainingState: (
+    token: string,
+    raceId: string,
+    phase?: RacePlanningPhase,
+  ) =>
+    request(
+      `races/${encodeURIComponent(raceId)}/training-proposal${phase ? `?phase=${phase}` : ""}`,
+      token,
+      raceTrainingStateSchema,
+    ),
   replanRace: (
     token: string,
     raceId: string,
@@ -235,9 +247,13 @@ export const coachApi = {
       method: "PATCH",
       body: input,
     }),
-  raceImpact: (token: string, id: string) =>
+  raceImpact: (
+    token: string,
+    id: string,
+    range?: { startDate: string; endDate: string },
+  ) =>
     request(
-      `races/${encodeURIComponent(id)}/impact-preview`,
+      `races/${encodeURIComponent(id)}/impact-preview${range ? `?startDate=${encodeURIComponent(range.startDate)}&endDate=${encodeURIComponent(range.endDate)}` : ""}`,
       token,
       raceImpactPreviewSchema,
     ),

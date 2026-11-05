@@ -94,3 +94,36 @@
 - API 请求/响应形状与数据库结构不变；仅赛事场景允许没有可替换课程，不放宽普通调整入口的限制。没有剩余可训练日期、归属不符、版本冲突仍拒绝。
 - 测试覆盖：`race-training-context.spec.ts`（首份计划、空白周、已记录/历史课程保护、缺失字段、版本/归属、恢复不足纠正）；`race-proposal.test.tsx`（手动生成、错误重试、生命周期）；`race-training-setup-routes.test.tsx`（真实 Expo Router 下补填、返回与保存失败重试）；`coach.e2e-spec.ts` 新增首份备赛及空白周追加的事务应用、幂等和版本冲突用例。
 - 已执行：`pnpm --filter @ridepilot/mobile test`（26 套、235 项通过）；`pnpm test`（20 套、110 项通过，9 套、47 项因默认外部环境条件跳过）；加载 `.env.test` 指向本地隔离测试数据库与 Redis 后运行 `pnpm test --runTestsByPath test/coach.e2e-spec.ts`（在 `apps/api` 目录，6 项通过，包含本次新增的 2 项数据库用例）；`pnpm lint`、`pnpm typecheck`、`pnpm build`、`git diff --check` 均通过。模型输出在自动测试中使用可控桩；本次未调用真实模型或进行真机复验。
+
+## 跨周备赛、恢复与取消后回归（2026-11-04）
+
+本节取代上文“仅赛事所在周”的实现限制，关联 PRD FR-603～607 与用户要求的手动生成流程。
+
+- 赛事训练页支持自选起止日期，单次 1–84 天，可跨周。默认备赛范围为比赛前 7 天至后 7 天，开始不早于用户时区今天；这是可修改的页面范围建议，不是固定减量或恢复处方。已结束赛事默认从今天至后 13 天安排恢复；取消后使用同样的可选未来范围回归长期目标。
+- 新增 `GET /races/:id/training-proposal?phase=PREPARATION|RECOVERY|RETURN_TO_GOAL`，返回默认日期、用户当地今天、已有任务/草稿/当前已应用方案和失效提示。进入页面、补填返回、重新聚焦只读取并恢复任务；只有点击生成或重新生成才创建任务。日期输入在资料补填往返时保留，赛事版本或场景变化时重新选择默认范围。
+- 读取/提交/查询设置 180 秒整体等待保护，超时退出 loading；重试或重新进入先查询已有任务，不自动创建新任务。
+- 生成请求使用 `mode=range`、`weekStartDate`、`endDate`、`racePhase`、`relatedVersion`，普通请求复用既有结果。明确重新生成传 `forceRegenerate=true`；运行中的同赛事同场景任务仍复用。创建和复用在用户锁与同一事务内完成。旧 `replace_week` 请求继续兼容。
+- 无正式计划可从版本 0 创建；范围内没有课程时生成新课程，已有课程仅替换未来且未记录项，保留范围外、历史及已记录课程。模型必须覆盖所选范围的全部可训练周，并参考范围内其他赛事的日期、A/B/C 优先级和距离；结果与疲劳作为恢复上下文，不自动推断固定恢复天数。
+- 影响预览支持 `startDate/endDate` 查询，展示范围内课程及保留标记、测试、交叠阶段、其他赛事和补给检查提醒。测试与正式阶段保留，需要改期或调整时由用户另行确认；课程避开测试和确认赛事日。没有实现跨领域一次性应用。
+- 保存或改期赛事后直接进入详情，不自动生成。赛事编辑使用表单读取时的版本，避免保存前重读版本而掩盖冲突。取消需页面二次确认；取消、改期、修改赛事或更新结果在原事务内终止关联排队/运行任务，废弃未应用的训练/补给草稿，保留正式版本。旧任务无法迟到后发布草稿。
+- 赛后结果独立组件维护实际日期、完成状态、用时、RPE、疲劳、备注及结果版本；禁止未来实际日期，更正必须匹配已显示版本。结果保存后可手动进入恢复计划。取消/已结束赛事的饮食入口引导查看日常饮食，避免继续生成过期赛事补给。
+- 应用仍走原有服务端二次校验、版本冲突及事务。页面保留同一应用请求的幂等键供不确定响应重试；成功后显示已应用，并提供日历和饮食入口。日历增加赛事标记与赛事详情入口，赛事读取失败不影响课程与测试展示。
+- 实现按职责增加 `RaceTrainingService`、`RaceImpactService`、日期/场景规则、赛事结果与影响组件。沿用现有 `CoachGenerationContextService` 作为多场景上下文编排入口，本次仅扩展赛事分支，避免为该功能重写其他生成场景。
+- 无数据库迁移。使用现有 `AiGeneration.input` 和训练提案 `draft` 保存场景/范围/赛事版本；详细 API 与状态见 `docs/api/ai-coach.md` 和 `docs/data/ai-coach.md`。
+
+### 本轮验收场景
+
+1. 周日比赛选择跨到下一周的范围，检查赛后日期课程出现在草稿中；确认前日历不变。
+2. 空白范围可生成；缺 FTP/经验/目标/训练时间时补填后返回，日期仍保留，必须再次点击生成。
+3. 已应用后重新进入显示原方案；点击重新生成只创建候选，不自动应用。网络不确定时重试同一应用请求不重复发布。
+4. 改期/更新结果后旧草稿无法应用，正在运行的关联训练与补给任务停止；取消后从当前日期规划，不恢复过期课程。
+5. 历史赛事录入真实结果后从今天生成恢复；检查疲劳和结果进入生成上下文。测试、其他赛事与已有记录在预览中可见并保留。
+6. 训练日历展示比赛，点击可进入详情；结果错误输入保留表单并提示更正。
+
+### 本轮验证结果
+
+- `pnpm --filter @ridepilot/mobile test`：27 套、243 项通过。最终赛事专项执行 `pnpm --filter @ridepilot/mobile test --runTestsByPath src/features/races/__tests__/race-proposal.test.tsx src/features/races/__tests__/race-training-setup-routes.test.tsx src/features/races/__tests__/race-nutrition-routes.test.tsx src/features/races/__tests__/race-result.test.tsx`：4 套、40 项通过，含等待超时和修改日期后禁止误应用旧草稿。
+- `pnpm test`：22 套、125 项通过；默认外部环境条件跳过 9 套、48 项。最终在 `apps/api` 执行 `pnpm test --runTestsByPath test/race-training-state.spec.ts test/race-training-context.spec.ts test/race-impact.spec.ts`：3 套、31 项通过，含自选范围恢复。
+- 在 `apps/api` 加载 `.env.test` 的本机 `*_test` PostgreSQL 和 Redis DB 1，执行 `pnpm test --runTestsByPath test/coach.e2e-spec.ts`：7 项通过，含跨周完整生命周期及旧任务/补给失效。该测试使用可控模型桩。
+- `pnpm lint`、`pnpm typecheck`、`pnpm build`、修改文件 Prettier 与 `git diff --check` 已通过；最终收尾同样复验通过。
+- 本轮未调用真实模型、未进行真机操作、未部署。无需数据库迁移。

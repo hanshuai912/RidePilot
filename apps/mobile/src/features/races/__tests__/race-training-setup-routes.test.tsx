@@ -20,6 +20,8 @@ jest.mock("../../coach/services/coach.api", () => ({
   coachApi: Object.fromEntries(
     [
       "race",
+      "raceTrainingState",
+      "raceImpact",
       "goals",
       "planStatus",
       "readiness",
@@ -144,6 +146,21 @@ beforeEach(() => {
   api.race.mockResolvedValue({ id: raceId, localDate: "2030-06-09" } as Awaited<
     ReturnType<typeof coachApi.race>
   >);
+  api.raceTrainingState.mockResolvedValue({
+    phase: "PREPARATION",
+    today: "2030-06-03",
+    startDate: "2030-06-03",
+    endDate: "2030-06-16",
+    generation: null,
+    proposal: null,
+    message: null,
+  });
+  api.raceImpact.mockResolvedValue({
+    conflicts: [],
+    workouts: [],
+    stages: [],
+    messages: [],
+  } as unknown as Awaited<ReturnType<typeof coachApi.raceImpact>>);
   api.replanRace.mockResolvedValue({
     generationId: "job",
     status: "READY",

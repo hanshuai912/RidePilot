@@ -1,27 +1,34 @@
 import {
   Body,
+  BadRequestException,
   Controller,
   Get,
   Headers,
   HttpCode,
   Param,
   Post,
+  Query,
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import {
   weekGenerationInputSchema,
+  racePlanningPhaseSchema,
   type WeekGenerationInput,
 } from "@ridepilot/contracts";
 import { ZodBodyPipe } from "../../common/zod-body.pipe";
 import { CurrentPrincipal } from "../auth/current-principal.decorator";
 import type { AuthPrincipal } from "../auth/auth.types";
+import { RaceTrainingService } from "./race-training.service";
 import { AiGenerationService } from "./ai-generation.service";
 
 @ApiTags("ai-coach")
 @ApiBearerAuth("access-token")
 @Controller()
 export class AiGenerationController {
-  constructor(private readonly generations: AiGenerationService) {}
+  constructor(
+    private readonly generations: AiGenerationService,
+    private readonly raceTraining: RaceTrainingService,
+  ) {}
 
   @Post("plans/generate-proposal")
   @HttpCode(202)
@@ -88,12 +95,22 @@ export class AiGenerationController {
     @Body(new ZodBodyPipe(weekGenerationInputSchema))
     input: WeekGenerationInput,
   ) {
-    return this.generations.submit(
-      principal.userId,
-      { ...input, mode: "replace_week", relatedId: id, reason: "RACE" },
-      key,
-      "RACE_REPLAN",
-    );
+    return this.raceTraining.submit(principal.userId, id, input, key);
+  }
+
+  @Get("races/:id/training-proposal")
+  raceState(
+    @CurrentPrincipal() principal: AuthPrincipal,
+    @Param("id") id: string,
+    @Query("phase") phase?: string,
+  ) {
+    const parsed = racePlanningPhaseSchema.optional().safeParse(phase);
+    if (!parsed.success)
+      throw new BadRequestException({
+        code: "INVALID_RACE_PHASE",
+        message: "请选择有效的赛事规划类型",
+      });
+    return this.raceTraining.get(principal.userId, id, parsed.data);
   }
 
   @Get("ai-coach/generations/:id")

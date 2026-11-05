@@ -348,3 +348,63 @@ test.each([false, true])(
     });
   },
 );
+
+test("race range spans Sunday and the following recovery week while retaining recorded courses", async () => {
+  const { service, data, db } = fixture();
+  data.activePlan.mockResolvedValue({
+    activeVersion: {
+      versionNo: 3,
+      workouts: [
+        workout("recorded", "2030-01-14"),
+        workout("following-week", "2030-01-15"),
+        workout("outside", "2030-01-23"),
+      ],
+    },
+  });
+  db.trainingActivity.findMany.mockResolvedValue([{ workoutId: "recorded" }]);
+  const context = await service.load(
+    "owner",
+    {
+      ...input,
+      mode: "range",
+      weekStartDate: "2030-01-09",
+      endDate: "2030-01-20",
+      expectedBaseVersion: 3,
+      racePhase: "PREPARATION",
+      relatedVersion: 1,
+    },
+    "RACE_REPLAN",
+  );
+  expect(context.availableDates).toContain("2030-01-20");
+  expect(context.availableDates).not.toContain("2030-01-13");
+  expect(context.replaceWorkoutIds).toEqual(["following-week"]);
+});
+
+test("completed old race can plan recovery today and changed result version blocks old requests", async () => {
+  const { service, db } = fixture();
+  db.trainingRace.findFirst.mockResolvedValue({
+    id: input.relatedId,
+    version: 2,
+    localDate: new Date("2029-12-01Z"),
+    status: "COMPLETED",
+    result: {
+      status: "COMPLETED",
+      actualDate: new Date("2029-12-01Z"),
+      fatigue: 8,
+    },
+  });
+  const recovery = {
+    ...input,
+    mode: "range" as const,
+    weekStartDate: "2030-01-09",
+    endDate: "2030-01-22",
+    racePhase: "RECOVERY" as const,
+    relatedVersion: 2,
+  };
+  expect(
+    (await service.load("owner", recovery, "RACE_REPLAN")).relatedEvent,
+  ).toMatchObject({ phase: "RECOVERY", result: { fatigue: 8 } });
+  await expect(
+    service.load("owner", { ...recovery, relatedVersion: 1 }, "RACE_REPLAN"),
+  ).rejects.toMatchObject({ response: { code: "RACE_VERSION_CONFLICT" } });
+});

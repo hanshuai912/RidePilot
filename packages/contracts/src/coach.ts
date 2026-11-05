@@ -107,6 +107,29 @@ export const raceImpactPreviewSchema = z.object({
   affectedDates: z.array(z.iso.date()),
   currentTrainingVersion: z.number().int().nonnegative(),
   requiresReplan: z.boolean(),
+  startDate: z.iso.date().optional(),
+  endDate: z.iso.date().optional(),
+  workouts: z
+    .array(
+      z.object({
+        id: z.uuid(),
+        date: z.iso.date(),
+        title: z.string(),
+        retained: z.boolean(),
+      }),
+    )
+    .optional(),
+  stages: z
+    .array(
+      z.object({
+        id: z.uuid(),
+        title: z.string(),
+        startDate: z.iso.date(),
+        endDate: z.iso.date(),
+      }),
+    )
+    .optional(),
+  messages: z.array(z.string()).optional(),
 });
 export const raceResultInputSchema = z.strictObject({
   status: z.enum(["COMPLETED", "PARTIAL", "DNS", "DNF"]),
@@ -136,6 +159,12 @@ export const activePlanStatusSchema = z.object({
   planVersion: z.number().int().nonnegative(),
 });
 
+export const racePlanningPhaseSchema = z.enum([
+  "PREPARATION",
+  "RECOVERY",
+  "RETURN_TO_GOAL",
+]);
+
 export const weekGenerationInputSchema = z.strictObject({
   weekStartDate: z.iso.date(),
   goalId: z.uuid(),
@@ -164,6 +193,8 @@ export const weekGenerationInputSchema = z.strictObject({
   targetWorkoutId: z.uuid().optional(),
   relatedId: z.uuid().optional(),
   relatedVersion: z.number().int().positive().optional(),
+  racePhase: racePlanningPhaseSchema.optional(),
+  forceRegenerate: z.boolean().optional(),
   notes: z.string().trim().max(200).optional(),
   symptomFlags: z
     .array(z.enum(["CHEST_PAIN", "FAINTING", "SEVERE_ILLNESS"]))
@@ -265,6 +296,18 @@ export const aiProposalResponseSchema = z.object({
   skillVersion: z.string(),
   model: z.string(),
 });
+
+export const raceTrainingStateSchema = z.object({
+  phase: racePlanningPhaseSchema,
+  today: z.iso.date(),
+  startDate: z.iso.date(),
+  endDate: z.iso.date(),
+  generation: generationResponseSchema.nullable(),
+  proposal: aiProposalResponseSchema.nullable(),
+  message: z.string().nullable(),
+});
+export type RacePlanningPhase = z.infer<typeof racePlanningPhaseSchema>;
+export type RaceTrainingState = z.infer<typeof raceTrainingStateSchema>;
 
 export type FtpMeasurementInput = z.infer<typeof ftpMeasurementInputSchema>;
 export type AvailabilityInput = z.infer<typeof availabilityInputSchema>;

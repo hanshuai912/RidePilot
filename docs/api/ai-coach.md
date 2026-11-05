@@ -51,13 +51,13 @@
 | GET / POST         | `/activities`                                     | 查询 / 记录已发布课程的完成状态、RPE 与疲劳                     |
 | GET / POST / PATCH | `/assessments`、`/assessments/:id`                | 测试安排及结果；需预览、幂等键和版本，见下文阶段测试 API        |
 | GET / POST / PATCH | `/races`、`/races/:id`                            | 赛事及状态；更新传 `expectedVersion`                            |
-| GET                | `/races/:id/impact-preview`                       | 比赛当天冲突、影响日期和当前正式训练版本                        |
+| GET                | `/races/:id/impact-preview`                       | 范围内课程/测试/赛事/阶段影响和当前正式训练版本                 |
 | GET / POST         | `/races/:id/result`                               | 读取 / 保存赛后结果                                             |
 | POST               | `/plans/generate-proposal`                        | 首份或空白未来周计划，返回异步任务                              |
 | POST               | `/workouts/:id/ai-adjust-proposal`                | 调整一节未来课程                                                |
 | POST               | `/plans/adjust-proposal`                          | 调整已有计划中的未来课程                                        |
 | POST               | `/assessments/:id/review-proposal`                | 根据测试结果提出未来课程调整                                    |
-| POST               | `/races/:id/replan-proposal`                      | 生成备赛草稿：空白周创建课程，已有课程按范围调整                |
+| POST               | `/races/:id/replan-proposal`                      | 手动生成跨周备赛/恢复/取消后回归草稿，支持复用与重新生成        |
 | GET                | `/ai-coach/generations/:id`                       | 轮询 `QUEUED / RUNNING / READY / FAILED`；READY 带 `proposalId` |
 | GET / PATCH        | `/proposals/:id`、`/ai-coach/proposals/:id`       | 读取提案及修改 AI 草稿                                          |
 | POST               | `/proposals/:id/validate`、`/proposals/:id/apply` | 重新校验并确认应用，沿用正式计划事务入口                        |
@@ -67,7 +67,13 @@
 
 功体比目标可在 `POST /goals` 传 `targetWkg`。例如 `{"type":"FTP","targetWkg":4,"targetDate":"2027-04-26","priority":"PRIMARY"}`；若档案体重为 55 kg，服务端在生成上下文中换算为目标 FTP 220 W。`GET /ai-coach/readiness` 对缺少体重的此类目标返回 `missingFields:["weightKg"]`。修改体重后，旧 AI 提案需要重新生成。
 
-赛事备赛接口仍接收 `weekGenerationInputSchema`，服务端固定 `scene=RACE_REPLAN`、`mode=replace_week` 和 URL 对应的赛事 ID。该场景支持无正式计划（`expectedBaseVersion=0`）及所选周没有可替换课程，生成新课程草稿；有课程时只替换未来未记录课程。普通计划调整接口继续要求存在可替换课程。周一范围、用户归属、当前版本、日期和可训练时间限制保持必需。readiness 不全返回 `INSUFFICIENT_TRAINING_INPUT` 和 `missingFields`，缺少 FTP 返回 `FTP_REQUIRED` 和 `missingFields:["ftp"]`，客户端须先补填并在用户点击后重提。生成不会应用正式计划。
+赛事训练接口接收 `weekGenerationInputSchema`，服务端固定 `scene=RACE_REPLAN` 和 URL 对应的赛事 ID。`mode=range` 使用 `weekStartDate/endDate`（今天或未来开始，1–84 天），支持跨周；旧 `replace_week` 周请求兼容。`racePhase` 为 PREPARATION（备赛）、RECOVERY（恢复）或 RETURN_TO_GOAL（取消后回归），不传时按赛事状态/日期确定。`relatedVersion` 校验赛事或结果版本。无正式计划时支持 `expectedBaseVersion=0`；已有计划保留历史、已记录及范围外课程。普通请求复用已有方案/任务；`forceRegenerate=true` 明确请求新候选，仍复用正在运行的同场景任务。提交在用户锁事务中幂等创建，不自动应用。
+
+`GET /races/:id/training-proposal?phase=...` 返回 `{phase,today,startDate,endDate,generation,proposal,message}`。优先恢复当前正式版本对应的已应用方案；明确重新生成的可用草稿/任务优先展示。赛事/计划版本改变或草稿过期后不复用，并提示重新生成。缺少 FTP 返回 FTP_REQUIRED；其他资料缺失返回 INSUFFICIENT_TRAINING_INPUT 与 missingFields，补填返回后仍需用户点击。
+
+`GET /races/:id/impact-preview?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD` 支持所选范围，返回日期、课程与 retained 标记、测试/赛事冲突、相关阶段及 messages。无查询时使用当前场景默认范围。测试与正式阶段只展示影响，不在课程应用中自动移动或修改。
+
+修改/取消赛事、更新结果时停止关联 QUEUED/RUNNING 任务，并将尚未应用的训练/营养提案置为 EXPIRED；已应用版本保留。结果实际日期不能在未来，更新已有结果必须携带匹配的 expectedVersion。所有读取和写入校验归属，旧草稿无法通过应用检查。
 
 `INSUFFICIENT_RECOVERY` 表示候选草稿包含相邻自然日的高强度 work 区段（上限达到 90% FTP）。生成请求明确提供这条约束；首次违反时在同一任务内带错误反馈纠正一次，仍不通过则任务失败，客户端显示中文提示并等待用户主动重新生成。严格领域校验不因赛事场景放宽。
 
