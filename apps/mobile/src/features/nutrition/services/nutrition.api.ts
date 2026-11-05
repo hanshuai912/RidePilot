@@ -4,6 +4,7 @@ import {
   nutritionPlanResponseSchema,
   nutritionProfileResponseSchema,
   nutritionProposalResponseSchema,
+  raceNutritionStateSchema,
   generationResponseSchema,
   type NutritionGenerationInput,
   type NutritionPlanResponse,
@@ -34,7 +35,9 @@ export class NutritionApiError extends Error {
   }
 }
 
-type Schema<T> = { safeParse: (value: unknown) => { success: boolean; data?: T } };
+type Schema<T> = {
+  safeParse: (value: unknown) => { success: boolean; data?: T };
+};
 
 async function request<T>(
   path: string,
@@ -49,30 +52,43 @@ async function request<T>(
       method: options.method ?? "GET",
       headers: {
         Authorization: `Bearer ${accessToken}`,
-        ...(options.body === undefined ? {} : { "Content-Type": "application/json" }),
-        ...(options.idempotencyKey ? { "Idempotency-Key": options.idempotencyKey } : {}),
+        ...(options.body === undefined
+          ? {}
+          : { "Content-Type": "application/json" }),
+        ...(options.idempotencyKey
+          ? { "Idempotency-Key": options.idempotencyKey }
+          : {}),
       },
-      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+      body:
+        options.body === undefined ? undefined : JSON.stringify(options.body),
       signal: controller.signal,
     });
     const payload: unknown = await response.json().catch(() => null);
     if (!response.ok) {
       const error = payload as Record<string, unknown> | null;
       throw new NutritionApiError(
-        typeof error?.message === "string" ? error.message : "饮食服务请求失败，请稍后重试",
+        typeof error?.message === "string"
+          ? error.message
+          : "饮食服务请求失败，请稍后重试",
         response.status,
         typeof error?.code === "string" ? error.code : undefined,
       );
     }
     const parsed = schema.safeParse(payload);
     if (!parsed.success || parsed.data === undefined) {
-      throw new NutritionApiError("饮食服务返回的数据无效", null, "INVALID_RESPONSE");
+      throw new NutritionApiError(
+        "饮食服务返回的数据无效",
+        null,
+        "INVALID_RESPONSE",
+      );
     }
     return parsed.data;
   } catch (error) {
     if (error instanceof NutritionApiError) throw error;
     throw new NutritionApiError(
-      controller.signal.aborted ? "连接超时，请检查网络后重试" : "无法连接饮食服务",
+      controller.signal.aborted
+        ? "连接超时，请检查网络后重试"
+        : "无法连接饮食服务",
       null,
     );
   } finally {
@@ -85,6 +101,12 @@ function key() {
 }
 
 export const nutritionApi = {
+  raceState: (token: string, raceId: string) =>
+    request(
+      `nutrition/races/${encodeURIComponent(raceId)}/proposal`,
+      token,
+      raceNutritionStateSchema,
+    ),
   getProfile: (token: string) =>
     request("nutrition/profile", token, nutritionProfileResponseSchema),
   saveProfile: (token: string, input: NutritionProfileInput) =>
@@ -99,11 +121,16 @@ export const nutritionApi = {
       nutritionPlanResponseSchema,
     ),
   generate: (token: string, input: NutritionGenerationInput) =>
-    request("nutrition/plans/generate-proposal", token, generationResponseSchema, {
-      method: "POST",
-      body: nutritionGenerationInputSchema.parse(input),
-      idempotencyKey: key(),
-    }),
+    request(
+      "nutrition/plans/generate-proposal",
+      token,
+      generationResponseSchema,
+      {
+        method: "POST",
+        body: nutritionGenerationInputSchema.parse(input),
+        idempotencyKey: key(),
+      },
+    ),
   generation: (token: string, generationId: string) =>
     request(
       `nutrition/generations/${encodeURIComponent(generationId)}`,
@@ -116,15 +143,17 @@ export const nutritionApi = {
       token,
       nutritionProposalResponseSchema,
     ),
-  createMealSwap: (
-    token: string,
-    input: CreateNutritionMealSwapProposal,
-  ) =>
-    request("nutrition/meal-swap-proposals", token, nutritionProposalResponseSchema, {
-      method: "POST",
-      body: input,
-      idempotencyKey: key(),
-    }),
+  createMealSwap: (token: string, input: CreateNutritionMealSwapProposal) =>
+    request(
+      "nutrition/meal-swap-proposals",
+      token,
+      nutritionProposalResponseSchema,
+      {
+        method: "POST",
+        body: input,
+        idempotencyKey: key(),
+      },
+    ),
   validate: (token: string, proposalId: string) =>
     request(
       `nutrition/proposals/${encodeURIComponent(proposalId)}/validate`,
@@ -132,7 +161,11 @@ export const nutritionApi = {
       nutritionProposalResponseSchema,
       { method: "POST" },
     ),
-  apply: (token: string, proposalId: string, expectedNutritionVersion: number) =>
+  apply: (
+    token: string,
+    proposalId: string,
+    expectedNutritionVersion: number,
+  ) =>
     request(
       `nutrition/proposals/${encodeURIComponent(proposalId)}/apply`,
       token,

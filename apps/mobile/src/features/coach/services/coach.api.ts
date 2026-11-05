@@ -8,6 +8,12 @@ import {
   generationResponseSchema,
   goalSchema,
   readinessSchema,
+  raceResponseSchema,
+  raceImpactPreviewSchema,
+  raceResultResponseSchema,
+  type RaceInput,
+  type RacePatch,
+  type RaceResultInput,
   type AvailabilityInput,
   type ActivityInput,
   type GoalInput,
@@ -146,6 +152,22 @@ export const coachApi = {
       body: input,
       idempotencyKey: key,
     }),
+  replanRace: (
+    token: string,
+    raceId: string,
+    input: WeekGenerationInput,
+    key: string,
+  ) =>
+    request(
+      `races/${encodeURIComponent(raceId)}/replan-proposal`,
+      token,
+      generationResponseSchema,
+      {
+        method: "POST",
+        body: input,
+        idempotencyKey: key,
+      },
+    ),
   adjustWorkout: (
     token: string,
     workoutId: string,
@@ -200,6 +222,41 @@ export const coachApi = {
       method: "POST",
       body: input,
     }),
+  races: (token: string) => request("races", token, raceResponseSchema.array()),
+  race: (token: string, id: string) =>
+    request(`races/${encodeURIComponent(id)}`, token, raceResponseSchema),
+  createRace: (token: string, input: RaceInput) =>
+    request("races", token, raceResponseSchema, {
+      method: "POST",
+      body: input,
+    }),
+  updateRace: (token: string, id: string, input: RacePatch) =>
+    request(`races/${encodeURIComponent(id)}`, token, raceResponseSchema, {
+      method: "PATCH",
+      body: input,
+    }),
+  raceImpact: (token: string, id: string) =>
+    request(
+      `races/${encodeURIComponent(id)}/impact-preview`,
+      token,
+      raceImpactPreviewSchema,
+    ),
+  raceResult: (token: string, id: string) =>
+    request(
+      `races/${encodeURIComponent(id)}/result`,
+      token,
+      raceResultResponseSchema.nullable(),
+    ),
+  saveRaceResult: (token: string, id: string, input: RaceResultInput) =>
+    request(
+      `races/${encodeURIComponent(id)}/result`,
+      token,
+      raceResultResponseSchema,
+      {
+        method: "POST",
+        body: input,
+      },
+    ),
 };
 
 export type CoachPlanStatus = ReturnType<typeof activePlanStatusSchema.parse>;

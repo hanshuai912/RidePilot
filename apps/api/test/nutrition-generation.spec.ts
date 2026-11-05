@@ -1,4 +1,5 @@
 import { NutritionGenerationService } from "../src/modules/nutrition/nutrition-generation.service";
+import { AiException } from "../src/ai/exceptions/ai.exception";
 
 describe("NutritionGenerationService linked contexts", () => {
   function buildService(trainingProposal: object | null) {
@@ -12,6 +13,8 @@ describe("NutritionGenerationService linked contexts", () => {
           errorCode: null,
           requestId: "request-1",
         }),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        update: jest.fn(),
       },
       athleteProfile: { findUnique: jest.fn().mockResolvedValue(null) },
       user: {
@@ -29,6 +32,7 @@ describe("NutritionGenerationService linked contexts", () => {
       changeProposal: {
         findFirst: jest.fn().mockResolvedValue(trainingProposal),
       },
+      $transaction: jest.fn(),
     };
     const repository = {
       findProfile: jest.fn().mockResolvedValue({
@@ -47,14 +51,25 @@ describe("NutritionGenerationService linked contexts", () => {
     };
     const ai = { generate: jest.fn() };
     const skill = { load: jest.fn() };
+    const races = {
+      reuseOrCreate: jest
+        .fn()
+        .mockImplementation(async (_userId, _input, _key, create) =>
+          create(prisma),
+        ),
+    };
     return {
+      races,
       service: new NutritionGenerationService(
         prisma as never,
         ai as never,
         skill as never,
         repository as never,
+        races as never,
       ),
       prisma,
+      ai,
+      skill,
     };
   }
 
@@ -145,5 +160,156 @@ describe("NutritionGenerationService linked contexts", () => {
     );
 
     expect(result.status).toBe("QUEUED");
+  });
+
+  function raceWorker() {
+    const fixture = buildService(null);
+    const { prisma, skill } = fixture;
+    prisma.aiGeneration.findUnique.mockResolvedValue({
+      id: "job",
+      userId: "user",
+      status: "RUNNING",
+      scene: "NUTRITION_PLAN",
+      attempts: 1,
+      requestId: "request-1",
+      input: {
+        startDate: "2030-01-01",
+        endDate: "2030-01-05",
+        mode: "RACE_LINKED",
+        expectedNutritionVersion: 0,
+        raceId: "00000000-0000-4000-8000-000000000014",
+      },
+    } as never);
+    prisma.trainingRace.findFirst.mockResolvedValue({
+      id: "00000000-0000-4000-8000-000000000014",
+      name: "测试赛事",
+      localDate: new Date("2030-01-03T00:00:00Z"),
+      distanceKm: 120,
+      priority: "A",
+    });
+    skill.load.mockResolvedValue({
+      content: "nutrition rules",
+      version: "1",
+      hash: "hash",
+    });
+    return {
+      ...fixture,
+      process: () =>
+        (
+          fixture.service as unknown as {
+            process: (id: string) => Promise<void>;
+          }
+        ).process("job"),
+    };
+  }
+
+  it("gives a five-day race draft enough output budget and persists only a validated proposal", async () => {
+    const { ai, prisma, process } = raceWorker();
+    const create = jest.fn().mockResolvedValue({ id: "proposal" });
+    prisma.$transaction.mockImplementation(async (callback) =>
+      callback({
+        aiGeneration: prisma.aiGeneration,
+        nutritionPlan: { findFirst: jest.fn().mockResolvedValue(null) },
+        nutritionProposal: { create },
+      }),
+    );
+    ai.generate.mockResolvedValue({
+      model: "test",
+      text: JSON.stringify({
+        summary: "五天备赛补给",
+        assumptions: [],
+        warnings: [],
+        blockers: [],
+        sourceRefs: [],
+        confidence: "MEDIUM",
+        draft: {
+          startDate: "2030-01-01",
+          endDate: "2030-01-05",
+          dailyTarget: null,
+          items: [
+            {
+              localDate: "2030-01-03",
+              mealType: "BREAKFAST",
+              scheduledLocalTime: "07:30",
+              title: "赛前早餐",
+              foods: [
+                {
+                  name: "燕麦",
+                  amount: 80,
+                  unit: "g",
+                  allergenTags: [],
+                  ingredientStatus: "KNOWN",
+                },
+              ],
+              nutrients: {
+                energyKcal: 500,
+                carbohydrateG: 80,
+                proteinG: 15,
+                fatG: 10,
+                fluidMl: 500,
+                sodiumMg: null,
+              },
+              nutritionSource: "AI_ESTIMATE",
+              confidence: "MEDIUM",
+              linkedWorkoutId: null,
+              notes: null,
+            },
+          ],
+        },
+      }),
+    });
+    await process();
+    expect(ai.generate).toHaveBeenCalledWith(
+      expect.objectContaining({ maxTokens: 20000 }),
+    );
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: "READY",
+          validationPassed: true,
+        }),
+      }),
+    );
+    expect(prisma.aiGeneration.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: "READY",
+          proposalId: "proposal",
+        }),
+      }),
+    );
+  });
+
+  it("fails promptly for a non-retryable invalid model response", async () => {
+    const { ai, prisma, process } = raceWorker();
+    ai.generate.mockRejectedValue(
+      new AiException("AI_PROVIDER_INVALID_RESPONSE", "invalid", false),
+    );
+    await process();
+    expect(prisma.aiGeneration.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: "FAILED",
+          errorCode: "AI_PROVIDER_INVALID_RESPONSE",
+        }),
+      }),
+    );
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("retains a retry for transient provider failures", async () => {
+    const { ai, prisma, process } = raceWorker();
+    ai.generate.mockRejectedValue(
+      new AiException("AI_PROVIDER_TIMEOUT", "timeout", true),
+    );
+    await process();
+    expect(prisma.aiGeneration.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: "QUEUED",
+          errorCode: "AI_PROVIDER_TIMEOUT",
+        }),
+      }),
+    );
   });
 });

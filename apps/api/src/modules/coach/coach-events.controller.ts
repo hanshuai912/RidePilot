@@ -4,9 +4,11 @@ import {
   activityInputSchema,
   raceInputSchema,
   racePatchSchema,
+  raceResultInputSchema,
   type ActivityInput,
   type RaceInput,
   type RacePatch,
+  type RaceResultInput,
 } from "@ridepilot/contracts";
 import { ZodBodyPipe } from "../../common/zod-body.pipe";
 import { CurrentPrincipal } from "../auth/current-principal.decorator";
@@ -37,6 +39,14 @@ export class CoachEventsController {
     return this.events.listRaces(user.userId);
   }
 
+  @Get("races/:id/impact-preview")
+  impactPreview(
+    @CurrentPrincipal() user: AuthPrincipal,
+    @Param("id") id: string,
+  ) {
+    return this.events.impactPreview(user.userId, id);
+  }
+
   @Post("races")
   race(
     @CurrentPrincipal() user: AuthPrincipal,
@@ -57,7 +67,10 @@ export class CoachEventsController {
       localDate: item.localDate.toISOString().slice(0, 10),
       timezone: item.timezone,
       distanceKm: Number(item.distanceKm),
+      type: item.type,
+      elevationGainM: item.elevationGainM,
       priority: item.priority,
+      intent: item.intent,
       status: item.status,
       version: item.version,
     };
@@ -70,5 +83,19 @@ export class CoachEventsController {
     @Body(new ZodBodyPipe(racePatchSchema)) input: RacePatch,
   ) {
     return this.events.patchRace(user.userId, id, input);
+  }
+
+  @Get("races/:id/result")
+  getResult(@CurrentPrincipal() user: AuthPrincipal, @Param("id") id: string) {
+    return this.events.getRaceResult(user.userId, id);
+  }
+
+  @Post("races/:id/result")
+  saveResult(
+    @CurrentPrincipal() user: AuthPrincipal,
+    @Param("id") id: string,
+    @Body(new ZodBodyPipe(raceResultInputSchema)) input: RaceResultInput,
+  ) {
+    return this.events.saveRaceResult(user.userId, id, input);
   }
 }

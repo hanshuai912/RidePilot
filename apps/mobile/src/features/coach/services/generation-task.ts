@@ -5,6 +5,8 @@ import { coachApi } from "./coach.api";
 type Generation = Awaited<ReturnType<typeof coachApi.generate>>;
 
 const generationErrorMessages: Record<string, string> = {
+  INSUFFICIENT_RECOVERY:
+    "草稿包含连续高强度训练，恢复不足，请点击重新生成；正式计划没有变化",
   NO_REMAINING_TRAINING_DATES: "本周没有剩余可训练日期，请改为从下周开始",
   TRAINING_DATE_CONFLICT: "生成课程包含不可用日期，请改为从下周开始",
   TRAINING_TIME_CONFLICT: "生成课程超出可训练时间，请检查训练时间设置",
@@ -25,7 +27,7 @@ export async function waitForCoachProposal(
       return coachApi.proposal(token, job.proposalId);
     }
     if (job.status === "FAILED") {
-      const code = job.errorCode ?? "AI_GENERATION_FAILED";
+      const code = (job.errorCode ?? "AI_GENERATION_FAILED").toUpperCase();
       throw new Error(generationErrorMessages[code] ?? `生成失败：${code}`);
     }
     onStatus(job.status);

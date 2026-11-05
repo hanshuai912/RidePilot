@@ -171,6 +171,12 @@ function TrainingCalendar({
       <Button variant="secondary" onPress={() => router.push("/goals")}>
         目标与阶段 · 生成课程
       </Button>
+      <Button
+        variant="secondary"
+        onPress={() => router.push("/races" as never)}
+      >
+        赛事管理 · 备赛与赛后恢复
+      </Button>
     </Screen>
   );
 }

@@ -135,6 +135,122 @@ describeWithDatabase("AI coach weekly plan API", () => {
     await app?.close();
   });
 
+  it.each([false, true])(
+    "race draft can fill an empty week (existing plan: %s), with explicit atomic apply",
+    async (existingPlan) => {
+      const start = monday();
+      const outside = new Date(Date.parse(`${start}T00:00:00Z`) + 7 * 86400000)
+        .toISOString()
+        .slice(0, 10);
+      await post("me/ability-measurements/ftp")
+        .send({
+          valueWatts: 200,
+          measuredAt: new Date().toISOString(),
+          source: "MANUAL",
+        })
+        .expect(201);
+      if (existingPlan) {
+        const manual = await post("workouts/manual-proposals")
+          .send({
+            scheduledDate: outside,
+            title: "范围外保留课程",
+            segments: [
+              {
+                type: "work",
+                target: { kind: "duration", value: 20, unit: "min" },
+                intensity: { kind: "power_watt", min: 100, max: 130 },
+              },
+            ],
+          })
+          .expect(201);
+        await post(`proposals/${manual.body.proposalId}/validate`).expect(201);
+        await post(`proposals/${manual.body.proposalId}/apply`)
+          .set("Idempotency-Key", randomUUID())
+          .send({ expectedBaseVersion: 0 })
+          .expect(201);
+      }
+      await request(app.getHttpServer())
+        .put("/api/v1/me/availability")
+        .set("Authorization", `Bearer ${token}`)
+        .send({
+          timezone: "Asia/Shanghai",
+          weekdays: [{ weekday: 1, availableMinutes: 90 }],
+          maxSessionMinutes: 90,
+        })
+        .expect(200);
+      const goal = await post("goals")
+        .send({ type: "RACE", targetDate: "2030-12-31", priority: "PRIMARY" })
+        .expect(201);
+      const raceDay = new Date(Date.parse(`${start}T00:00:00Z`) + 6 * 86400000)
+        .toISOString()
+        .slice(0, 10);
+      const race = await post("races")
+        .send({
+          name: "备赛空白周测试",
+          localDate: raceDay,
+          timezone: "Asia/Shanghai",
+          distanceKm: 100,
+          priority: "A",
+        })
+        .expect(201);
+      const base = existingPlan ? 1 : 0;
+      const input = {
+        weekStartDate: start,
+        goalId: goal.body.id,
+        mode: "replace_week",
+        expectedBaseVersion: base,
+      };
+      const generationKey = randomUUID();
+      const draft = await post(`races/${race.body.id}/replan-proposal`)
+        .set("Idempotency-Key", generationKey)
+        .send(input)
+        .expect(202);
+      const duplicate = await post(`races/${race.body.id}/replan-proposal`)
+        .set("Idempotency-Key", generationKey)
+        .send(input)
+        .expect(202);
+      expect(duplicate.body.generationId).toBe(draft.body.generationId);
+      const job = await waitForGeneration(draft.body.generationId);
+      expect(job.status).toBe("READY");
+      const preview = await get(`proposals/${job.proposalId}`).expect(200);
+      expect(preview.body).toMatchObject({
+        scene: "RACE_REPLAN",
+        basePlanVersion: base,
+        replaceWorkoutIds: [],
+      });
+      const before = await get(`calendar?from=${start}&to=${outside}`).expect(
+        200,
+      );
+      expect(before.body.items).toHaveLength(existingPlan ? 1 : 0);
+      await post(`proposals/${job.proposalId}/apply`)
+        .set("Idempotency-Key", randomUUID())
+        .send({ expectedBaseVersion: base + 1 })
+        .expect(409);
+      const applyKey = randomUUID();
+      const applied = await post(`proposals/${job.proposalId}/apply`)
+        .set("Idempotency-Key", applyKey)
+        .send({ expectedBaseVersion: base })
+        .expect(201);
+      expect(applied.body.newPlanVersion).toBe(base + 1);
+      const replay = await post(`proposals/${job.proposalId}/apply`)
+        .set("Idempotency-Key", applyKey)
+        .send({ expectedBaseVersion: base })
+        .expect(201);
+      expect(replay.body.newPlanVersion).toBe(base + 1);
+      const calendar = await get(`calendar?from=${start}&to=${outside}`).expect(
+        200,
+      );
+      expect(calendar.body.items).toHaveLength(existingPlan ? 2 : 1);
+      if (existingPlan)
+        expect(calendar.body.items).toContainEqual(
+          expect.objectContaining({
+            title: "范围外保留课程",
+            scheduledDate: outside,
+          }),
+        );
+    },
+  );
+
   it("single and weekly adjustments preserve all courses outside their exact editable scope", async () => {
     const addDays = (date: string, days: number) =>
       new Date(new Date(`${date}T00:00:00Z`).getTime() + days * 86400000)

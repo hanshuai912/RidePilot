@@ -106,6 +106,7 @@ export class CoachGenerationContextService {
     if (readiness.missingFields.includes("ftp"))
       throw new BadRequestException({
         code: "FTP_REQUIRED",
+        missingFields: ["ftp"],
         message: "请先设置 FTP，再生成或调整训练",
       });
     if (!readiness.ready)
@@ -155,6 +156,7 @@ export class CoachGenerationContextService {
       (input.mode === "initial" && version !== 0) ||
       (input.mode === "empty_week" && version === 0) ||
       (["replace_week", "replace_workout"].includes(input.mode) &&
+        scene !== "RACE_REPLAN" &&
         version === 0)
     ) {
       throw new ConflictException({
@@ -226,6 +228,7 @@ export class CoachGenerationContextService {
           : [];
     if (
       ["replace_week", "replace_workout"].includes(input.mode) &&
+      scene !== "RACE_REPLAN" &&
       !replaceWorkoutIds.length
     )
       throw new ConflictException({
@@ -275,6 +278,7 @@ export class CoachGenerationContextService {
     if (scene === "RACE_REPLAN") {
       const race = await this.prisma.trainingRace.findFirst({
         where: { id: input.relatedId, userId },
+        include: { result: true },
       });
       if (!race)
         throw new NotFoundException({
@@ -289,6 +293,16 @@ export class CoachGenerationContextService {
         priority: race.priority,
         distanceKm: Number(race.distanceKm),
         status: race.status,
+        result: race.result
+          ? {
+              status: race.result.status,
+              actualDate: dbToDate(race.result.actualDate),
+              durationSeconds: race.result.durationSeconds,
+              rpe: race.result.rpe,
+              fatigue: race.result.fatigue,
+              notes: race.result.notes,
+            }
+          : null,
       };
     }
     if (scene === "PLAN_ADJUST" && input.relatedId) {
@@ -340,7 +354,11 @@ export class CoachGenerationContextService {
         availableDates.push(date);
       }
     }
-    if (["empty_week", "range"].includes(input.mode) && !availableDates.length)
+    if (
+      (["empty_week", "range"].includes(input.mode) ||
+        scene === "RACE_REPLAN") &&
+      !availableDates.length
+    )
       throw new ConflictException({
         code: "NO_REMAINING_TRAINING_DATES",
         message:

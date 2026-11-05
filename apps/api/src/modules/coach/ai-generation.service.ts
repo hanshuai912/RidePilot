@@ -187,6 +187,7 @@ export class AiGenerationService implements OnModuleInit, OnModuleDestroy {
             role: "system",
             content:
               "You are a cycling planning assistant. Return only complete JSON without markdown. Write all human-facing text in Simplified Chinese. Keep at most 6 segments per workout. " +
+              "Never schedule hard work on consecutive calendar days: any work segment with an upper intensity >= 90% FTP counts as hard, including short race openers. Recovery work must stay below 90% FTP. " +
               (input.mode === "range"
                 ? "Cover ALL eligible calendar weeks in the selected range, with suitable rest days; do not stop after the first week. "
                 : "Keep at most 3 workouts. ") +
@@ -196,12 +197,28 @@ export class AiGenerationService implements OnModuleInit, OnModuleDestroy {
           {
             role: "user",
             content: JSON.stringify({
-              task: ["WEEK_PLAN", "RANGE_PLAN"].includes(scene)
-                ? "Generate cycling workouts covering the entire selected date range."
-                : "Propose safe replacement workouts only for the selected future scope. Explain changes and tradeoffs.",
+              task:
+                scene === "RACE_REPLAN"
+                  ? "Generate a race preparation or recovery draft for the selected scope. If no editable workouts exist, create new workouts; otherwise replace only replaceWorkoutIds. Keep all recorded and historical workouts. Explain the race-specific preparation, taper and recovery."
+                  : ["WEEK_PLAN", "RANGE_PLAN"].includes(scene)
+                    ? "Generate cycling workouts covering the entire selected date range."
+                    : "Propose safe replacement workouts only for the selected future scope. Explain changes and tradeoffs.",
               scene,
               reason: input.reason,
               notes: input.notes,
+              recoveryConstraints: {
+                hardWorkThresholdFtpPercent: 90,
+                hardWorkUsesSegmentMaximum: true,
+                forbidConsecutiveHardDays: true,
+                instructions:
+                  "任何 work 区段的强度上限达到 FTP 的 90% 即为高强度日，即使只有短暂赛前激活也算。高强度日之间至少间隔一个自然日；恢复日所有 work 区段上限必须低于 90% FTP。赛前减量与赛后恢复优先低强度。",
+              },
+              ...(job.errorCode === "INSUFFICIENT_RECOVERY"
+                ? {
+                    previousValidationError:
+                      "上次候选包含连续高强度日，已被拒绝。请重新安排恢复日，避免相邻自然日的 work 区段上限达到 90% FTP。",
+                  }
+                : {}),
               relatedEvent: context.relatedEvent,
               outputSchema: z.toJSONSchema(aiWeekOutputSchema),
               weekStartDate: input.weekStartDate,
@@ -322,7 +339,8 @@ export class AiGenerationService implements OnModuleInit, OnModuleDestroy {
       const retryable =
         job.attempts < 2 &&
         ((error instanceof AiException && error.retryable) ||
-          code === "AI_OUTPUT_INVALID");
+          code === "AI_OUTPUT_INVALID" ||
+          code === "INSUFFICIENT_RECOVERY");
       await this.prisma.aiGeneration.updateMany({
         where: { id: job.id, status: "RUNNING", attempts: job.attempts },
         data: {

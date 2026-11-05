@@ -109,6 +109,7 @@ model User {
   assessments          TrainingAssessment[]
   assessmentMutations  AssessmentMutation[]
   races                TrainingRace[]
+  raceResults          TrainingRaceResult[]
   aiGenerations        AiGeneration[]
   externalConnections  ExternalConnection[]
   nutritionProfile     NutritionProfile?
@@ -371,14 +372,38 @@ model TrainingRace {
   localDate  DateTime @map("local_date") @db.Date
   timezone   String   @db.VarChar(64)
   distanceKm Decimal  @map("distance_km") @db.Decimal(8, 2)
+  type       String   @default("ROAD_RACE") @db.VarChar(24)
+  elevationGainM Int? @map("elevation_gain_m")
   priority   String   @db.VarChar(1)
+  intent     String   @default("FINISH") @db.VarChar(24)
   status     String   @default("CONFIRMED") @db.VarChar(16)
   version    Int      @default(1)
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
+  result     TrainingRaceResult?
 
   @@index([userId, localDate])
   @@map("training_races")
+}
+
+model TrainingRaceResult {
+  id              String       @id @default(uuid()) @db.Uuid
+  raceId          String       @unique @map("race_id") @db.Uuid
+  race            TrainingRace @relation(fields: [raceId], references: [id], onDelete: Cascade)
+  userId          String       @map("user_id") @db.Uuid
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status          String       @db.VarChar(16)
+  actualDate      DateTime     @map("actual_date") @db.Date
+  durationSeconds Int?         @map("duration_seconds")
+  rpe             Int?
+  fatigue         Int?
+  notes           String?      @db.VarChar(500)
+  version         Int          @default(1)
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+
+  @@index([userId, actualDate])
+  @@map("training_race_results")
 }
 
 model AiGeneration {

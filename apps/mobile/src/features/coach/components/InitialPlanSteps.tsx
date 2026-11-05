@@ -54,6 +54,8 @@ export function BasicsStep({
   ftpWatts,
   profile,
   onFtp,
+  onProfile = onFtp,
+  showTrainingStatus = true,
   bodyStatus,
   setBodyStatus,
   bodyNote,
@@ -66,6 +68,8 @@ export function BasicsStep({
   ftpWatts: number | null;
   profile: ProfileResponse;
   onFtp: () => void;
+  onProfile?: () => void;
+  showTrainingStatus?: boolean;
   bodyStatus: "READY" | "TIRED" | "RECOVERY";
   setBodyStatus: (value: "READY" | "TIRED" | "RECOVERY") => void;
   bodyNote: string;
@@ -134,80 +138,82 @@ export function BasicsStep({
           时区：{profile.timezone}
         </AppText>
         {!profile.weightKg ? (
-          <Button variant="secondary" className="mt-4" onPress={onFtp}>
+          <Button variant="secondary" className="mt-4" onPress={onProfile}>
             到个人资料补充体重
           </Button>
         ) : null}
       </Card>
-      <Card>
-        <AppText variant="card">本次训练状态</AppText>
-        <AppText variant="caption" muted className="mt-1">
-          只影响本次草稿的起始强度，不会修改你的个人档案。
-        </AppText>
-        <View className="mt-4 gap-2">
-          <ChoicePill
-            label="状态正常，可以按计划训练"
-            selected={bodyStatus === "READY"}
-            onPress={() => setBodyStatus("READY")}
-          />
-          <ChoicePill
-            label="有些疲劳，希望安排得保守一些"
-            selected={bodyStatus === "TIRED"}
-            onPress={() => setBodyStatus("TIRED")}
-          />
-          <ChoicePill
-            label="需要恢复，先降低训练压力"
-            selected={bodyStatus === "RECOVERY"}
-            onPress={() => setBodyStatus("RECOVERY")}
-          />
-        </View>
-        <Input
-          className="mt-3"
-          accessibilityLabel="身体状态补充说明"
-          value={bodyNote}
-          onChangeText={setBodyNote}
-          maxLength={200}
-          placeholder="例如：最近睡眠不足，希望安排得保守一些"
-        />
-        <View className="mt-4 rounded-xl border border-negative bg-surface-2 p-3">
-          <AppText variant="label" className="text-negative">
-            安全确认
-          </AppText>
+      {showTrainingStatus ? (
+        <Card>
+          <AppText variant="card">本次训练状态</AppText>
           <AppText variant="caption" muted className="mt-1">
-            如果有以下情况，请先暂停训练并进行适当的医疗评估。
+            只影响本次草稿的起始强度，不会修改你的个人档案。
           </AppText>
-          <View className="mt-3 gap-2">
-            {(
-              [
-                ["CHEST_PAIN", "胸痛"],
-                ["FAINTING", "晕厥或接近晕厥"],
-                ["SEVERE_ILLNESS", "明显生病或发热"],
-              ] as const
-            ).map(([value, label]) => {
-              const selected = symptomFlags.includes(value);
-              return (
-                <Pressable
-                  key={value}
-                  accessibilityRole="checkbox"
-                  accessibilityState={{ checked: selected }}
-                  className={`rounded-xl border px-3 py-3 ${selected ? "border-negative bg-surface-2" : "border-border bg-surface-2"}`}
-                  onPress={() =>
-                    setSymptomFlags(
-                      selected
-                        ? symptomFlags.filter((item) => item !== value)
-                        : [...symptomFlags, value],
-                    )
-                  }
-                >
-                  <AppText className={selected ? "text-negative" : undefined}>
-                    {label}
-                  </AppText>
-                </Pressable>
-              );
-            })}
+          <View className="mt-4 gap-2">
+            <ChoicePill
+              label="状态正常，可以按计划训练"
+              selected={bodyStatus === "READY"}
+              onPress={() => setBodyStatus("READY")}
+            />
+            <ChoicePill
+              label="有些疲劳，希望安排得保守一些"
+              selected={bodyStatus === "TIRED"}
+              onPress={() => setBodyStatus("TIRED")}
+            />
+            <ChoicePill
+              label="需要恢复，先降低训练压力"
+              selected={bodyStatus === "RECOVERY"}
+              onPress={() => setBodyStatus("RECOVERY")}
+            />
           </View>
-        </View>
-      </Card>
+          <Input
+            className="mt-3"
+            accessibilityLabel="身体状态补充说明"
+            value={bodyNote}
+            onChangeText={setBodyNote}
+            maxLength={200}
+            placeholder="例如：最近睡眠不足，希望安排得保守一些"
+          />
+          <View className="mt-4 rounded-xl border border-negative bg-surface-2 p-3">
+            <AppText variant="label" className="text-negative">
+              安全确认
+            </AppText>
+            <AppText variant="caption" muted className="mt-1">
+              如果有以下情况，请先暂停训练并进行适当的医疗评估。
+            </AppText>
+            <View className="mt-3 gap-2">
+              {(
+                [
+                  ["CHEST_PAIN", "胸痛"],
+                  ["FAINTING", "晕厥或接近晕厥"],
+                  ["SEVERE_ILLNESS", "明显生病或发热"],
+                ] as const
+              ).map(([value, label]) => {
+                const selected = symptomFlags.includes(value);
+                return (
+                  <Pressable
+                    key={value}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: selected }}
+                    className={`rounded-xl border px-3 py-3 ${selected ? "border-negative bg-surface-2" : "border-border bg-surface-2"}`}
+                    onPress={() =>
+                      setSymptomFlags(
+                        selected
+                          ? symptomFlags.filter((item) => item !== value)
+                          : [...symptomFlags, value],
+                      )
+                    }
+                  >
+                    <AppText className={selected ? "text-negative" : undefined}>
+                      {label}
+                    </AppText>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+        </Card>
+      ) : null}
     </>
   );
 }

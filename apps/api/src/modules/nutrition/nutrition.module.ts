@@ -11,6 +11,7 @@ import { NutritionRepository } from "./nutrition.repository";
 import { NutritionGenerationController } from "./nutrition-generation.controller";
 import { NutritionGenerationService } from "./nutrition-generation.service";
 import { NutritionSkillLoaderService } from "./nutrition-skill-loader.service";
+import { RaceNutritionService } from "./race-nutrition.service";
 
 @Module({
   imports: [InfraModule, AiModule],
@@ -27,6 +28,7 @@ import { NutritionSkillLoaderService } from "./nutrition-skill-loader.service";
     NutritionProposalService,
     NutritionGenerationService,
     NutritionSkillLoaderService,
+    RaceNutritionService,
   ],
   exports: [NutritionProposalService, NutritionPlanService],
 })

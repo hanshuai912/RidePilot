@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { generationResponseSchema } from "./coach";
 
 export const dietStyleSchema = z.enum([
   "OMNIVORE",
@@ -250,6 +251,12 @@ export const nutritionProposalResponseSchema = z.strictObject({
   metadata: nutritionProposalMetadataSchema.nullable(),
 });
 
+export const raceNutritionStateSchema = z.strictObject({
+  generation: generationResponseSchema.nullable(),
+  proposal: nutritionProposalResponseSchema.nullable(),
+});
+export type RaceNutritionState = z.infer<typeof raceNutritionStateSchema>;
+
 export const applyNutritionProposalSchema = z.strictObject({
   expectedNutritionVersion: z.number().int().nonnegative(),
 });
@@ -270,6 +277,7 @@ export const nutritionGenerationInputSchema = z.strictObject({
   trainingProposalId: z.uuid().optional(),
   raceId: z.uuid().optional(),
   notes: z.string().trim().max(500).optional(),
+  forceRegenerate: z.boolean().optional(),
 });
 
 export const nutritionLinkedGenerationRequestSchema = z.strictObject({
@@ -278,6 +286,7 @@ export const nutritionLinkedGenerationRequestSchema = z.strictObject({
   expectedNutritionVersion: z.number().int().nonnegative(),
   expectedTrainingPlanVersion: z.number().int().nonnegative().optional(),
   notes: z.string().trim().max(500).optional(),
+  forceRegenerate: z.boolean().optional(),
 });
 
 export const nutritionAiOutputSchema = z.strictObject({

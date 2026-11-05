@@ -67,7 +67,18 @@ export const raceInputSchema = z.strictObject({
   localDate: z.iso.date(),
   timezone: z.string().min(1).max(64),
   distanceKm: z.number().positive().max(2000),
+  type: z
+    .enum(["ROAD_RACE", "GRAN_FONDO", "CLIMB", "TIME_TRIAL", "OTHER"])
+    .optional(),
+  elevationGainM: z
+    .number()
+    .int()
+    .nonnegative()
+    .max(100000)
+    .nullable()
+    .optional(),
   priority: z.enum(["A", "B", "C"]),
+  intent: z.enum(["FINISH", "PERFORMANCE", "TEST", "TRAINING"]).optional(),
 });
 export const racePatchSchema = raceInputSchema
   .partial()
@@ -76,6 +87,41 @@ export const racePatchSchema = raceInputSchema
     status: z.enum(["CONFIRMED", "CANCELLED", "COMPLETED"]).optional(),
   })
   .strict();
+export const raceResponseSchema = raceInputSchema.extend({
+  id: z.uuid(),
+  type: z.enum(["ROAD_RACE", "GRAN_FONDO", "CLIMB", "TIME_TRIAL", "OTHER"]),
+  elevationGainM: z.number().int().nonnegative().nullable(),
+  intent: z.enum(["FINISH", "PERFORMANCE", "TEST", "TRAINING"]),
+  status: z.enum(["CONFIRMED", "CANCELLED", "COMPLETED"]),
+  version: z.number().int().positive(),
+});
+export const raceConflictSchema = z.object({
+  date: z.iso.date(),
+  kind: z.enum(["WORKOUT", "ASSESSMENT", "RACE"]),
+  title: z.string(),
+  severity: z.enum(["INFO", "WARNING", "BLOCKER"]),
+});
+export const raceImpactPreviewSchema = z.object({
+  race: raceResponseSchema,
+  conflicts: z.array(raceConflictSchema),
+  affectedDates: z.array(z.iso.date()),
+  currentTrainingVersion: z.number().int().nonnegative(),
+  requiresReplan: z.boolean(),
+});
+export const raceResultInputSchema = z.strictObject({
+  status: z.enum(["COMPLETED", "PARTIAL", "DNS", "DNF"]),
+  actualDate: z.iso.date(),
+  durationSeconds: z.number().int().positive().nullable().optional(),
+  rpe: z.number().int().min(1).max(10).nullable().optional(),
+  fatigue: z.number().int().min(1).max(10).nullable().optional(),
+  notes: z.string().trim().max(500).nullable().optional(),
+  expectedVersion: z.number().int().positive().optional(),
+});
+export const raceResultResponseSchema = raceResultInputSchema.extend({
+  id: z.uuid(),
+  raceId: z.uuid(),
+  version: z.number().int().positive(),
+});
 
 export const readinessSchema = z.object({
   ready: z.boolean(),
@@ -228,6 +274,7 @@ export type ActivityInput = z.infer<typeof activityInputSchema>;
 export type ActivityResponse = z.infer<typeof activityResponseSchema>;
 export type RaceInput = z.infer<typeof raceInputSchema>;
 export type RacePatch = z.infer<typeof racePatchSchema>;
+export type RaceResultInput = z.infer<typeof raceResultInputSchema>;
 export type WeekGenerationInput = z.infer<typeof weekGenerationInputSchema>;
 export type AiWeekOutput = z.infer<typeof aiWeekOutputSchema>;
 export type AiWorkoutDraft = z.infer<typeof aiWorkoutDraftSchema>;

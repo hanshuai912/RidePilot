@@ -8,6 +8,7 @@ import {
   OnModuleInit,
 } from "@nestjs/common";
 import {
+  generationResponseSchema,
   nutritionAiOutputSchema,
   nutritionGenerationInputSchema,
   NutritionGenerationInput,
@@ -23,6 +24,7 @@ import { toProfileResponse } from "./nutrition.mapper";
 import { NutritionRepository } from "./nutrition.repository";
 import { NutritionSkillLoaderService } from "./nutrition-skill-loader.service";
 import { validateNutritionDraft } from "./nutrition.validation";
+import { RaceNutritionService } from "./race-nutrition.service";
 
 @Injectable()
 export class NutritionGenerationService
@@ -37,6 +39,7 @@ export class NutritionGenerationService
     private readonly ai: AiService,
     private readonly skill: NutritionSkillLoaderService,
     private readonly repository: NutritionRepository,
+    private readonly races: RaceNutritionService,
   ) {}
 
   async onModuleInit() {
@@ -82,6 +85,21 @@ export class NutritionGenerationService
           message: "幂等键已用于不同请求",
         });
       return this.toResponse(existing);
+    }
+    if (parsed.mode === "RACE_LINKED") {
+      return this.races.reuseOrCreate(userId, parsed, key, async (tx) => {
+        await this.context(userId, parsed);
+        const job = await tx.aiGeneration.create({
+          data: {
+            userId,
+            scene: "NUTRITION_PLAN",
+            input: parsed,
+            idempotencyKey: key,
+            requestId: randomUUID(),
+          },
+        });
+        return generationResponseSchema.parse(this.toResponse(job));
+      });
     }
     await this.context(userId, parsed);
     try {
@@ -193,10 +211,20 @@ export class NutritionGenerationService
     try {
       const context = await this.context(job.userId, input);
       const skill = await this.skill.load(input.mode);
+      const requestedDays =
+        (dateToDb(input.endDate).getTime() -
+          dateToDb(input.startDate).getTime()) /
+          86_400_000 +
+        1;
       const response = await this.ai.generate({
         requestId: job.requestId ?? job.id,
         temperature: 0.2,
-        maxTokens: 7000,
+        // A multi-day race draft includes meals plus the model's reasoning.
+        // The fixed 7k budget could be consumed before any JSON was returned.
+        maxTokens:
+          input.mode === "RACE_LINKED"
+            ? Math.min(32000, Math.max(7000, 5000 + requestedDays * 3000))
+            : 7000,
         responseFormat: { type: "json_object" },
         metadata: {
           feature: "nutrition-plan",
@@ -207,7 +235,7 @@ export class NutritionGenerationService
           {
             role: "system",
             content:
-              "You are the RidePilot sports nutrition draft generator. Return only complete JSON matching the supplied schema. Write all human-facing text in Simplified Chinese. Never invent missing measurements, never diagnose or prescribe clinical treatment, and never apply a plan.",
+              "You are the RidePilot sports nutrition draft generator. Return only complete JSON matching the supplied schema. Every object uses a strict schema: never add properties absent from outputSchema. draft must contain ONLY startDate, endDate, dailyTarget, items. Do not add race, raceId, timezone, strategy, hydration, fueling, or other extra fields to draft. Express race-day fueling and hydration guidance using the allowed meal items, their notes, summary and assumptions. Keep each meal concise with at most 3 foods, and do not repeat long explanations across dates. Write all human-facing text in Simplified Chinese. Never invent missing measurements, never diagnose or prescribe clinical treatment, and never apply a plan.",
           },
           { role: "system", content: skill.content },
           {
@@ -289,7 +317,8 @@ export class NutritionGenerationService
       const code = this.errorCode(error);
       const retryable =
         job.attempts < 2 &&
-        (error instanceof AiException || code === "AI_OUTPUT_INVALID");
+        ((error instanceof AiException && error.retryable) ||
+          code === "AI_OUTPUT_INVALID");
       await this.prisma.aiGeneration.updateMany({
         where: {
           id: job.id,

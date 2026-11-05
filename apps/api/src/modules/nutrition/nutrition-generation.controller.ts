@@ -7,24 +7,45 @@ import {
   Param,
   Post,
 } from "@nestjs/common";
-import { ApiBearerAuth, ApiBody, ApiTags } from "@nestjs/swagger";
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiOkResponse,
+  ApiTags,
+} from "@nestjs/swagger";
 import {
   nutritionGenerationInputSchema,
   nutritionLinkedGenerationRequestSchema,
   NutritionGenerationInput,
   NutritionLinkedGenerationRequest,
+  raceNutritionStateSchema,
 } from "@ridepilot/contracts";
 import { ZodBodyPipe } from "../../common/zod-body.pipe";
 import { toOpenApiSchema } from "../../docs/zod-openapi";
 import { CurrentPrincipal } from "../auth/current-principal.decorator";
 import type { AuthPrincipal } from "../auth/auth.types";
 import { NutritionGenerationService } from "./nutrition-generation.service";
+import { RaceNutritionService } from "./race-nutrition.service";
 
 @ApiTags("nutrition")
 @ApiBearerAuth("access-token")
 @Controller("nutrition")
 export class NutritionGenerationController {
-  constructor(private readonly service: NutritionGenerationService) {}
+  constructor(
+    private readonly service: NutritionGenerationService,
+    private readonly races: RaceNutritionService,
+  ) {}
+
+  @Get("races/:raceId/proposal")
+  @ApiOkResponse({
+    schema: toOpenApiSchema(raceNutritionStateSchema, "output"),
+  })
+  raceProposal(
+    @CurrentPrincipal() principal: AuthPrincipal,
+    @Param("raceId") raceId: string,
+  ) {
+    return this.races.get(principal.userId, raceId);
+  }
 
   @Post("plans/generate-proposal")
   @HttpCode(202)

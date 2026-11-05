@@ -77,6 +77,7 @@ export {
   nutritionProfileResponseSchema,
   nutritionProposalMetadataSchema,
   nutritionProposalResponseSchema,
+  raceNutritionStateSchema,
   nutritionSourceSchema,
   updateNutritionProposalSchema,
   validateNutritionProposalResponseSchema,
@@ -96,6 +97,7 @@ export type {
   NutritionProfileInput,
   NutritionProfileResponse,
   NutritionProposalResponse,
+  RaceNutritionState,
   UpdateNutritionProposal,
 } from "./nutrition";
 export type {
