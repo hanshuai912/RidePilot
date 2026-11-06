@@ -1,3 +1,4 @@
+import { StageReviewEvidenceCard } from "../../goals/components/StageReviewEvidenceCard";
 import { CycleReviewEvidenceCard } from "../cycle-review/CycleReviewEvidenceCard";
 import { View } from "react-native";
 import type { AiProposalResponse } from "@ridepilot/contracts";
@@ -47,6 +48,9 @@ export function PlanPreview({
 
   return (
     <>
+      {proposal.stageReview ? (
+        <StageReviewEvidenceCard evidence={proposal.stageReview} />
+      ) : null}
       {proposal.cycleReview ? (
         <CycleReviewEvidenceCard evidence={proposal.cycleReview} />
       ) : null}

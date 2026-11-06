@@ -24,6 +24,12 @@ import { dateToDb, dbToDate } from "../training/training.validation";
 import { CoachDataService } from "./coach-data.service";
 import { SkillLoaderService } from "./skill-loader.service";
 import { assertDateRange, validateStages } from "./stage-plan.validation";
+import {
+  resolveStageReview,
+  stageReviewResponse,
+} from "./goals/stage-review.repository";
+import { assertStageReviewScope } from "./goals/stage-review.scope";
+import { stageReviewEvidenceSchema } from "@ridepilot/contracts";
 
 @Injectable()
 export class StagePlansService {
@@ -158,9 +164,12 @@ export class StagePlansService {
           content: JSON.stringify({
             task: "生成训练目标的阶段安排草稿",
             input,
+            stageReview: ctx.stageReview,
             goal: {
               type: ctx.goal.type,
               description: ctx.goal.description,
+              successCriteria: ctx.goal.successCriteria,
+              targetFtpWatts: ctx.goal.targetFtpWatts,
               targetWkg: ctx.goal.targetWkg ? Number(ctx.goal.targetWkg) : null,
               targetDate: dbToDate(ctx.goal.targetDate),
             },
@@ -207,6 +216,12 @@ export class StagePlansService {
       const draft = await tx.trainingStagePlan.create({
         data: {
           userId: job.userId,
+          ...(ctx.stageReview
+            ? {
+                reviewEvidence:
+                  ctx.stageReview as unknown as Prisma.InputJsonValue,
+              }
+            : {}),
           goalId: input.goalId,
           goalVersion: ctx.goal.version,
           ftpMeasurementId: ctx.ftp.id,
@@ -271,7 +286,18 @@ export class StagePlansService {
   async get(userId: string, id: string) {
     const plan = await this.prisma.trainingStagePlan.findFirst({
       where: { id, userId },
-      include: { stages: { orderBy: { position: "asc" } }, goal: true },
+      include: {
+        stages: {
+          orderBy: { position: "asc" },
+          include: {
+            reviews: {
+              orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+              take: 1,
+            },
+          },
+        },
+        goal: true,
+      },
     });
     if (!plan)
       throw new NotFoundException({
@@ -286,8 +312,28 @@ export class StagePlansService {
         where: { userId, goalId: plan.goalId, status: "ACTIVE" },
       }),
     ]);
+    let reviewStale = false;
+    if (plan.status === "DRAFT" && plan.reviewEvidence) {
+      try {
+        await resolveStageReview(
+          this.prisma,
+          userId,
+          stageReviewEvidenceSchema.parse(plan.reviewEvidence).id,
+        );
+      } catch (error) {
+        if (
+          error instanceof ConflictException ||
+          error instanceof NotFoundException
+        )
+          reviewStale = true;
+        else throw error;
+      }
+    }
     return stagePlanResponseSchema.parse({
       id: plan.id,
+      ...(plan.reviewEvidence
+        ? { stageReview: stageReviewEvidenceSchema.parse(plan.reviewEvidence) }
+        : {}),
       goalId: plan.goalId,
       goalVersion: plan.goalVersion,
       status: plan.status,
@@ -296,6 +342,7 @@ export class StagePlansService {
       startDate: dbToDate(plan.startDate),
       endDate: dbToDate(plan.endDate),
       stale:
+        reviewStale ||
         (plan.status === "DRAFT" &&
           (active?.id ?? null) !== plan.baseStagePlanId) ||
         plan.goal.status !== "ACTIVE" ||
@@ -306,6 +353,7 @@ export class StagePlansService {
       stages: plan.stages.map((s) => ({
         id: s.id,
         position: s.position,
+        latestReview: s.reviews[0] ? stageReviewResponse(s.reviews[0]) : null,
         title: s.title,
         purpose: s.purpose,
         assessmentSuggestion: s.assessmentSuggestion,
@@ -363,6 +411,11 @@ export class StagePlansService {
           code: "STAGE_PLAN_STALE",
           message: "目标、训练资料或阶段安排已更新，请重新生成",
         });
+      if (plan.reviewEvidence) {
+        const evidence = stageReviewEvidenceSchema.parse(plan.reviewEvidence);
+        const current = await resolveStageReview(tx, userId, evidence.id);
+        assertStageReviewScope(current, { goalId: plan.goalId }, true);
+      }
       if (active)
         await tx.trainingStagePlan.update({
           where: { id: active.id },
@@ -377,6 +430,10 @@ export class StagePlansService {
   }
 
   private async context(userId: string, input: StagePlanGeneration) {
+    const stageReview = input.stageReviewId
+      ? await resolveStageReview(this.prisma, userId, input.stageReviewId)
+      : undefined;
+    if (stageReview) assertStageReviewScope(stageReview, input, true);
     assertDateRange(input.startDate, input.endDate, 365);
     const [ftp, goal, availability, profile, user, active] = await Promise.all([
       this.data.latestFtp(userId),
@@ -420,6 +477,7 @@ export class StagePlansService {
         message: "阶段应从今天或未来开始，并在目标日期内结束",
       });
     return {
+      stageReview,
       ftp,
       goal,
       availability,

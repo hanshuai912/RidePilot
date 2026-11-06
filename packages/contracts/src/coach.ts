@@ -4,6 +4,7 @@ import {
 } from "./cycle-review";
 import { z } from "zod";
 import { workoutSegmentSchema } from "./training";
+import { stageReviewEvidenceSchema } from "./stage-review";
 
 export const ftpMeasurementInputSchema = z.strictObject({
   valueWatts: z.number().int().min(50).max(800),
@@ -35,8 +36,10 @@ export const availabilityResponseSchema = availabilityInputSchema
   });
 
 export const goalInputSchema = z.strictObject({
-  type: z.enum(["FTP", "ENDURANCE", "CLIMBING", "RACE"]),
+  type: z.enum(["FTP", "ENDURANCE", "CLIMBING", "RACE", "CUSTOM"]),
   description: z.string().trim().max(200).nullable().optional(),
+  successCriteria: z.string().trim().min(1).max(300).nullable().optional(),
+  targetFtpWatts: z.number().int().min(50).max(800).nullable().optional(),
   targetWkg: z.number().min(1).max(10).nullable().optional(),
   targetDate: z.iso.date(),
   priority: z.enum(["PRIMARY", "SECONDARY"]),
@@ -44,6 +47,7 @@ export const goalInputSchema = z.strictObject({
 export const goalSchema = goalInputSchema.extend({
   id: z.uuid(),
   status: z.enum(["ACTIVE", "PAUSED", "CLOSED"]),
+  closureReason: z.enum(["COMPLETED", "STOPPED"]).nullable().optional(),
   version: z.number().int().positive(),
 });
 export const goalPatchSchema = goalInputSchema
@@ -170,6 +174,7 @@ export const racePlanningPhaseSchema = z.enum([
 ]);
 
 export const weekGenerationInputSchema = z.strictObject({
+  stageReviewId: z.uuid().optional(),
   cycleReview: cycleReviewReferenceSchema.optional(),
   weekStartDate: z.iso.date(),
   goalId: z.uuid(),
@@ -269,6 +274,7 @@ export const restoreProposalResponseSchema = z.object({
   blockers: z.array(z.string()),
 });
 export const aiProposalResponseSchema = z.object({
+  stageReview: stageReviewEvidenceSchema.optional(),
   cycleReview: cycleReviewEvidenceSchema.optional(),
   proposalId: z.uuid(),
   status: z.enum([

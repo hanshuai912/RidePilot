@@ -4,6 +4,11 @@ import {
   cycleReviewStaleReason,
 } from "./cycle-review/cycle-review.evidence";
 import {
+  resolveStageReview,
+  stageReviewStaleReason,
+} from "./goals/stage-review.repository";
+import { assertStageReviewScope } from "./goals/stage-review.scope";
+import {
   copiedWorkoutStructure,
   workoutActivities,
 } from "../training/workout-activity";
@@ -18,6 +23,7 @@ import {
   aiWeekOutputSchema,
   type AiWeekOutput,
   type CycleReviewEvidence,
+  type StageReviewEvidence,
   type UpdateAiProposal,
 } from "@ridepilot/contracts";
 import type {
@@ -37,6 +43,7 @@ import {
 } from "./coach-plan.validator";
 
 interface AiDraft extends AiWeekOutput {
+  stageReview?: StageReviewEvidence;
   cycleReview?: CycleReviewEvidence;
   weekStartDate: string;
   endDate?: string;
@@ -111,6 +118,7 @@ export class CoachProposalService {
       skillVersion: draft.skillVersion,
       model: draft.model,
       ...(draft.cycleReview ? { cycleReview: draft.cycleReview } : {}),
+      ...(draft.stageReview ? { stageReview: draft.stageReview } : {}),
     });
   }
 
@@ -388,6 +396,30 @@ export class CoachProposalService {
         }),
       ]);
     const blockers: string[] = [];
+    if (draft.stageReview) {
+      try {
+        const review = await resolveStageReview(
+          tx,
+          userId,
+          draft.stageReview.id,
+        );
+        assertStageReviewScope(review, {
+          goalId: draft.goalId,
+          stageId: draft.stageId,
+          weekStartDate: draft.weekStartDate,
+          endDate: draft.endDate,
+        });
+      } catch (error) {
+        if (
+          error instanceof ConflictException ||
+          error instanceof NotFoundException
+        )
+          blockers.push(stageReviewStaleReason);
+        else if (error instanceof BadRequestException)
+          blockers.push(error.message);
+        else throw error;
+      }
+    }
     if (draft.cycleReview) {
       try {
         await resolveCycleReview(tx, userId, {
@@ -421,7 +453,10 @@ export class CoachProposalService {
       });
       if (
         !stage ||
-        dbToDate(stage.startDate) !== draft.weekStartDate ||
+        (draft.stageReview &&
+        dbToDate(stage.startDate) < draft.stageReview.snapshot.localDate
+          ? draft.stageReview.snapshot.localDate
+          : dbToDate(stage.startDate)) !== draft.weekStartDate ||
         dbToDate(stage.endDate) !== draft.endDate
       )
         blockers.push("阶段安排已变化，请重新生成");

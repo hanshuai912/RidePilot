@@ -1,4 +1,5 @@
 import { cycleReviewStaleReason } from "./cycle-review/cycle-review.evidence";
+import { stageReviewStaleReason } from "./goals/stage-review.repository";
 import {
   ConflictException,
   Injectable,
@@ -46,6 +47,7 @@ export class CoachSuggestionsService {
       assessments,
       nutritionProfile,
       cycleReviewStale,
+      stageReviewStale,
     } = await this.repository.read(userId);
     const now = new Date();
     const superseded = (value: unknown) =>
@@ -114,7 +116,9 @@ export class CoachSuggestionsService {
               ? "正式训练版本已变化，请重新生成"
               : cycleReviewStale?.[p.id]
                 ? cycleReviewStaleReason
-                : contextReason(draft),
+                : stageReviewStale?.[p.id]
+                  ? stageReviewStaleReason
+                  : contextReason(draft),
       };
     });
     items.push(
@@ -177,6 +181,7 @@ export class CoachSuggestionsService {
         createdAt: p.createdAt.toISOString(),
         goalId: p.goalId,
         staleReason:
+          (stageReviewStale?.[p.id] ? stageReviewStaleReason : null) ??
           contextReason({
             goalId: p.goalId,
             goalVersion: p.goalVersion,

@@ -21,6 +21,7 @@ export const cycleGoalTitle = (title: string) =>
     FTP: "提升 FTP",
     ENDURANCE: "提升耐力",
     CLIMBING: "提升爬坡",
+    CUSTOM: "自定义目标",
     RACE: "准备比赛",
   })[title] ?? title;
 export const cycleFtpSource = (source: string) =>

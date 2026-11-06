@@ -1,4 +1,7 @@
 import { cycleReviewEvidenceSchema } from "@ridepilot/contracts";
+import { stageReviewEvidenceSchema } from "@ridepilot/contracts";
+import { resolveStageReview } from "./goals/stage-review.repository";
+import { ConflictException, NotFoundException } from "@nestjs/common";
 import { buildCycleReview } from "./cycle-review/cycle-review.policy";
 import { readCycleReviewData } from "./cycle-review/cycle-review.repository";
 import { Injectable } from "@nestjs/common";
@@ -113,6 +116,31 @@ export class CoachSuggestionsRepository {
           tx.nutritionProfile.findUnique({ where: { userId } }),
         ]);
         const cycleReviewStale: Record<string, boolean> = {};
+        const stageReviewStale: Record<string, boolean> = {};
+        for (const p of [
+          ...training
+            .filter((p) => pendingCoachStatuses.some((s) => s === p.status))
+            .map((p) => ({
+              id: p.id,
+              evidence: (p.draft as Record<string, unknown>).stageReview,
+            })),
+          ...stages
+            .filter((p) => p.status === "DRAFT")
+            .map((p) => ({ id: p.id, evidence: p.reviewEvidence })),
+        ]) {
+          const review = stageReviewEvidenceSchema.safeParse(p.evidence);
+          if (!review.success) continue;
+          try {
+            await resolveStageReview(tx, userId, review.data.id);
+          } catch (error) {
+            if (
+              error instanceof ConflictException ||
+              error instanceof NotFoundException
+            )
+              stageReviewStale[p.id] = true;
+            else throw error;
+          }
+        }
         const fingerprints = new Map<string, string>();
         for (const p of training) {
           if (![...pendingCoachStatuses].some((status) => status === p.status))
@@ -133,6 +161,7 @@ export class CoachSuggestionsRepository {
           cycleReviewStale[p.id] = fingerprints.get(key) !== range.fingerprint;
         }
         return {
+          stageReviewStale,
           cycleReviewStale,
           plan,
           nutrition,

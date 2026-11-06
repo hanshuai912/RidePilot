@@ -35,6 +35,20 @@ export function CycleReviewActions({
         <AppText variant="caption" muted>
           安排测试会进入测试确认流程；不会自动排期、更新 FTP 或推进阶段。
         </AppText>
+        {r.goal ? (
+          <Button
+            variant="secondary"
+            disabled={state.busy}
+            onPress={() =>
+              state.router.push({
+                pathname: "/goals/manage",
+                params: { goalId: r.goal!.id },
+              })
+            }
+          >
+            复评目标 · 延期 / 完成 / 结束
+          </Button>
+        ) : null}
         {r.missingFields.length ? (
           <>
             <AppText className="mt-3 text-warning">

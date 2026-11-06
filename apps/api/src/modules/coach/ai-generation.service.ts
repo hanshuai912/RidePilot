@@ -229,6 +229,10 @@ export class AiGenerationService implements OnModuleInit, OnModuleDestroy {
                     ? "Generate cycling workouts covering the entire selected date range."
                     : "Propose safe replacement workouts only for the selected future scope. Explain changes and tradeoffs.",
               cycleReview: context.cycleReview,
+              stageReview: context.stageReview,
+              stageReviewInstructions: context.stageReview
+                ? "根据用户已确认的阶段达成条件、复评结论与选择解释后续安排。复评是用户判断，不是医学结论；不得自动推进阶段、修改目标或 FTP。"
+                : undefined,
               cycleReviewInstructions: context.cycleReview
                 ? "基于所附复盘证据解释本次选择。CONTINUE 沿用目标规划；ADJUST 根据已记录执行情况调整可行安排；RECOVERY 所有区段强度上限不得超过 70% FTP，并安排休息日。不要把未记录当作失败，不得推断 FTP 提升或自动推进阶段。"
                 : undefined,
@@ -340,6 +344,9 @@ export class AiGenerationService implements OnModuleInit, OnModuleDestroy {
             draft: {
               ...output,
               contextFingerprint: generationFingerprint(context),
+              ...(context.stageReview
+                ? { stageReview: context.stageReview }
+                : {}),
               ...(context.cycleReview
                 ? { cycleReview: context.cycleReview }
                 : {}),

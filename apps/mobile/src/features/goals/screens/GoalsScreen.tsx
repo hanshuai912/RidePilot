@@ -13,6 +13,7 @@ export const goalLabels = {
   ENDURANCE: "提升耐力",
   CLIMBING: "提升爬坡",
   RACE: "准备比赛",
+  CUSTOM: "自定义目标",
 };
 export function GoalsScreen() {
   const { session } = useAuth();
@@ -87,11 +88,12 @@ export function GoalsScreen() {
           <AppText>还没有训练目标，先到 AI 教练设置目标与训练时间。</AppText>
         </Card>
       )}
+      <Button onPress={() => router.push("/goals/new")}>建立新目标</Button>
       <Button
         variant="secondary"
         onPress={() => router.push("/(tabs)/coach/goal")}
       >
-        设置训练目标
+        首次训练建档向导
       </Button>
     </TrainingPage>
   );

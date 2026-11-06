@@ -189,3 +189,11 @@ GET 建议列表把版本/资料失效的候选投影为 EXPIRED，从 pending �
 ## 周期复盘（2026-11-05）
 
 新增 GET `/ai-coach/cycle-review`（可选 startDate/endDate）、GET `/ai-coach/cycle-review/history`（最近30次主动生成）、POST `/ai-coach/cycle-review/generate-proposal`（202，要求 Idempotency-Key）。所有接口 JWT 鉴权、本人数据隔离。共享协议在 `cycle-review.ts`。生成输入的 review 为日期/action/fingerprint 引用，服务端重算证据；后续日期和基础版本单独传入。训练草稿响应增加可选 cycleReview 证据。读取不调用模型、不写草稿。依据变化409 CYCLE_REVIEW_STALE；恢复区段超过70% FTP则任务失败或校验阻止应用。完整输入、统计口径和异常处理见 [周期复盘](../features/training-cycle-review.md)。
+
+## 目标生命周期与阶段复评
+
+新增目标评价、概览、变更预览/确认，以及阶段条件、复评读取/保存接口，详见 [功能契约](../features/goal-lifecycle-stage-review.md#api)。新增请求/响应 schema 是 `goal-lifecycle.ts`、`stage-review.ts`，Swagger 引用同一 schema。
+
+目标变更必须提交 expectedVersion、原因与预览 fingerprint；确认接口要求用户唯一幂等键。阶段复评提交当前 snapshot fingerprint 和 expectedReviewId（首次为 null），避免新决定被旧页面覆盖；同键不同内容返回 409。阶段条件用独立 criteriaVersion 保护。
+
+阶段/范围生成新增可选 stageReviewId，阶段及课程预览返回保存时 evidence。后续请求只能沿用该阶段最新且依据未变化的决定。保持/进入下一阶段限制课程 stageId，延长先确认阶段草稿，调整允许日期课程或阶段重规划。所有正式应用仍需校验和用户确认，目标操作不隐式发布训练或营养。

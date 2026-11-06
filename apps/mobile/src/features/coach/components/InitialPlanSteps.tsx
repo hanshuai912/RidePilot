@@ -1,6 +1,6 @@
 import { Pressable, View } from "react-native";
 import { Flag, Mountain, Target } from "lucide-react-native";
-import type { ProfileResponse } from "@ridepilot/contracts";
+import type { ProfileResponse, GoalInput } from "@ridepilot/contracts";
 
 import { AppText, Button, Card, Input } from "../../../components/ui";
 import { targetDateAfterWeeks } from "../model/plan-dates";
@@ -8,7 +8,7 @@ import { ChoicePill } from "./CoachPage";
 import { colors } from "../../../theme/colors";
 
 export type Experience = NonNullable<ProfileResponse["experienceLevel"]>;
-export type GoalType = "FTP" | "ENDURANCE" | "RACE";
+export type GoalType = GoalInput["type"];
 
 function GoalOption({
   icon,
@@ -264,6 +264,20 @@ export function GoalStep({
             description="让长时间骑行更稳定"
             selected={type === "ENDURANCE"}
             onPress={() => setType("ENDURANCE")}
+          />
+          <GoalOption
+            icon={<Mountain color={colors.brand} size={17} strokeWidth={1.8} />}
+            label="提升爬坡能力"
+            description="围绕爬坡表现安排训练"
+            selected={type === "CLIMBING"}
+            onPress={() => setType("CLIMBING")}
+          />
+          <GoalOption
+            icon={<Target color={colors.brand} size={17} strokeWidth={1.8} />}
+            label="自定义目标"
+            description="在目标管理中设置可观察的达成条件"
+            selected={type === "CUSTOM"}
+            onPress={() => setType("CUSTOM")}
           />
           <GoalOption
             icon={<Flag color={colors.brand} size={17} strokeWidth={1.8} />}

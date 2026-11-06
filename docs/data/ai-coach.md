@@ -43,3 +43,16 @@ FTP 使用现有 `AbilityMeasurement` 的 `metricType=FTP`、`unit=W`。课程�
 ## 周期复盘证据（2026-11-05）
 
 无新增表或 migration。AiGeneration.input.cycleReview 保存复盘日期、动作和 fingerprint，成功后的 ChangeProposal.draft.cycleReview 保存完整生成依据。草稿编辑只允许课程输出字段，不接受替换证据；应用前重新计算证据指纹，appliedVersionId 追溯应用版本。失败任务仅保存复盘引用，不保证完整快照。计划复制按稳定活动身份去重；聚合只使用已填数值，未记录不视为失败。详见 [周期复盘](../features/training-cycle-review.md)。
+
+## 目标决策与阶段复评数据
+
+迁移 `20261106090000_goal_lifecycle_stage_reviews`：
+
+- TrainingGoal 新增 successCriteria、targetFtpWatts（W）、closureReason（COMPLETED / STOPPED，旧数据 null）。
+- TrainingStage 新增 criteria、criteriaVersion（默认 1），不以日期自动回填达成状态。
+- TrainingStagePlan 新增 reviewEvidence JSON，记录生成来源；正式阶段保留来源快照作为历史。
+- GoalMutation 保存目标操作、理由、requestHash、result（包含 before/after/影响预览）和用户幂等键。
+- TrainingStageReview 保存阶段结论、下一步选择、理由与不可变 snapshot。用户锁下按实际保存顺序分配递增 createdAt，最新决定才能用于后续生成。
+- 两类记录均关联用户，按用户幂等键唯一；阶段复评有阶段/时间索引，FK 随账户删除级联。
+
+目标变更、主次切换及决策写入同一事务。阶段复评不写 FTP、正式训练或阶段日期；正式课程应用沿用现有版本事务。迁移为增量、无数据回填；自动化测试使用本机 *_test 数据库，后续按用户授权已应用到本机开发库 `ridepilot`，迁移状态及业务只读查询验证通过，正式环境尚未部署；回滚应用时保留新增数据表列，避免删除用户历史。详见 [功能与边界](../features/goal-lifecycle-stage-review.md)。

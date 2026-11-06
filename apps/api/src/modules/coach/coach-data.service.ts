@@ -1,3 +1,5 @@
+import { GoalLifecycleService } from "./goals/goal-lifecycle.service";
+import { goalResponse } from "./goals/goal-lifecycle.repository";
 import {
   BadRequestException,
   ConflictException,
@@ -12,11 +14,13 @@ import type {
 } from "@ridepilot/contracts";
 import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infra/prisma/prisma.service";
-import { dbToDate, dateToDb } from "../training/training.validation";
 
 @Injectable()
 export class CoachDataService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly goals: GoalLifecycleService,
+  ) {}
 
   async latestFtp(userId: string) {
     return this.prisma.abilityMeasurement.findFirst({
@@ -158,23 +162,8 @@ export class CoachDataService {
     return this.getAvailability(userId);
   }
 
-  async createGoal(userId: string, input: GoalInput) {
-    if (input.targetDate < new Date().toISOString().slice(0, 10))
-      throw new BadRequestException({
-        code: "GOAL_DATE_IN_PAST",
-        message: "目标日期不能早于今天",
-      });
-    const goal = await this.prisma.trainingGoal.create({
-      data: {
-        userId,
-        type: input.type,
-        description: input.description ?? null,
-        targetWkg: input.targetWkg ?? null,
-        targetDate: dateToDb(input.targetDate),
-        priority: input.priority,
-      },
-    });
-    return this.goalResponse(goal);
+  createGoal(userId: string, input: GoalInput, key?: string) {
+    return this.goals.create(userId, input, key);
   }
 
   async listGoals(userId: string) {
@@ -182,7 +171,7 @@ export class CoachDataService {
       where: { userId },
       orderBy: [{ createdAt: "desc" }],
     });
-    return goals.map((goal) => this.goalResponse(goal));
+    return goals.map((goal) => goalResponse(goal));
   }
 
   async getGoal(userId: string, goalId: string) {
@@ -197,23 +186,8 @@ export class CoachDataService {
     return goal;
   }
 
-  async patchGoal(userId: string, goalId: string, input: GoalPatch) {
-    await this.getGoal(userId, goalId);
-    const { expectedVersion, targetDate, ...fields } = input;
-    const updated = await this.prisma.trainingGoal.updateMany({
-      where: { id: goalId, userId, version: expectedVersion },
-      data: {
-        ...fields,
-        ...(targetDate ? { targetDate: dateToDb(targetDate) } : {}),
-        version: { increment: 1 },
-      },
-    });
-    if (!updated.count)
-      throw new ConflictException({
-        code: "GOAL_VERSION_CONFLICT",
-        message: "目标已更新，请重新读取",
-      });
-    return this.goalResponse(await this.getGoal(userId, goalId));
+  patchGoal(userId: string, goalId: string, input: GoalPatch) {
+    return this.goals.patch(userId, goalId, input);
   }
 
   async activePlan(userId: string) {
@@ -243,28 +217,6 @@ export class CoachDataService {
       ready: missingFields.length === 0,
       missingFields,
       activePlanVersion: plan?.activeVersion?.versionNo ?? 0,
-    };
-  }
-
-  private goalResponse(goal: {
-    id: string;
-    type: string;
-    description: string | null;
-    targetWkg: Prisma.Decimal | null;
-    targetDate: Date;
-    priority: string;
-    status: string;
-    version: number;
-  }) {
-    return {
-      id: goal.id,
-      type: goal.type,
-      description: goal.description,
-      targetWkg: goal.targetWkg ? Number(goal.targetWkg) : null,
-      targetDate: dbToDate(goal.targetDate),
-      priority: goal.priority,
-      status: goal.status,
-      version: goal.version,
     };
   }
 }

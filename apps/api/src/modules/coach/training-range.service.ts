@@ -11,6 +11,8 @@ import {
 import { PrismaService } from "../../infra/prisma/prisma.service";
 import { dbToDate } from "../training/training.validation";
 import { assertDateRange } from "./stage-plan.validation";
+import { resolveStageReview } from "./goals/stage-review.repository";
+import { assertStageReviewScope } from "./goals/stage-review.scope";
 
 @Injectable()
 export class TrainingRangeService {
@@ -20,6 +22,19 @@ export class TrainingRangeService {
     userId: string,
     input: RangeGeneration,
   ): Promise<WeekGenerationInput> {
+    if (input.stageReviewId) {
+      const review = await resolveStageReview(
+        this.prisma,
+        userId,
+        input.stageReviewId,
+      );
+      assertStageReviewScope(review, {
+        goalId: input.goalId,
+        ...(input.scope === "STAGE"
+          ? { stageId: input.stageId }
+          : { weekStartDate: input.startDate, endDate: input.endDate }),
+      });
+    }
     if (!!input.assessmentId !== !!input.assessmentVersion)
       throw new BadRequestException({
         code: "ASSESSMENT_VERSION_REQUIRED",
@@ -101,12 +116,19 @@ export class TrainingRangeService {
         });
       startDate = dbToDate(stage.startDate);
       endDate = dbToDate(stage.endDate);
+      if (input.stageReviewId) {
+        const today = new Intl.DateTimeFormat("en-CA", {
+          timeZone: user.timezone,
+        }).format(new Date());
+        if (startDate < today) startDate = today;
+      }
     } else {
       startDate = input.startDate;
       endDate = input.endDate;
     }
     assertDateRange(startDate, endDate, 84);
     return {
+      ...(input.stageReviewId ? { stageReviewId: input.stageReviewId } : {}),
       ...(input.forceRegenerate ? { forceRegenerate: true } : {}),
       goalId: input.goalId,
       weekStartDate: startDate,

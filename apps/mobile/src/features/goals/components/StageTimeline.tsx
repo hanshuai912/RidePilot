@@ -1,3 +1,4 @@
+import { outcomeLabels, decisionLabels } from "../model/goal-lifecycle";
 import type { StagePlanResponse } from "@ridepilot/contracts";
 import { View } from "react-native";
 import { AppText, Button, Card } from "../../../components/ui";
@@ -8,12 +9,14 @@ export function StageTimeline({
   onSelect,
   today,
   onAssessment,
+  onReview,
 }: {
   plan: StagePlanResponse;
   selectedId?: string;
   onSelect?: (id: string) => void;
   today?: string;
   onAssessment?: (stageId: string, date: string) => void;
+  onReview?: (stageId: string) => void;
 }) {
   return (
     <>
@@ -60,6 +63,17 @@ export function StageTimeline({
               }
             >
               安排阶段测试
+            </Button>
+          ) : null}
+          {stage.latestReview ? (
+            <AppText muted className="mt-3">
+              最近复评：{outcomeLabels[stage.latestReview.outcome]} ·{" "}
+              {decisionLabels[stage.latestReview.decision]}
+            </AppText>
+          ) : null}
+          {onReview ? (
+            <Button variant="secondary" onPress={() => onReview(stage.id)}>
+              复评并选择下一步
             </Button>
           ) : null}
           {onSelect ? (

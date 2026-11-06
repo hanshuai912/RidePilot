@@ -103,6 +103,8 @@ model User {
   trainingPlans        TrainingPlan[]
   proposals            ChangeProposal[]
   trainingGoals        TrainingGoal[]
+  goalMutations        GoalMutation[]
+  stageReviews         TrainingStageReview[]
   stagePlans           TrainingStagePlan[]
   trainingAvailability TrainingAvailability?
   trainingActivities   TrainingActivity[]
@@ -247,6 +249,9 @@ model TrainingGoal {
   type        String   @db.VarChar(32)
   description String?  @db.VarChar(200)
   targetWkg   Decimal? @map("target_wkg") @db.Decimal(4, 2)
+  targetFtpWatts Int? @map("target_ftp_watts")
+  successCriteria String? @map("success_criteria") @db.VarChar(300)
+  closureReason String? @map("closure_reason") @db.VarChar(16)
   targetDate  DateTime @map("target_date") @db.Date
   priority    String   @db.VarChar(16)
   status      String   @default("ACTIVE") @db.VarChar(16)
@@ -254,12 +259,14 @@ model TrainingGoal {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
   stagePlans  TrainingStagePlan[]
+  mutations   GoalMutation[]
 
   @@index([userId, status])
   @@map("training_goals")
 }
 
 model TrainingStagePlan {
+  reviewEvidence Json? @map("review_evidence")
   id                  String   @id @default(uuid()) @db.Uuid
   userId              String   @map("user_id") @db.Uuid
   user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -286,6 +293,9 @@ model TrainingStagePlan {
 }
 
 model TrainingStage {
+  criteria             String? @db.VarChar(300)
+  criteriaVersion      Int @default(1) @map("criteria_version")
+  reviews              TrainingStageReview[]
   assessments          TrainingAssessment[]
   id                   String               @id @default(uuid()) @db.Uuid
   stagePlanId          String               @map("stage_plan_id") @db.Uuid
@@ -299,6 +309,43 @@ model TrainingStage {
 
   @@unique([stagePlanId, position])
   @@map("training_stages")
+}
+
+model GoalMutation {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @map("user_id") @db.Uuid
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goalId String @map("goal_id") @db.Uuid
+  goal TrainingGoal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  idempotencyKey String @map("idempotency_key") @db.VarChar(255)
+  requestHash String @map("request_hash") @db.VarChar(64)
+  action String @db.VarChar(32)
+  reason String @db.VarChar(300)
+  result Json
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([userId, idempotencyKey])
+  @@index([goalId, createdAt])
+  @@map("goal_mutations")
+}
+
+model TrainingStageReview {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @map("user_id") @db.Uuid
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stageId String @map("stage_id") @db.Uuid
+  stage TrainingStage @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  idempotencyKey String @map("idempotency_key") @db.VarChar(255)
+  requestHash String @map("request_hash") @db.VarChar(64)
+  outcome String @db.VarChar(16)
+  decision String @db.VarChar(16)
+  rationale String @db.VarChar(500)
+  snapshot Json
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([userId, idempotencyKey])
+  @@index([stageId, createdAt])
+  @@map("training_stage_reviews")
 }
 
 model TrainingAvailability {

@@ -1,3 +1,4 @@
+import { goalTypeLabels } from "../../goals/model/goal-lifecycle";
 import { TrainingNutritionLinkCard } from "../../nutrition/components/TrainingNutritionLinkCard";
 import { useEffect, useRef } from "react";
 import { usePathname, useRouter } from "expo-router";
@@ -344,11 +345,7 @@ export function CoachScreen() {
           setBodyStatus={flow.setBodyStatus}
           planStatus={resources.planStatus}
           goalLabel={
-            activeGoal?.type === "FTP"
-              ? "提升 FTP"
-              : activeGoal?.type === "RACE"
-                ? "准备比赛"
-                : "提升耐力"
+            activeGoal ? goalTypeLabels[activeGoal.type] : "待设置目标"
           }
           goalDate={activeGoal?.targetDate ?? "待补充"}
           onEditGoal={() => {

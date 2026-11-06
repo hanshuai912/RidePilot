@@ -1,4 +1,6 @@
 import { resolveCycleReview } from "./cycle-review/cycle-review.evidence";
+import { resolveStageReview } from "./goals/stage-review.repository";
+import { assertStageReviewScope } from "./goals/stage-review.scope";
 import { racePlanningWindow } from "./race-planning.validation";
 import { AssessmentReviewService } from "./assessment-review.service";
 import {
@@ -35,6 +37,22 @@ export class CoachGenerationContextService {
       | "ASSESSMENT_REVIEW"
       | "RACE_REPLAN",
   ) {
+    if (
+      input.stageReviewId &&
+      (scene !== "RANGE_PLAN" ||
+        input.mode !== "range" ||
+        input.cycleReview ||
+        input.relatedId ||
+        input.racePhase)
+    )
+      throw new BadRequestException({
+        code: "STAGE_REVIEW_SCOPE",
+        message: "阶段复评只能用于独立的后续范围课程",
+      });
+    const stageReview = input.stageReviewId
+      ? await resolveStageReview(this.prisma, userId, input.stageReviewId)
+      : undefined;
+    if (stageReview) assertStageReviewScope(stageReview, input);
     if (
       input.cycleReview &&
       (scene !== "RANGE_PLAN" ||
@@ -116,6 +134,9 @@ export class CoachGenerationContextService {
           goalId: input.goalId,
           stageId: input.stageId,
           expectedBaseVersion: input.expectedBaseVersion,
+          ...(input.stageReviewId
+            ? { stageReviewId: input.stageReviewId }
+            : {}),
         });
         if (
           resolved.weekStartDate !== input.weekStartDate ||
@@ -431,6 +452,7 @@ export class CoachGenerationContextService {
         })
       : null;
     return {
+      ...(stageReview ? { stageReview } : {}),
       ...(cycleReview ? { cycleReview } : {}),
       stage,
       nearbyRaces:
@@ -456,11 +478,13 @@ export class CoachGenerationContextService {
         version: goal.version,
         type: goal.type,
         description: goal.description,
+        successCriteria: goal.successCriteria,
         targetWkg: goal.targetWkg ? Number(goal.targetWkg) : null,
         targetFtpWatts:
-          goal.targetWkg && weightKg
+          goal.targetFtpWatts ??
+          (goal.targetWkg && weightKg
             ? Math.round(Number(goal.targetWkg) * weightKg)
-            : null,
+            : null),
         targetDate: goal.targetDate.toISOString().slice(0, 10),
       },
       availability,

@@ -1,3 +1,4 @@
+import { goalTitle } from "../../goals/model/goal-lifecycle";
 import { useCallback, useState } from "react";
 import { useRouter } from "expo-router";
 import { AppText, Button, Card, Spinner } from "../../../components/ui";
@@ -42,7 +43,7 @@ export function CoachOverviewPanel() {
         </AppText>
         {data.goal ? (
           <AppText muted className="mt-2">
-            目标：{data.goal.title} · {data.goal.targetDate}
+            目标：{goalTitle(data.goal.title)} · {data.goal.targetDate}
           </AppText>
         ) : null}
         {data.stage ? (

@@ -58,6 +58,7 @@ export function generationTaskKey(input: unknown) {
         "startDate",
         "endDate",
         "stageId",
+        "stageReviewId",
         "targetWorkoutId",
         "relatedId",
         "racePhase",

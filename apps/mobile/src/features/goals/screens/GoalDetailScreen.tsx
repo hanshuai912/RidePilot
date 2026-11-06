@@ -50,10 +50,27 @@ export function GoalDetailScreen() {
                 ? ` · 目标功体比 ${data.goal.targetWkg} W/kg`
                 : ""}
             </AppText>
+            {data.goal.targetFtpWatts ? (
+              <AppText muted className="mt-2">
+                目标 FTP {data.goal.targetFtpWatts} W
+              </AppText>
+            ) : null}
+            <AppText muted className="mt-2">
+              达成条件：{data.goal.successCriteria || "请在目标管理中补充"}
+            </AppText>
             <AppText variant="caption" muted className="mt-2">
               {data.ftp ? `当前 FTP ${data.ftp.valueWatts} W` : "尚未设置 FTP"}
             </AppText>
           </Card>
+          <Button
+            variant="secondary"
+            disabled={flow.busy}
+            onPress={() =>
+              router.push({ pathname: "/goals/manage", params: { goalId } })
+            }
+          >
+            目标管理 · 延期 / 完成 / 下一目标
+          </Button>
           <GoalAssessments
             goalId={goalId}
             canSchedule={
@@ -71,13 +88,38 @@ export function GoalDetailScreen() {
           {!data.ftp ? (
             <FtpRequiredState />
           ) : data.goal.status !== "ACTIVE" ? (
-            <AppText>当前目标已暂停或结束，请选择活跃目标。</AppText>
+            <>
+              <AppText>
+                当前目标已暂停或结束，可管理目标并查看阶段历史。
+              </AppText>
+              {data.stages ? (
+                <StageTimeline
+                  plan={data.stages}
+                  today={data.today}
+                  onReview={(stageId) =>
+                    router.push({
+                      pathname: "/goals/stage-review",
+                      params: { stageId },
+                    })
+                  }
+                />
+              ) : null}
+            </>
           ) : (
             <>
               <AppText variant="section">阶段安排</AppText>
               {data.stages ? (
                 <StageTimeline
                   plan={data.stages}
+                  onReview={
+                    flow.busy
+                      ? undefined
+                      : (stageId) =>
+                          router.push({
+                            pathname: "/goals/stage-review",
+                            params: { stageId },
+                          })
+                  }
                   onAssessment={
                     flow.busy
                       ? undefined

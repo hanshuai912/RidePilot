@@ -803,3 +803,55 @@ test.each([
     expect(mockNavigate).toHaveBeenLastCalledWith(destination);
   },
 );
+
+test.each(["CUSTOM", "CLIMBING"] as const)(
+  "reopening the initial wizard preserves an existing %s goal",
+  async (type) => {
+    const current = {
+      ...goal,
+      type,
+      targetWkg: null,
+      successCriteria: "保留已确认的达成条件",
+    };
+    api.goals.mockResolvedValue([current]);
+    api.updateGoal.mockResolvedValue(current);
+    const { result } = await renderHook(() => useInitialPlan());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.goalType).toBe(type);
+    await act(async () => {
+      await result.current.nextFromGoal();
+    });
+    expect(api.updateGoal).toHaveBeenCalledWith(
+      "token",
+      goal.id,
+      expect.objectContaining({ type, targetFtpWatts: null }),
+    );
+    expect(api.updateGoal.mock.calls[0][2]).not.toHaveProperty(
+      "successCriteria",
+    );
+  },
+);
+
+test("the initial wizard retains an explicit FTP watt target and clears it when changing goal type", async () => {
+  api.goals.mockResolvedValue([{ ...goal, targetFtpWatts: 300 }]);
+  api.updateGoal.mockResolvedValue({ ...goal, targetFtpWatts: 300 });
+  const { result } = await renderHook(() => useInitialPlan());
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  await act(async () => {
+    await result.current.nextFromGoal();
+  });
+  expect(api.updateGoal.mock.calls[0][2]).toMatchObject({
+    targetFtpWatts: 300,
+  });
+  await act(async () => {
+    result.current.setGoalType("ENDURANCE");
+  });
+  await act(async () => {
+    await result.current.nextFromGoal();
+  });
+  expect(api.updateGoal.mock.calls[1][2]).toMatchObject({
+    targetFtpWatts: null,
+    targetWkg: null,
+    type: "ENDURANCE",
+  });
+});

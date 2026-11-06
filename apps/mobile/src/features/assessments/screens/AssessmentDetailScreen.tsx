@@ -132,6 +132,20 @@ export function AssessmentDetailScreen() {
             </Button>
           ) : null}
           <AppText variant="section">阶段复评</AppText>
+          {item.stageId ? (
+            <Button
+              variant="secondary"
+              disabled={mutation.busy}
+              onPress={() =>
+                router.push({
+                  pathname: "/goals/stage-review",
+                  params: { stageId: item.stageId! },
+                })
+              }
+            >
+              复评阶段达成条件与下一步
+            </Button>
+          ) : null}
           {data.previous ? (
             <Card>
               <AppText variant="card">

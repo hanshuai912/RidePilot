@@ -131,11 +131,7 @@ export function useInitialPlan() {
           (goal) => goal.status === "ACTIVE" && goal.priority === "PRIMARY",
         ) ?? goals.find((goal) => goal.status === "ACTIVE");
       if (activeGoal) {
-        setGoalType(
-          activeGoal.type === "FTP" || activeGoal.type === "RACE"
-            ? activeGoal.type
-            : "ENDURANCE",
-        );
+        setGoalType(activeGoal.type);
         setGoalDate(activeGoal.targetDate);
         setTargetWkg(activeGoal.targetWkg?.toString() ?? "");
         setGoalNote(activeGoal.description ?? "");
@@ -228,8 +224,14 @@ export function useInitialPlan() {
 
   const nextFromGoal = async (): Promise<InitialPlanStage | undefined> => {
     if (!token || !resources) return;
+    const current =
+      resources.goals.find(
+        (goal) => goal.status === "ACTIVE" && goal.priority === "PRIMARY",
+      ) ?? resources.goals.find((goal) => goal.status === "ACTIVE");
     const parsed = goalInputSchema.safeParse({
       type: goalType,
+      targetFtpWatts:
+        goalType === "FTP" ? (current?.targetFtpWatts ?? null) : null,
       description: goalNote.trim() || null,
       targetWkg:
         goalType === "FTP" && targetWkg.trim() ? Number(targetWkg) : null,
@@ -248,10 +250,6 @@ export function useInitialPlan() {
     setBusy(true);
     setError(null);
     try {
-      const current =
-        resources.goals.find(
-          (goal) => goal.status === "ACTIVE" && goal.priority === "PRIMARY",
-        ) ?? resources.goals.find((goal) => goal.status === "ACTIVE");
       if (current)
         await coachApi.updateGoal(token, current.id, {
           ...parsed.data,

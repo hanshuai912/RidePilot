@@ -143,8 +143,12 @@ export const coachApi = {
   goals: (token: string) => request("goals", token, goalSchema.array()),
   goal: (token: string, id: string) =>
     request(`goals/${encodeURIComponent(id)}`, token, goalSchema),
-  createGoal: (token: string, input: GoalInput) =>
-    request("goals", token, goalSchema, { method: "POST", body: input }),
+  createGoal: (token: string, input: GoalInput, key?: string) =>
+    request("goals", token, goalSchema, {
+      method: "POST",
+      body: input,
+      idempotencyKey: key,
+    }),
   updateGoal: (token: string, id: string, input: GoalPatch) =>
     request(`goals/${encodeURIComponent(id)}`, token, goalSchema, {
       method: "PATCH",

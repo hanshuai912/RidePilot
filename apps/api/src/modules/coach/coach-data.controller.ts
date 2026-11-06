@@ -1,4 +1,14 @@
-import { Body, Controller, Get, Param, Patch, Post, Put } from "@nestjs/common";
+import { goalResponse } from "./goals/goal-lifecycle.repository";
+import {
+  Body,
+  Controller,
+  Get,
+  Headers,
+  Param,
+  Patch,
+  Post,
+  Put,
+} from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import {
   availabilityInputSchema,
@@ -57,8 +67,9 @@ export class CoachDataController {
   createGoal(
     @CurrentPrincipal() principal: AuthPrincipal,
     @Body(new ZodBodyPipe(goalInputSchema)) input: GoalInput,
+    @Headers("idempotency-key") key?: string,
   ) {
-    return this.data.createGoal(principal.userId, input);
+    return this.data.createGoal(principal.userId, input, key);
   }
 
   @Get("goals/:id")
@@ -66,16 +77,7 @@ export class CoachDataController {
     @CurrentPrincipal() principal: AuthPrincipal,
     @Param("id") id: string,
   ) {
-    return this.data.getGoal(principal.userId, id).then((goal) => ({
-      id: goal.id,
-      type: goal.type,
-      description: goal.description,
-      targetWkg: goal.targetWkg ? Number(goal.targetWkg) : null,
-      targetDate: goal.targetDate.toISOString().slice(0, 10),
-      priority: goal.priority,
-      status: goal.status,
-      version: goal.version,
-    }));
+    return this.data.getGoal(principal.userId, id).then(goalResponse);
   }
 
   @Patch("goals/:id")

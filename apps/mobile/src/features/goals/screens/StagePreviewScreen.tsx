@@ -5,6 +5,7 @@ import { useAuth } from "../../auth/hooks/AuthProvider";
 import { TrainingPage } from "../../training/components/TrainingPage";
 import { useTrainingResource } from "../../training/hooks/useTrainingResource";
 import { useWorkoutActionExit } from "../../training/hooks/useWorkoutActionExit";
+import { StageReviewEvidenceCard } from "../components/StageReviewEvidenceCard";
 import { StageTimeline } from "../components/StageTimeline";
 import { goalsApi } from "../services/goals.api";
 
@@ -69,6 +70,9 @@ export function StagePreviewScreen() {
             <AppText className="text-warning">
               已有同一任务的新草稿，本草稿已被替代。
             </AppText>
+          ) : null}
+          {resource.data.stageReview ? (
+            <StageReviewEvidenceCard evidence={resource.data.stageReview} />
           ) : null}
           <StageTimeline plan={resource.data} />
           <AppText muted>
