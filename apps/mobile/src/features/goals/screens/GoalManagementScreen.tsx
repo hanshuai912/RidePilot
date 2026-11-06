@@ -48,6 +48,9 @@ export function GoalManagementScreen() {
               请继续检查阶段与后续训练，已有正式安排仍可查看。
             </AppText>
           </Card>
+          <Button onPress={() => router.push("/plans/input-impact")}>
+            检查未来训练安排
+          </Button>
           <Button
             onPress={() =>
               router.replace({

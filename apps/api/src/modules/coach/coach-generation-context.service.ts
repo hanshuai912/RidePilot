@@ -1,3 +1,4 @@
+import { assertPlanImpact } from "./plan-impact/plan-impact.repository";
 import { resolveCycleReview } from "./cycle-review/cycle-review.evidence";
 import { resolveStageReview } from "./goals/stage-review.repository";
 import { assertStageReviewScope } from "./goals/stage-review.scope";
@@ -49,6 +50,27 @@ export class CoachGenerationContextService {
         code: "STAGE_REVIEW_SCOPE",
         message: "阶段复评只能用于独立的后续范围课程",
       });
+    if (
+      input.planImpact &&
+      (scene !== "RANGE_PLAN" ||
+        input.mode !== "range" ||
+        input.stageId ||
+        input.stageReviewId ||
+        input.cycleReview ||
+        input.relatedId ||
+        input.targetWorkoutId ||
+        input.racePhase ||
+        input.reason ||
+        input.planImpact.startDate !== input.weekStartDate ||
+        input.planImpact.endDate !== input.endDate)
+    )
+      throw new BadRequestException({
+        code: "INVALID_IMPACT_SCOPE",
+        message: "资料变更只能用于独立的日期范围重排",
+      });
+    const impact = input.planImpact
+      ? await assertPlanImpact(this.prisma, userId, input.planImpact)
+      : null;
     const stageReview = input.stageReviewId
       ? await resolveStageReview(this.prisma, userId, input.stageReviewId)
       : undefined;
@@ -452,6 +474,19 @@ export class CoachGenerationContextService {
         })
       : null;
     return {
+      ...(impact && input.planImpact
+        ? {
+            planImpact: {
+              reference: input.planImpact,
+              before: impact.preview.items.filter(
+                (i) =>
+                  i.workout.scheduledDate >= input.planImpact!.startDate &&
+                  i.workout.scheduledDate <= input.planImpact!.endDate,
+              ),
+              ftpWatts: Number(ftp.value),
+            },
+          }
+        : {}),
       ...(stageReview ? { stageReview } : {}),
       ...(cycleReview ? { cycleReview } : {}),
       stage,

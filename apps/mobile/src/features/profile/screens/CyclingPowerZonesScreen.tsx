@@ -1,3 +1,4 @@
+import { router } from "expo-router";
 import { AppText, Button, Card, Input, Spinner } from "../../../components/ui";
 import { useAuth } from "../../auth/hooks/AuthProvider";
 import { ProfileEditorPage } from "../components/ProfileEditorPage";
@@ -10,6 +11,7 @@ export function CyclingPowerZonesScreen() {
   const editor = useFtpEditor(session?.accessToken);
   const { back, confirmation } = useProfileEditorNavigation({
     ...editor,
+    saved: false,
     description: "返回将放弃本次 FTP 修改，是否继续？",
   });
   return (
@@ -39,6 +41,20 @@ export function CyclingPowerZonesScreen() {
       ) : null}
       {!editor.loading && !editor.loaded ? (
         <Button onPress={editor.reload}>重新加载</Button>
+      ) : null}
+      {editor.saved && !editor.dirty ? (
+        <Card>
+          <AppText variant="card">FTP 已保存</AppText>
+          <AppText muted className="mt-2">
+            是否重新计算未来训练区间？原计划仍按旧快照执行，请先查看差异。
+          </AppText>
+          <Button onPress={() => router.push("/plans/input-impact")}>
+            检查未来训练安排
+          </Button>
+          <Button variant="ghost" onPress={back}>
+            完成并返回
+          </Button>
+        </Card>
       ) : null}
       {editor.loaded ? (
         <>

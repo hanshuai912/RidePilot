@@ -57,7 +57,15 @@ export function Detail({
           {workout.segments.length} 个动作
         </AppText>
       </View>
-      <WorkoutSegmentList segments={workout.segments} />
+      <AppText muted variant="caption">
+        {workout.ftpSnapshotWatts
+          ? `执行功率依据：FTP ${workout.ftpSnapshotWatts} W 快照`
+          : "旧课程未保存 FTP 快照，无法确定当时的执行瓦数。"}
+      </AppText>
+      <WorkoutSegmentList
+        segments={workout.segments}
+        ftpWatts={workout.ftpSnapshotWatts}
+      />
       {workout.activity ? (
         <Card>
           <AppText variant="card">

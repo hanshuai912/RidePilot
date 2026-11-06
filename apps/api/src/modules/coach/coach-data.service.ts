@@ -42,8 +42,10 @@ export class CoachDataService {
   }
 
   async addFtp(userId: string, input: FtpMeasurementInput) {
-    const measuredAt = new Date(input.measuredAt);
-    if (measuredAt.getTime() > Date.now())
+    const measuredAt = input.measuredAt
+      ? new Date(input.measuredAt)
+      : undefined;
+    if (measuredAt && measuredAt.getTime() > Date.now())
       throw new BadRequestException({
         code: "FTP_DATE_IN_FUTURE",
         message: "FTP 测量日期不能晚于当前时间",
@@ -56,7 +58,8 @@ export class CoachDataService {
           metricType: "FTP",
           unit: "W",
           value: input.valueWatts,
-          measuredAt,
+          // Current measurements use server time after acquiring the user lock.
+          measuredAt: measuredAt ?? new Date(),
           source: input.source,
         },
       });
@@ -101,65 +104,76 @@ export class CoachDataService {
         message: "同一星期不可重复",
       });
     }
-    const user = await this.prisma.user.findUniqueOrThrow({
-      where: { id: userId },
-      select: { timezone: true },
-    });
-    if (user.timezone !== input.timezone)
-      throw new ConflictException({
-        code: "TIMEZONE_MISMATCH",
-        message: "请先在个人资料中更新时区",
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT "id" FROM "users" WHERE "id" = ${userId}::uuid FOR UPDATE`;
+      const user = await tx.user.findUniqueOrThrow({
+        where: { id: userId },
+        select: { timezone: true },
       });
-    const current = await this.prisma.trainingAvailability.findUnique({
-      where: { userId },
-    });
-    if (current && input.expectedVersion !== current.version)
-      throw new ConflictException({
-        code: "AVAILABILITY_VERSION_CONFLICT",
-        message: "训练时间已更改，请重新读取",
+      if (user.timezone !== input.timezone)
+        throw new ConflictException({
+          code: "TIMEZONE_MISMATCH",
+          message: "请先在个人资料中更新时区",
+        });
+      const current = await tx.trainingAvailability.findUnique({
+        where: { userId },
       });
-    if (!current && input.expectedVersion !== undefined)
-      throw new ConflictException({
-        code: "AVAILABILITY_VERSION_CONFLICT",
-        message: "训练时间已更改，请重新读取",
-      });
-    if (current) {
-      const updated = await this.prisma.trainingAvailability.updateMany({
-        where: { userId, version: current.version },
-        data: {
-          weekdays: input.weekdays,
-          maxSessionMinutes: input.maxSessionMinutes,
-          version: { increment: 1 },
-        },
-      });
-      if (!updated.count)
+      if (current && input.expectedVersion !== current.version)
         throw new ConflictException({
           code: "AVAILABILITY_VERSION_CONFLICT",
           message: "训练时间已更改，请重新读取",
         });
-    } else {
-      try {
-        await this.prisma.trainingAvailability.create({
+      if (!current && input.expectedVersion !== undefined)
+        throw new ConflictException({
+          code: "AVAILABILITY_VERSION_CONFLICT",
+          message: "训练时间已更改，请重新读取",
+        });
+      if (current) {
+        const updated = await tx.trainingAvailability.updateMany({
+          where: { userId, version: current.version },
           data: {
-            userId,
-            timezone: input.timezone,
             weekdays: input.weekdays,
             maxSessionMinutes: input.maxSessionMinutes,
+            version: { increment: 1 },
           },
         });
-      } catch (error) {
-        if (
-          error instanceof Prisma.PrismaClientKnownRequestError &&
-          error.code === "P2002"
-        )
+        if (!updated.count)
           throw new ConflictException({
             code: "AVAILABILITY_VERSION_CONFLICT",
             message: "训练时间已更改，请重新读取",
           });
-        throw error;
+      } else {
+        try {
+          await tx.trainingAvailability.create({
+            data: {
+              userId,
+              timezone: input.timezone,
+              weekdays: input.weekdays,
+              maxSessionMinutes: input.maxSessionMinutes,
+            },
+          });
+        } catch (error) {
+          if (
+            error instanceof Prisma.PrismaClientKnownRequestError &&
+            error.code === "P2002"
+          )
+            throw new ConflictException({
+              code: "AVAILABILITY_VERSION_CONFLICT",
+              message: "训练时间已更改，请重新读取",
+            });
+          throw error;
+        }
       }
-    }
-    return this.getAvailability(userId);
+      const value = await tx.trainingAvailability.findUniqueOrThrow({
+        where: { userId },
+      });
+      return {
+        timezone: value.timezone,
+        weekdays: value.weekdays,
+        maxSessionMinutes: value.maxSessionMinutes,
+        version: value.version,
+      };
+    });
   }
 
   createGoal(userId: string, input: GoalInput, key?: string) {

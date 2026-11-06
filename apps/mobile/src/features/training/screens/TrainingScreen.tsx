@@ -1,3 +1,4 @@
+import { PlanImpactEntryCard } from "../../plan-impact/components/PlanImpactEntryCard";
 import { TrainingNutritionLinkCard } from "../../nutrition/components/TrainingNutritionLinkCard";
 import { coachApi } from "../../coach/services/coach.api";
 import { RaceDayEvents } from "../../races/components/RaceDayEvents";
@@ -155,6 +156,7 @@ function TrainingCalendar({
         }
         onEdit={edit}
       />
+      <PlanImpactEntryCard />
       <TrainingNutritionLinkCard dates={[selectedDate]} checkStatus />
       {raceError ? (
         <AppText className="text-negative">{raceError}</AppText>

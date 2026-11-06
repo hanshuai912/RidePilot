@@ -1,3 +1,7 @@
+import {
+  trainingInputSnapshot,
+  workoutInputBasis,
+} from "./training-input-snapshot";
 import { copiedWorkoutStructure, workoutActivities } from "./workout-activity";
 import {
   ConflictException,
@@ -158,7 +162,16 @@ export class TrainingApplicationService {
               )
               .map((old) => old.dayOrder),
           ) + 1;
-      await this.createWorkout(tx, newVersion.id, { ...draft, dayOrder });
+      await this.createWorkout(
+        tx,
+        newVersion.id,
+        { ...draft, dayOrder },
+        workoutInputBasis(
+          await trainingInputSnapshot(tx, userId),
+          baseVersion?.workouts.find((w) => w.id === proposal.targetWorkoutId)
+            ?.structure,
+        ),
+      );
 
       const switched = await tx.trainingPlan.updateMany({
         where: {
@@ -224,6 +237,7 @@ export class TrainingApplicationService {
     tx: Prisma.TransactionClient,
     planVersionId: string,
     draft: DraftPayload,
+    inputBasis: Prisma.InputJsonObject,
   ): Promise<void> {
     const totals = validateDraft(draft, true);
     const created = await tx.workout.create({
@@ -237,7 +251,10 @@ export class TrainingApplicationService {
         timeTargetMin: totals.timeTargetMinutes,
         distanceTargetKm: totals.distanceTargetKm,
         source: "manual",
-        structure: { segments: draft.segments },
+        structure: {
+          ...inputBasis,
+          segments: draft.segments,
+        },
       },
     });
     await this.createPlanItem(tx, created);

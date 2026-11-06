@@ -52,6 +52,7 @@ export function generationTaskKey(input: unknown) {
       : {}),
     ...Object.fromEntries(
       [
+        "planImpact",
         "mode",
         "goalId",
         "weekStartDate",

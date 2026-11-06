@@ -119,6 +119,9 @@ test("FTP card opens its own page, calculations update live and saving refreshes
   await fireEvent.changeText(screen.getByLabelText("FTP 数值"), "250");
   api.ftp.mockResolvedValue({ ...ftp, valueWatts: 250 });
   await fireEvent.press(screen.getByRole("button", { name: "保存 FTP" }));
+  await screen.findByText("FTP 已保存");
+  expect(screen.getByText("检查未来训练安排")).toBeTruthy();
+  await fireEvent.press(screen.getByText("完成并返回"));
   await waitFor(() =>
     expect(screen.getByTestId("ftp-path")).toHaveTextContent("/profile"),
   );
@@ -231,6 +234,8 @@ test("saving prevents duplicate requests and route removal", async () => {
   );
   expect(api.addFtp).toHaveBeenCalledTimes(1);
   await act(() => finish({ ...ftp, valueWatts: 250 }));
+  await screen.findByText("FTP 已保存");
+  await fireEvent.press(screen.getByText("完成并返回"));
   await waitFor(() =>
     expect(screen.getByTestId("ftp-path")).toHaveTextContent("/profile"),
   );

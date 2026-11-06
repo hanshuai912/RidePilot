@@ -9,10 +9,17 @@ import {
   Post,
   Put,
 } from "@nestjs/common";
-import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiTags,
+} from "@nestjs/swagger";
 import {
   availabilityInputSchema,
   ftpMeasurementInputSchema,
+  ftpMeasurementSchema,
   goalInputSchema,
   goalPatchSchema,
   type AvailabilityInput,
@@ -21,6 +28,7 @@ import {
   type GoalPatch,
 } from "@ridepilot/contracts";
 import { ZodBodyPipe } from "../../common/zod-body.pipe";
+import { toOpenApiSchema } from "../../docs/zod-openapi";
 import { CurrentPrincipal } from "../auth/current-principal.decorator";
 import type { AuthPrincipal } from "../auth/auth.types";
 import { CoachDataService } from "./coach-data.service";
@@ -32,11 +40,14 @@ export class CoachDataController {
   constructor(private readonly data: CoachDataService) {}
 
   @Get("me/ability-measurements/ftp")
+  @ApiOkResponse({ schema: toOpenApiSchema(ftpMeasurementSchema.nullable()) })
   getFtp(@CurrentPrincipal() principal: AuthPrincipal) {
     return this.data.getFtp(principal.userId);
   }
 
   @Post("me/ability-measurements/ftp")
+  @ApiBody({ schema: toOpenApiSchema(ftpMeasurementInputSchema, "input") })
+  @ApiCreatedResponse({ schema: toOpenApiSchema(ftpMeasurementSchema) })
   addFtp(
     @CurrentPrincipal() principal: AuthPrincipal,
     @Body(new ZodBodyPipe(ftpMeasurementInputSchema))

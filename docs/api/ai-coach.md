@@ -1,5 +1,11 @@
 # AI 教练 API
 
+## 资料变更影响检查
+
+新增 `GET /plans/input-impact`、`POST /plans/input-impact/decisions`、`GET /plans/input-impact/decisions/:id`、`POST /plans/input-impact/decisions/:id/apply` 与 `POST /plans/input-impact/generate-proposal`。范围使用 `{fingerprint,startDate,endDate}`，决定增加 `action: KEEP|FTP_RECALCULATE`；所有写入需幂等键。本人归属、冲突和原子发布规则见 [功能文档](../features/plan-input-impact.md)。
+
+训练生成输入与 AI 草稿响应新增可选 `planImpact`，贯穿任务恢复、原课程详情、生成时 FTP 与最终依据核对。只支持独立的日期范围重排，不与其他复评证据混用。OpenAPI schema 来源为共享 Zod 契约。
+
 ## 持续协作中心
 
 新增共享契约 `packages/contracts/src/coach-center.ts`，均需登录并按本人归属访问：
@@ -19,6 +25,12 @@ AI 训练与营养提案 apply 新增可选 `expectedProposalVersion`，与正�
 问答模型异常返回 `{statusCode,code,message,retryable}`，message 为可直接展示的中文：502 `AI_PROVIDER_OUTPUT_TRUNCATED`（回答额度耗尽，允许重试）、502 `AI_PROVIDER_INVALID_RESPONSE`（缺少有效正文）、504 `AI_PROVIDER_TIMEOUT`、422 `AI_INPUT_REJECTED/AI_OUTPUT_REJECTED/AI_GUARD_REVIEW_REQUIRED`，以及503配置/审核服务错误。失败不新增建议或修改计划，客户端保留问题供手动重试。DeepSeek 问答显式关闭思考模式并使用1600 tokens，返回内容始终是最终正文。
 
 所有路径前缀为 `/api/v1`，需要 `Authorization: Bearer <access-token>`。写入型生成和应用请求应带独立的 `Idempotency-Key`。请求体与响应结构以 `packages/contracts/src/coach.ts` 的 Zod schema 为准。
+
+## FTP 测量时间
+
+`POST /me/ability-measurements/ftp` 接收 `{valueWatts: 整数50–800, source: "MANUAL"|"TEST", measuredAt?: ISO日期时间}`。不传 `measuredAt` 表示当前测量，后端取得用户锁后使用服务器 UTC 时间；骑行功率区间页面使用此方式，避免设备时钟偏差。显式传入日期仍支持时区偏移与历史记录，未来日期返回 400 `FTP_DATE_IN_FUTURE`，不新增测量；null、空字符串或非法日期返回 400。
+
+POST 返回 `{id,valueWatts,source,measuredAt}`，`measuredAt` 始终必填；GET 返回本人最新测量或 null，仍按测量时间、创建时间倒序。已有显式日期请求保持兼容，不需要数据迁移；旧客户端有时钟偏差时需刷新采用新的省略日期请求。接口继续要求 JWT、本人归属与用户行锁，保存不自动修改正式训练或测试。Swagger 从共享 Zod 契约生成。
 
 ## 阶段及范围生成（2026-10-30）
 

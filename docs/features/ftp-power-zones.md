@@ -36,8 +36,9 @@
 - `model/power-zones.ts`：唯一的本页分区定义、输入解析和纯计算。
 - `hooks/useFtpEditor.ts`：读取、草稿、校验、写入和错误状态；`useProfileEditorNavigation.tsx`：未保存及保存期间的离开保护。
 - `ProfileEditorPage.tsx`、`ProfilePageHeader.tsx`：与个人信息页复用固定导航、独立滚动、固定保存和安全区布局。
-- 复用 `coachApi.ftp` 与 `coachApi.addFtp`，继续调用 `GET/POST /api/v1/me/ability-measurements/ftp`，POST 使用现有 `valueWatts`、当前 `measuredAt` 与 `source: MANUAL`。每次保存追加测量历史；前端阻止同一请求期间的重复点击。
-- API 契约、鉴权、数据库及原生依赖均未改变，不需要迁移或重新打开发包。后端现有归属校验及 AI 草稿 FTP 版本校验继续生效。
+- 复用 `coachApi.ftp` 与 `coachApi.addFtp`，继续调用 `GET/POST /api/v1/me/ability-measurements/ftp`，页面保存只传 `valueWatts` 与 `source: MANUAL`。每次保存追加测量历史；前端阻止同一请求期间的重复点击。
+- POST 的 `measuredAt` 可省略，表示当前测量，由后端取得用户锁后使用服务器当前 UTC 时间，避免设备时钟快于服务器导致正常保存报 `FTP_DATE_IN_FUTURE`。显式传入历史测量时间时保留原值，显式未来日期仍返回 400，非法日期或 null 不会回退为当前时间。响应的 `measuredAt` 始终必填；最新 FTP 仍按测量时间排序。
+- Swagger 与共享 Zod 契约同步；已有客户端显式传入合法日期仍兼容，发生时钟偏差的旧客户端需要刷新后使用新保存逻辑。数据库、鉴权及原生依赖不变，不需要数据库迁移或重新打开发包。后端现有归属校验及 AI 草稿 FTP 版本校验继续生效。
 
 ## 验证
 
@@ -50,3 +51,14 @@
 - 全仓 `pnpm typecheck`、`pnpm build` 通过；`pnpm test`：后端 50 项通过，21 项集成测试跳过。`pnpm lint` 未通过，仍阻塞于原有饮食模块 `NutritionProfileSheet.tsx:59`、`NutritionSwapSheet.tsx:35` 的 `react-hooks/set-state-in-effect` 错误，并有教练/饮食模块两个既有 warning；本次涉及文件的定向 ESLint 通过。
 - 临时脚本 `node /tmp/ridepilot-ftp-zones-review.mjs` 使用模拟 API 在真实浏览器验证：卡片无测量时间与来源；编辑实时换算、返回确认、保存后概览更新均通过。390×844 和 320×568 下，滚动前后标题与保存按钮坐标不变，标题分别居中于 195/160 px，字号 17 px，保存按钮高 52 px，无横向溢出。截图为 `/tmp/ridepilot-ftp-zones-390.png`、`/tmp/ridepilot-ftp-zones-scrolled.png`、`/tmp/ridepilot-ftp-zones-320-scrolled.png`。
 - 真机键盘避让、系统手势返回及大字体外观尚需设备验收；浏览器和组件测试不等同于真机验收。
+
+## FTP 保存时间修复
+
+- API 回归：`apps/api/test/ftp-measurement.e2e-spec.ts`，覆盖省略日期时按服务器时间保存、历史时区时间、未来时间拒绝且无写入、非法日期、鉴权与用户隔离；`plan-input-impact.e2e-spec.ts` 改用省略日期的页面请求，验证更新 FTP 后的未来课程处理。
+- App 请求回归：`coach-ftp-api.test.ts` 使用真实 `coachApi`、模拟 fetch 与设备快 8 小时，验证请求不带设备时间、使用服务端返回值，以及响应日期仍必填和错误透传。既有页面测试继续覆盖保存成功、失败保留输入与重试。
+- 手动验收：刷新 App，进入“我的 → FTP 功率 → 骑行功率区间”，改为另一有效整数后保存，应显示“FTP 已保存”；完成并返回后瓦数更新，也可继续检查未来训练安排。无需更改手机时间。
+- 本次实际执行：`./node_modules/.bin/tsc -p packages/contracts/tsconfig.json`、`./node_modules/.bin/tsc -p apps/api/tsconfig.json --noEmit`、`./node_modules/.bin/tsc -p apps/api/tsconfig.build.json`、`./node_modules/.bin/oxlint apps/api/src apps/api/test packages/contracts/src` 均通过；在 `apps/mobile` 执行 `./node_modules/.bin/tsc --noEmit`、`./node_modules/.bin/eslint src app` 均通过。
+- `apps/mobile` 执行 `./node_modules/.bin/jest --runInBand --testTimeout=30000`：33 套件、302 项全量通过。首次定向运行页面套件出现异步 act 冲突，单独重跑 11 项及全量运行均通过；新增真实请求测试 3 项通过。
+- 根目录执行 `node /tmp/ridepilot-run-integration.cjs`（检查本机隔离 `*_test` 数据库和 Redis DB 1，执行迁移检查后运行全量 Jest）：40 套件、275 项通过，1 项真实模型测试按配置跳过；FTP 时间回归 9 项、资料变更影响回归 11 项均通过。首次定向执行发现新测试辅助方法参数类型过宽，修正后 API 类型检查和上述全量测试均通过。仅有现有 pg 并发查询弃用提示。
+- 本次修改文件的定向 Prettier 检查与 `git diff --check` 通过；无新增数据库迁移，未修改真实用户 FTP 数据。
+- 只读检查运行中 API 的 `/api/docs-json`：FTP POST 请求必填为 `valueWatts/source`，响应必填仍含 `measuredAt`，确认开发服务已加载新契约。

@@ -1,3 +1,4 @@
+import { planImpactReferenceSchema, planImpactItemSchema } from "./plan-impact";
 import {
   cycleReviewReferenceSchema,
   cycleReviewEvidenceSchema,
@@ -8,11 +9,12 @@ import { stageReviewEvidenceSchema } from "./stage-review";
 
 export const ftpMeasurementInputSchema = z.strictObject({
   valueWatts: z.number().int().min(50).max(800),
-  measuredAt: z.iso.datetime({ offset: true }),
+  measuredAt: z.iso.datetime({ offset: true }).optional(),
   source: z.enum(["MANUAL", "TEST"]),
 });
 export const ftpMeasurementSchema = ftpMeasurementInputSchema.extend({
   id: z.uuid(),
+  measuredAt: z.iso.datetime({ offset: true }),
 });
 
 export const availabilityInputSchema = z.strictObject({
@@ -174,6 +176,7 @@ export const racePlanningPhaseSchema = z.enum([
 ]);
 
 export const weekGenerationInputSchema = z.strictObject({
+  planImpact: planImpactReferenceSchema.optional(),
   stageReviewId: z.uuid().optional(),
   cycleReview: cycleReviewReferenceSchema.optional(),
   weekStartDate: z.iso.date(),
@@ -274,6 +277,13 @@ export const restoreProposalResponseSchema = z.object({
   blockers: z.array(z.string()),
 });
 export const aiProposalResponseSchema = z.object({
+  planImpact: z
+    .object({
+      reference: planImpactReferenceSchema,
+      before: z.array(planImpactItemSchema),
+      ftpWatts: z.number().positive(),
+    })
+    .optional(),
   stageReview: stageReviewEvidenceSchema.optional(),
   cycleReview: cycleReviewEvidenceSchema.optional(),
   proposalId: z.uuid(),

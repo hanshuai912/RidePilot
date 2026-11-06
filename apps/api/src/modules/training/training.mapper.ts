@@ -49,6 +49,9 @@ export function toSummary(workout: {
     segments: DraftPayload["segments"];
   };
   return {
+    ftpSnapshotWatts:
+      (workout.structure as { ftpSnapshotWatts?: number | null })
+        .ftpSnapshotWatts ?? null,
     id: workout.id,
     planVersion: workout.planVersion?.versionNo ?? 1,
     sportType: "cycling" as const,

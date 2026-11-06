@@ -211,6 +211,14 @@ export function AssessmentDetailScreen() {
             </Button>
           ) : null}
           {ftpSaved ? (
+            <Button
+              disabled={mutation.busy}
+              onPress={() => router.push("/plans/input-impact")}
+            >
+              检查未来训练安排
+            </Button>
+          ) : null}
+          {ftpSaved ? (
             <AppText muted>
               FTP
               变化会使旧阶段草稿过期。请重新生成阶段安排，或按日期生成后续课程。

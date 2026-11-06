@@ -344,6 +344,7 @@ export class AiGenerationService implements OnModuleInit, OnModuleDestroy {
             draft: {
               ...output,
               contextFingerprint: generationFingerprint(context),
+              ...(context.planImpact ? { planImpact: context.planImpact } : {}),
               ...(context.stageReview
                 ? { stageReview: context.stageReview }
                 : {}),

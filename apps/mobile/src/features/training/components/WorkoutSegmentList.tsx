@@ -22,19 +22,21 @@ function targetLabel(segment: WorkoutSegment) {
     : `距离 · ${segment.target.value} 公里${repeat}`;
 }
 
-function intensityLabel(segment: WorkoutSegment) {
+function intensityLabel(segment: WorkoutSegment, ftpWatts?: number | null) {
   return segment.intensity.kind === "ftp_percent"
-    ? `FTP ${segment.intensity.min}–${segment.intensity.max}%`
+    ? `FTP ${segment.intensity.min}–${segment.intensity.max}%${ftpWatts ? ` · ${Math.round((ftpWatts * segment.intensity.min) / 100)}–${Math.round((ftpWatts * segment.intensity.max) / 100)} W` : ""}`
     : `${segment.intensity.min}–${segment.intensity.max} W`;
 }
 
 export function WorkoutSegmentList({
   segments,
+  ftpWatts,
   onAdd,
   onEdit,
   onDelete,
 }: {
   segments: WorkoutSegment[];
+  ftpWatts?: number | null;
   onAdd?: () => void;
   onEdit?: (index: number) => void;
   onDelete?: (index: number) => void;
@@ -74,7 +76,7 @@ export function WorkoutSegmentList({
               {targetLabel(segment)}
             </AppText>
             <AppText variant="caption" style={styles.intensity}>
-              {intensityLabel(segment)}
+              {intensityLabel(segment, ftpWatts)}
             </AppText>
           </View>
         </View>

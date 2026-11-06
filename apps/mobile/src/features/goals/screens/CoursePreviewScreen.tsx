@@ -39,6 +39,10 @@ export function CoursePreviewScreen() {
         if (proposal.status === "APPLIED")
           throw new Error("此草稿已应用，请返回训练日历查看");
         const result = await coachApi.validate(token, proposalId);
+        if (result.proposalVersion !== proposal.proposalVersion) {
+          resource.retry();
+          throw new Error("课程草稿已变化，请重新预览后校验");
+        }
         if (result.status !== "READY" || result.blockers.length)
           throw new Error(result.blockers.join("；") || "草稿未通过校验");
         setValidated(true);
@@ -50,6 +54,7 @@ export function CoursePreviewScreen() {
         proposalId,
         proposal.basePlanVersion,
         `apply-range-${proposalId}`,
+        proposal.proposalVersion,
       );
       exit.finish({
         pathname: "/(tabs)/training",

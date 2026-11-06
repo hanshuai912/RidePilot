@@ -129,7 +129,6 @@ export const coachApi = {
       method: "POST",
       body: {
         valueWatts,
-        measuredAt: new Date().toISOString(),
         source: "MANUAL",
       },
     }),

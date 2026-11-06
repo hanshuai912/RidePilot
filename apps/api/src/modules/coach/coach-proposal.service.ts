@@ -1,3 +1,5 @@
+import { assertPlanImpact } from "./plan-impact/plan-impact.repository";
+import { trainingInputSnapshot } from "../training/training-input-snapshot";
 import {
   resolveCycleReview,
   validateCycleRecovery,
@@ -22,6 +24,7 @@ import {
   aiProposalResponseSchema,
   aiWeekOutputSchema,
   type AiWeekOutput,
+  type AiProposalResponse,
   type CycleReviewEvidence,
   type StageReviewEvidence,
   type UpdateAiProposal,
@@ -43,6 +46,7 @@ import {
 } from "./coach-plan.validator";
 
 interface AiDraft extends AiWeekOutput {
+  planImpact?: AiProposalResponse["planImpact"];
   stageReview?: StageReviewEvidence;
   cycleReview?: CycleReviewEvidence;
   weekStartDate: string;
@@ -109,6 +113,7 @@ export class CoachProposalService {
       ...(draft.replacedWorkouts
         ? { replacedWorkouts: draft.replacedWorkouts }
         : {}),
+      ...(draft.planImpact ? { planImpact: draft.planImpact } : {}),
       summary: draft.summary,
       stageSummary: draft.stageSummary,
       assessmentSuggestion: draft.assessmentSuggestion,
@@ -277,6 +282,7 @@ export class CoachProposalService {
           appliedAt: new Date(),
         },
       });
+      const inputSnapshot = await trainingInputSnapshot(tx, userId);
       const replacing = new Set(draft.replaceWorkoutIds);
       for (const old of base?.workouts.filter(
         (item) => !replacing.has(item.id),
@@ -317,7 +323,11 @@ export class CoachProposalService {
             timeTargetMin: totals.timeTargetMinutes,
             distanceTargetKm: totals.distanceTargetKm,
             source: "ai",
-            structure: { segments: workout.segments },
+            structure: {
+              segments: workout.segments,
+              inputSnapshot: inputSnapshot as unknown as Prisma.InputJsonValue,
+              ftpSnapshotWatts: inputSnapshot.ftp?.valueWatts ?? null,
+            },
           },
         });
         await tx.planItem.create({
@@ -396,6 +406,14 @@ export class CoachProposalService {
         }),
       ]);
     const blockers: string[] = [];
+    if (draft.planImpact) {
+      try {
+        await assertPlanImpact(tx, userId, draft.planImpact.reference);
+      } catch (error) {
+        if (error instanceof ConflictException) blockers.push(error.message);
+        else throw error;
+      }
+    }
     if (draft.stageReview) {
       try {
         const review = await resolveStageReview(

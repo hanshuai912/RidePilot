@@ -414,7 +414,11 @@ export function CoachScreen() {
         actionsInScroll
         onPrimary={() => {
           void flow.nextFromGoal().then((next) => {
-            if (next) goToStage(next);
+            if (next) {
+              if (hasActivePlan && next === "entry")
+                router.push("/plans/input-impact");
+              else goToStage(next);
+            }
           });
         }}
         secondary={hasActivePlan ? "返回 AI 教练" : "返回骑行基础"}
@@ -464,7 +468,7 @@ export function CoachScreen() {
         }
         title="时间安排"
         description="选择训练日与单次时长，预留恢复时间。"
-        primary={hasActivePlan ? "保存并返回 AI 教练" : "下一步"}
+        primary={hasActivePlan ? "保存并检查未来训练" : "下一步"}
         actionsInScroll
         onPrimary={() => {
           void flow.nextFromSchedule().then((next) => {

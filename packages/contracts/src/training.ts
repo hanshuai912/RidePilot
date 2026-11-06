@@ -68,6 +68,7 @@ export const workoutActivitySchema = z.object({
 });
 
 export const workoutSummarySchema = z.object({
+  ftpSnapshotWatts: z.number().positive().nullable().optional(),
   id: z.uuid(),
   planVersion: z.number().int().positive(),
   sportType: z.literal("cycling"),

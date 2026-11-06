@@ -48,3 +48,7 @@ AI 教练新增的计划生成、调整、历史恢复及相关资料接口见 [
 日历、课程详情和下一课程共享 `workoutSummarySchema`。日历/详情新增 `activity: null | { id, status, durationMin, rpe, fatigue, notes }`；状态为 `COMPLETED | PARTIAL | SKIPPED`，其余实际指标可空。`editable` 同时校验当地日期和实际记录。客户端不从计划目标推断已完成数据。
 
 反馈写入与计划发布共享用户事务锁；只接受当前正式版本、本人所属且日期匹配的课程。已记录返回 `409 ACTIVITY_ALREADY_RECORDED`。人工编辑和最终应用遇到已有反馈返回 `409 WORKOUT_ALREADY_RECORDED`，事务回滚，正式计划保持不变。未改动课程跨版本通过内部稳定引用继续关联原记录。
+
+## 课程执行功率快照
+
+`workoutSummarySchema` 新增可选 `ftpSnapshotWatts: number|null`。GET 正式课程/日历时由服务端返回课程自己的 FTP 依据，供客户端换算百分比区段的执行瓦数；未知历史依据返回 null。当前 FTP 更新不改变旧课程快照。未来范围重算和重排接口见 [资料变更处理](../features/plan-input-impact.md)。

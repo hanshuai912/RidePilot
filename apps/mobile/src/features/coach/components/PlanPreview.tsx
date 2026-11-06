@@ -1,3 +1,4 @@
+import { ImpactWorkoutCard } from "../../plan-impact/components/ImpactWorkoutCard";
 import { StageReviewEvidenceCard } from "../../goals/components/StageReviewEvidenceCard";
 import { CycleReviewEvidenceCard } from "../cycle-review/CycleReviewEvidenceCard";
 import { View } from "react-native";
@@ -48,6 +49,22 @@ export function PlanPreview({
 
   return (
     <>
+      {proposal.planImpact ? (
+        <>
+          <AppText variant="section">资料变更前的课程</AppText>
+          <AppText muted>
+            以下为原安排。确认应用后，仅替换所选范围内的未来未记录课程。
+          </AppText>
+          {proposal.planImpact.before.map((item) => (
+            <ImpactWorkoutCard
+              key={item.workout.id}
+              item={item}
+              comparison={false}
+            />
+          ))}
+          <AppText variant="section">按最新资料生成的新课程</AppText>
+        </>
+      ) : null}
       {proposal.stageReview ? (
         <StageReviewEvidenceCard evidence={proposal.stageReview} />
       ) : null}
@@ -208,7 +225,10 @@ export function PlanPreview({
                     {segmentIndex + 1}
                   </AppText>
                   <AppText variant="caption" className="flex-1 text-secondary">
-                    {segmentLabel(segment, ftpWatts)}
+                    {segmentLabel(
+                      segment,
+                      proposal.planImpact?.ftpWatts ?? ftpWatts,
+                    )}
                   </AppText>
                 </View>
               ))}

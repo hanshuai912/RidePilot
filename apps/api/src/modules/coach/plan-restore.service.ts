@@ -25,6 +25,7 @@ import {
 } from "../training/training.validation";
 
 interface StoredWorkout {
+  structure?: Prisma.InputJsonObject;
   activityWorkoutId?: string;
   scheduledDate: string;
   dayOrder: number;
@@ -463,6 +464,7 @@ export class PlanRestoreService {
         distanceTargetKm: totals.distanceTargetKm,
         source: item.source,
         structure: {
+          ...item.structure,
           segments: parsed.segments,
           ...(item.activityWorkoutId
             ? { activityWorkoutId: item.activityWorkoutId }
@@ -483,6 +485,7 @@ export class PlanRestoreService {
 
   private toStored(item: Workout): StoredWorkout {
     return {
+      structure: item.structure as Prisma.InputJsonObject,
       activityWorkoutId: activityWorkoutId(item),
       scheduledDate: dbToDate(item.scheduledDate),
       dayOrder: item.dayOrder,
