@@ -1,3 +1,4 @@
+import { goalsApi } from "../../goals/services/goals.api";
 import { useEffect, useRef, useState } from "react";
 import { router } from "expo-router";
 import type { WeekGenerationInput } from "@ridepilot/contracts";
@@ -25,7 +26,11 @@ export function useWorkoutAdjustment(
     };
   }, []);
 
-  const generate = async (reason: AdjustmentReason, notes: string) => {
+  const generate = async (
+    reason: AdjustmentReason,
+    notes: string,
+    endDate?: string,
+  ) => {
     if (!token || !workout || pending.current) return;
     pending.current = true;
     setBusy(true);
@@ -42,20 +47,33 @@ export function useWorkoutAdjustment(
       if (!goal) throw new Error("请先在 AI 教练中设置训练目标");
       const offset =
         (new Date(`${workout.scheduledDate}T12:00:00`).getDay() + 6) % 7;
-      const job = await coachApi.adjustWorkout(
-        token,
-        workout.id,
-        {
-          weekStartDate: addDays(workout.scheduledDate, -offset),
-          goalId: goal.id,
-          mode: "replace_workout",
-          expectedBaseVersion: workout.planVersion,
-          targetWorkoutId: workout.id,
-          reason,
-          ...(notes.trim() ? { notes: notes.trim() } : {}),
-        },
-        `adjust-${workout.id}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-      );
+      const job = endDate
+        ? await goalsApi.generateCourses(
+            token,
+            {
+              scope: "DATES",
+              goalId: goal.id,
+              startDate: workout.scheduledDate,
+              endDate,
+              expectedBaseVersion: workout.planVersion,
+              notes: `${reason}；${notes.trim()}`.slice(0, 200),
+            },
+            `adjust-range-${workout.id}-${Date.now()}`,
+          )
+        : await coachApi.adjustWorkout(
+            token,
+            workout.id,
+            {
+              weekStartDate: addDays(workout.scheduledDate, -offset),
+              goalId: goal.id,
+              mode: "replace_workout",
+              expectedBaseVersion: workout.planVersion,
+              targetWorkoutId: workout.id,
+              reason,
+              ...(notes.trim() ? { notes: notes.trim() } : {}),
+            },
+            `adjust-${workout.id}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+          );
       const draft = await waitForCoachProposal(
         token,
         job,
@@ -64,6 +82,13 @@ export function useWorkoutAdjustment(
       );
       if (!draft || !active.current) return;
       setGenerated(true);
+      if (endDate) {
+        router.push({
+          pathname: "/goals/course-preview",
+          params: { proposalId: draft.proposalId },
+        });
+        return;
+      }
       router.push({
         pathname: "/workouts/adjustment-preview",
         params: { workoutId: workout.id, proposalId: draft.proposalId, source },

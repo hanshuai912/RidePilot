@@ -266,6 +266,7 @@ test("generates one draft and applies it only after validation and confirmation"
     proposal.proposalId,
     0,
     expect.any(String),
+    proposal.proposalVersion,
   );
   expect(result.current.stage).toBe("success");
   expect(result.current.appliedDates).toEqual([
@@ -854,4 +855,23 @@ test("the initial wizard retains an explicit FTP watt target and clears it when 
     targetWkg: null,
     type: "ENDURANCE",
   });
+});
+
+test("candidate changes require a new preview before initial-plan confirmation", async () => {
+  api.goals.mockResolvedValue([goal]);
+  const { result } = await renderHook(() => useInitialPlan());
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  await act(async () => {
+    await result.current.generate();
+  });
+  api.validate.mockResolvedValueOnce({
+    ...proposal,
+    proposalVersion: proposal.proposalVersion + 1,
+  });
+  await act(async () => {
+    await result.current.validate();
+  });
+  expect(result.current.confirmOpen).toBe(false);
+  expect(result.current.error).toContain("重新预览");
+  expect(api.apply).not.toHaveBeenCalled();
 });

@@ -1,3 +1,4 @@
+import { assertReschedule } from "./workout-schedule";
 import {
   trainingInputSnapshot,
   workoutInputBasis,
@@ -79,6 +80,14 @@ export class TrainingApplicationService {
         });
       if (proposal.appliedVersionId)
         return this.appliedResponse(tx, proposal.appliedVersionId);
+      if (
+        input.expectedProposalVersion !== undefined &&
+        input.expectedProposalVersion !== proposal.proposalVersion
+      )
+        throw new ConflictException({
+          code: "PROPOSAL_VERSION_CONFLICT",
+          message: "草稿已变化，请重新预览",
+        });
       if (proposal.status !== "READY" || !proposal.validationPassed)
         throw new ConflictException({
           code: "PROPOSAL_NOT_READY",
@@ -122,6 +131,13 @@ export class TrainingApplicationService {
         orderBy: { measuredAt: "desc" },
       });
       validateDraft(draft, Boolean(ftp && Number(ftp.value) > 0));
+      await assertReschedule(
+        tx,
+        userId,
+        draft,
+        proposal.original as unknown as DraftPayload | null,
+        user.timezone,
+      );
 
       const targetPlan =
         plan ??
@@ -152,16 +168,19 @@ export class TrainingApplicationService {
       );
       for (const old of retained)
         await this.copyWorkout(tx, newVersion.id, old);
-      const dayOrder = proposal.targetWorkoutId
-        ? draft.dayOrder
-        : Math.max(
-            0,
-            ...retained
-              .filter(
-                (old) => dbToDate(old.scheduledDate) === draft.scheduledDate,
-              )
-              .map((old) => old.dayOrder),
-          ) + 1;
+      const originalDraft = proposal.original as unknown as DraftPayload | null;
+      const dayOrder =
+        proposal.targetWorkoutId &&
+        originalDraft?.scheduledDate === draft.scheduledDate
+          ? draft.dayOrder
+          : Math.max(
+              0,
+              ...retained
+                .filter(
+                  (old) => dbToDate(old.scheduledDate) === draft.scheduledDate,
+                )
+                .map((old) => old.dayOrder),
+            ) + 1;
       await this.createWorkout(
         tx,
         newVersion.id,

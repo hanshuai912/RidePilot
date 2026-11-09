@@ -21,6 +21,7 @@ import {
   type GoalInput,
   type GoalPatch,
   type WeekGenerationInput,
+  type UpdateAiProposal,
 } from "@ridepilot/contracts";
 import Constants from "expo-constants";
 import { Platform } from "react-native";
@@ -114,6 +115,13 @@ export async function coachRequest<T>(
 const request = coachRequest;
 
 export const coachApi = {
+  updateProposal: (token: string, id: string, input: UpdateAiProposal) =>
+    request(
+      `ai-coach/proposals/${encodeURIComponent(id)}`,
+      token,
+      aiProposalResponseSchema,
+      { method: "PATCH", body: input },
+    ),
   planStatus: (token: string) =>
     request("plans/active/status", token, activePlanStatusSchema),
   readiness: (token: string) =>

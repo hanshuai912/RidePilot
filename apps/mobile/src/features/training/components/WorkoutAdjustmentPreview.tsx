@@ -1,3 +1,5 @@
+import { router } from "expo-router";
+import { WorkoutDiff } from "./WorkoutDiff";
 import { View } from "react-native";
 import type { AiProposalResponse } from "@ridepilot/contracts";
 
@@ -53,6 +55,24 @@ export function WorkoutAdjustmentPreview({
           {replacement?.purpose ?? "保留当前训练目的"}
         </AppText>
       </Card>
+      {replacement ? (
+        <WorkoutDiff before={original} after={replacement} />
+      ) : null}
+      <AppText muted className="mt-3">
+        影响范围：仅此课程；其他课程、阶段和测试不变。若需联动后续课程，请返回选择后续日期范围。
+      </AppText>
+      <Button
+        variant="secondary"
+        disabled={loading}
+        onPress={() =>
+          router.push({
+            pathname: "/workouts/candidate",
+            params: { proposalId: proposal.proposalId, index: "0" },
+          })
+        }
+      >
+        局部编辑这节候选
+      </Button>
       {proposal.warnings.map((warning) => (
         <AppText key={warning} variant="caption" className="mt-3 text-warning">
           {warning}

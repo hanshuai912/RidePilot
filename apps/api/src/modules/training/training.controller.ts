@@ -1,3 +1,10 @@
+import { TrainingCalendarService } from "./training-calendar.service";
+import { WorkoutRescheduleService } from "./workout-reschedule.service";
+import {
+  rescheduleInputSchema,
+  reschedulePreviewSchema,
+  type RescheduleInput,
+} from "@ridepilot/contracts";
 import {
   Body,
   Controller,
@@ -42,7 +49,11 @@ import { TrainingService } from "./training.service";
 @ApiBearerAuth("access-token")
 @Controller()
 export class TrainingController {
-  constructor(private readonly service: TrainingService) {}
+  constructor(
+    private readonly service: TrainingService,
+    private readonly reschedules: WorkoutRescheduleService,
+    private readonly calendar: TrainingCalendarService,
+  ) {}
 
   @Post("workouts/manual-proposals")
   @ApiOperation({ summary: "创建手动骑行课程草稿，支持尚无正式计划的首次创建" })
@@ -134,6 +145,17 @@ export class TrainingController {
     );
   }
 
+  @Post("workouts/:workoutId/reschedule-preview")
+  @ApiBody({ schema: toOpenApiSchema(rescheduleInputSchema, "input") })
+  @ApiCreatedResponse({ schema: toOpenApiSchema(reschedulePreviewSchema) })
+  reschedule(
+    @CurrentPrincipal() principal: AuthPrincipal,
+    @Param("workoutId") workoutId: string,
+    @Body(new ZodBodyPipe(rescheduleInputSchema)) input: RescheduleInput,
+  ) {
+    return this.reschedules.preview(principal.userId, workoutId, input);
+  }
+
   @Get("workouts/next")
   @ApiOperation({ summary: "读取当前用户当地今天起下一节尚未记录的正式课程" })
   @ApiOkResponse({ schema: toOpenApiSchema(nextWorkoutResponseSchema) })
@@ -159,6 +181,6 @@ export class TrainingController {
     @Query("from") from: string,
     @Query("to") to: string,
   ) {
-    return this.service.getCalendar(principal.userId, from, to);
+    return this.calendar.get(principal.userId, from, to);
   }
 }

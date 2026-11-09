@@ -118,10 +118,37 @@ export const applyProposalResponseSchema = z.object({
   affectedDates: z.array(z.string().date()),
 });
 
+export const calendarEventSchema = z.object({
+  id: z.string(),
+  date: z.iso.date(),
+  kind: z.enum(["REST", "RECOVERY"]),
+  title: z.string(),
+  source: z.enum(["AVAILABILITY", "WORKOUT"]),
+});
+export const rescheduleInputSchema = z.strictObject({
+  scheduledDate: z.iso.date(),
+  expectedPlanVersion: z.number().int().positive(),
+});
+export const reschedulePreviewSchema = z.object({
+  workoutId: z.uuid(),
+  planVersion: z.number().int().positive(),
+  from: z.iso.date(),
+  to: z.iso.date(),
+  conflicts: z.array(z.string()),
+  alternatives: z.array(
+    z.object({ date: z.iso.date(), availableMinutes: z.number().positive() }),
+  ),
+});
+export type RescheduleInput = z.infer<typeof rescheduleInputSchema>;
+export type ReschedulePreview = z.infer<typeof reschedulePreviewSchema>;
+
 export const calendarResponseSchema = z.object({
   from: z.string().date(),
   to: z.string().date(),
   ftpAvailable: z.boolean(),
+  timezone: z.string().optional(),
+  localDate: z.iso.date().optional(),
+  events: z.array(calendarEventSchema).optional(),
   items: z.array(workoutSummarySchema),
 });
 

@@ -392,3 +392,78 @@ test("a failed aggregate request retains same-day content and exposes retry", as
   expect(screen.queryByText("记录完成情况")).toBeNull();
   jest.useRealTimers();
 });
+
+test("home shows explainable status, next test/race and pending suggestions with real detail routes", async () => {
+  const payload = response();
+  payload.actions = {
+    status: "READY",
+    data: {
+      overview: {
+        localDate: payload.localDate,
+        timezone: "Asia/Shanghai",
+        planVersion: 1,
+        goal: null,
+        stage: null,
+        stageNotice: null,
+        status: {
+          code: "RECOVERING",
+          label: "优先恢复",
+          explanation: "近期反馈疲劳较高",
+          evidence: [
+            {
+              id: "feedback-1",
+              date: payload.localDate,
+              title: "耐力训练反馈",
+              kind: "ACTIVITY",
+              detail: "疲劳 8/10",
+            },
+          ],
+        },
+        nextWorkout: null,
+        upcomingWorkouts: [],
+        nextAssessment: {
+          id: "test-1",
+          date: "2026-11-01",
+          title: "FTP 复测",
+          overdue: false,
+        },
+        versions: [],
+      },
+      nextRace: {
+        id: "race-1",
+        date: "2026-11-08",
+        title: "秋季公路赛",
+        priority: "B",
+      },
+      suggestions: [
+        {
+          id: "draft-1",
+          kind: "TRAINING",
+          title: "恢复建议",
+          summary: "降低负荷",
+          status: "DRAFT",
+          version: 1,
+          createdAt: "2026-10-30T00:00:00Z",
+          staleReason: null,
+          goalId: null,
+        },
+      ],
+    },
+  };
+  api.today.mockResolvedValue(payload);
+  const view = await render(<HomeScreen />);
+  await view.findByText("优先恢复");
+  expect(view.getByText(/疲劳 8\/10/)).toBeTruthy();
+  await fireEvent.press(view.getByText(/下一测试 ·/));
+  expect(router.push).toHaveBeenLastCalledWith({
+    pathname: "/assessments/[assessmentId]",
+    params: { assessmentId: "test-1" },
+  });
+  await fireEvent.press(view.getByText(/下一比赛 ·/));
+  expect(router.push).toHaveBeenLastCalledWith({
+    pathname: "/races/[raceId]",
+    params: { raceId: "race-1" },
+  });
+  await fireEvent.press(view.getByText("1 项建议待确认"));
+  expect(router.push).toHaveBeenLastCalledWith("/(tabs)/coach/suggestions");
+});

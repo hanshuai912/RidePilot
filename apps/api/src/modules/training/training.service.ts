@@ -1,3 +1,4 @@
+import { assertReschedule } from "./workout-schedule";
 import {
   BadRequestException,
   ConflictException,
@@ -7,7 +8,6 @@ import {
 import {
   ApplyProposal,
   AiProposalResponse,
-  CalendarResponse,
   CreateManualWorkoutProposal,
   EditWorkoutProposal,
   ProposalResponse,
@@ -103,6 +103,7 @@ export class TrainingService {
       dayOrder: workout.dayOrder,
     };
     const original = toDraft(workout);
+    await assertReschedule(this.prisma, userId, draft, original, timezone);
     const proposal = await this.prisma.changeProposal.create({
       data: {
         userId,
@@ -186,6 +187,13 @@ export class TrainingService {
       id: current.id,
       dayOrder: current.dayOrder,
     };
+    await assertReschedule(
+      this.prisma,
+      userId,
+      draft,
+      proposal.original as unknown as DraftPayload | null,
+      await this.userTimezone(userId),
+    );
     const updated = await this.prisma.changeProposal.updateMany({
       where: {
         id: proposalId,
@@ -234,6 +242,13 @@ export class TrainingService {
     try {
       assertEditableDate(draft.scheduledDate, await this.userTimezone(userId));
       validateDraft(draft, await this.hasFtp(userId));
+      await assertReschedule(
+        this.prisma,
+        userId,
+        draft,
+        proposal.original as unknown as DraftPayload | null,
+        await this.userTimezone(userId),
+      );
     } catch (error) {
       if (!(
         error instanceof BadRequestException ||
@@ -293,37 +308,6 @@ export class TrainingService {
       editable:
         dbToDate(workout.scheduledDate) >= today && !activities.has(workout.id),
     });
-  }
-
-  async getCalendar(
-    userId: string,
-    from: string,
-    to: string,
-  ): Promise<CalendarResponse> {
-    const items = await this.repository.findCalendar(
-      userId,
-      dateToDb(from),
-      dateToDb(to),
-    );
-    const [timezone, activities] = await Promise.all([
-      this.userTimezone(userId),
-      this.repository.activities(userId, items),
-    ]);
-    const currentDate = this.today(timezone);
-    return {
-      from,
-      to,
-      ftpAvailable: await this.hasFtp(userId),
-      items: items.map((item) =>
-        toSummary({
-          ...item,
-          activity: activities.get(item.id) ?? null,
-          editable:
-            dbToDate(item.scheduledDate) >= currentDate &&
-            !activities.has(item.id),
-        }),
-      ),
-    };
   }
 
   async nextWorkout(userId: string) {

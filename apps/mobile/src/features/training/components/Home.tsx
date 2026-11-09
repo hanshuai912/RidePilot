@@ -1,22 +1,23 @@
+import type { CalendarResponse } from "@ridepilot/contracts";
+import type { CalendarView } from "../model/calendar-period";
+import { TrainingCalendarGrid } from "./TrainingCalendarGrid";
 import { Pressable, View } from "react-native";
-import {
-  ArrowLeft,
-  ArrowRight,
-  Bike,
-  ChevronRight,
-  Plus,
-  RefreshCw,
-} from "lucide-react-native";
+import { Bike, ChevronRight, Plus, RefreshCw } from "lucide-react-native";
 import { AppText, Button, Card, Spinner } from "../../../components/ui";
 import { AppHeader } from "../../../components/layout/AppHeader";
 import { colors } from "../../../theme/tokens";
 import type { Workout } from "../model/training";
-import { dateLabel, iso, weekday } from "../model/training";
+import { dateLabel, weekday } from "../model/training";
 import { styles } from "./training.styles";
 import { WorkoutProfileChart } from "./WorkoutProfileChart";
 
 export function Home({
   days,
+  events = [],
+  view = "WEEK",
+  onView = () => undefined,
+  today,
+  onReschedule,
   assessmentDates = [],
   raceDates = [],
   selectedDate,
@@ -34,6 +35,11 @@ export function Home({
   onEdit,
 }: {
   days: string[];
+  today: string;
+  view?: CalendarView;
+  events?: NonNullable<CalendarResponse["events"]>;
+  onView?: (view: CalendarView) => void;
+  onReschedule: (workout: Workout) => void;
   assessmentDates?: string[];
   raceDates?: string[];
   selectedDate: string;
@@ -66,79 +72,19 @@ export function Home({
           </Pressable>
         }
       />
-      <Card style={styles.calendar}>
-        <View style={styles.calendarHead}>
-          <AppText variant="section">
-            {dateLabel(days[0])}—{dateLabel(days[6])}
-          </AppText>
-          <View style={styles.calendarNav}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="上一周"
-              style={styles.calendarButton}
-              onPress={onPrev}
-            >
-              <ArrowLeft size={16} color={colors.textSecondary} />
-              <AppText style={styles.legacyArrow}>‹</AppText>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="下一周"
-              style={styles.calendarButton}
-              onPress={onNext}
-            >
-              <ArrowRight size={16} color={colors.textSecondary} />
-              <AppText style={styles.legacyArrow}>›</AppText>
-            </Pressable>
-          </View>
-        </View>
-        <View style={styles.days}>
-          {days.map((day) => (
-            <Pressable
-              key={day}
-              accessibilityLabel={`${day}${assessmentDates.includes(day) ? "，有阶段测试" : ""}${raceDates.includes(day) ? "，有比赛" : ""}`}
-              onPress={() => setSelectedDate(day)}
-              style={[styles.day, day === selectedDate && styles.selectedDay]}
-            >
-              <AppText
-                variant="caption"
-                style={
-                  day === selectedDate ? styles.selectedDayText : undefined
-                }
-              >
-                {weekday(day)}
-              </AppText>
-              <AppText
-                variant="card"
-                style={
-                  day === selectedDate ? styles.selectedDayText : undefined
-                }
-              >
-                {Number(day.slice(-2))}
-              </AppText>
-              {assessmentDates.includes(day) ? (
-                <AppText variant="caption" style={styles.brand}>
-                  测试
-                </AppText>
-              ) : null}
-              {raceDates.includes(day) ? (
-                <AppText variant="caption" style={styles.brand}>
-                  比赛
-                </AppText>
-              ) : null}
-              <View
-                style={[
-                  styles.dot,
-                  (workouts.some((item) => item.scheduledDate === day) ||
-                    assessmentDates.includes(day) ||
-                    raceDates.includes(day)) &&
-                    styles.activeDot,
-                ]}
-              />
-            </Pressable>
-          ))}
-        </View>
-      </Card>
+      <TrainingCalendarGrid
+        days={days}
+        selectedDate={selectedDate}
+        view={view}
+        events={events}
+        workouts={workouts}
+        assessmentDates={assessmentDates}
+        raceDates={raceDates}
+        onSelect={setSelectedDate}
+        onView={onView}
+        onPrev={onPrev}
+        onNext={onNext}
+      />
       <View style={styles.dateRow}>
         <AppText variant="section">
           {dateLabel(selectedDate)} · {weekday(selectedDate)}
@@ -151,6 +97,23 @@ export function Home({
         <AppText variant="caption" style={styles.error}>
           {feedback}
         </AppText>
+      ) : null}
+      {!loading && !feedback
+        ? events
+            .filter((e) => e.date === selectedDate)
+            .map((e) => (
+              <Card key={e.id}>
+                <AppText variant="card">
+                  {e.kind === "REST" ? "休息" : "恢复"} · {e.title}
+                </AppText>
+              </Card>
+            ))
+        : null}
+      {!loading &&
+      !feedback &&
+      !selectedWorkouts.length &&
+      !events.some((e) => e.date === selectedDate) ? (
+        <AppText muted>当天未安排课程；请同时查看下方测试与赛事。</AppText>
       ) : null}
       {loading ? (
         <Spinner accessibilityLabel="正在加载训练日历" />
@@ -196,18 +159,38 @@ export function Home({
               >
                 查看课程
               </Button>
-              {item.scheduledDate >= iso(new Date()) ? (
+              {item.scheduledDate >= today &&
+              item.editable !== false &&
+              !item.activity ? (
                 <Button
                   variant="secondary"
                   size="sm"
                   onPress={() => onAdjust(item)}
                 >
-                  {item.scheduledDate === iso(new Date())
-                    ? "调整今天"
-                    : "AI 调整"}
+                  {item.scheduledDate === today ? "调整今天" : "AI 调整"}
                 </Button>
               ) : null}
-              <Button variant="ghost" size="sm" onPress={() => onEdit(item)}>
+              {item.scheduledDate >= today &&
+              item.editable !== false &&
+              !item.activity ? (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onPress={() => onReschedule(item)}
+                >
+                  课程改期
+                </Button>
+              ) : null}
+              <Button
+                disabled={
+                  item.editable === false ||
+                  !!item.activity ||
+                  item.scheduledDate < today
+                }
+                variant="ghost"
+                size="sm"
+                onPress={() => onEdit(item)}
+              >
                 编辑动作
               </Button>
             </View>

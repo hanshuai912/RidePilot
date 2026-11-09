@@ -67,6 +67,7 @@ export function RaceProposalScreen() {
         proposal.proposalId,
         proposal.basePlanVersion,
         applyAttempt.current.key,
+        proposal.proposalVersion,
       );
       setProposal({ ...proposal, status: "APPLIED" });
     } catch (cause) {

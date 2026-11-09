@@ -50,6 +50,16 @@ export function HomeTrainingSection({
         label="今日训练"
         onRetry={onRetry}
       />
+      {actionable
+        ? training.data?.events?.map((event) => (
+            <Card key={event.id}>
+              <AppText variant="card">
+                {event.kind === "REST" ? "今日休息" : "恢复安排"} ·{" "}
+                {event.title}
+              </AppText>
+            </Card>
+          ))
+        : null}
       {hasPlan === false && actionable && !workouts.length ? (
         <HomeEmptyPlanCard onCreate={onCreate} />
       ) : null}

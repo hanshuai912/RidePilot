@@ -58,5 +58,6 @@ export async function saveManualWorkout(
     proposal.proposalId,
     proposal.basePlanVersion,
     `training-${proposal.proposalId}`,
+    proposal.proposalVersion,
   );
 }

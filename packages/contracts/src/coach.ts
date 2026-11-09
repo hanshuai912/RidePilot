@@ -315,6 +315,8 @@ export const aiProposalResponseSchema = z.object({
         id: z.uuid(),
         scheduledDate: z.iso.date(),
         title: z.string(),
+        purpose: z.string().nullable().optional(),
+        segments: z.array(workoutSegmentSchema).optional(),
       }),
     )
     .optional(),

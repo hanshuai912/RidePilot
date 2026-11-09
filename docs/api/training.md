@@ -52,3 +52,13 @@ AI 教练新增的计划生成、调整、历史恢复及相关资料接口见 [
 ## 课程执行功率快照
 
 `workoutSummarySchema` 新增可选 `ftpSnapshotWatts: number|null`。GET 正式课程/日历时由服务端返回课程自己的 FTP 依据，供客户端换算百分比区段的执行瓦数；未知历史依据返回 null。当前 FTP 更新不改变旧课程快照。未来范围重算和重排接口见 [资料变更处理](../features/plan-input-impact.md)。
+
+## 2026-11-09：日历事件、改期预览与草稿版本
+
+`GET /calendar?from&to` 返回 `timezone`、`localDate`、`events`；events 的 `{id,date,kind:REST|RECOVERY,title,source:AVAILABILITY|WORKOUT}` 区分固定时间规则与实际恢复课程。无规则的空日期不产生 REST。日期范围含首尾最多 93 天，无效/逆序/过长范围返回 400 `INVALID_DATE_RANGE`。
+
+新增鉴权接口 `POST /workouts/:workoutId/reschedule-preview`，请求 `{scheduledDate,expectedPlanVersion}`，响应 `{workoutId,planVersion,from,to,conflicts:string[],alternatives:{date,availableMinutes}[]}`。检查正式版本、归属、历史与记录保护；401 未登录、404 不属于当前用户或已非活跃课程、409 版本过期/不可编辑。预览成功 201 只读取，不生成提案。
+
+冲突信息检查赛事、测试、固定休息日与时长；最多提供后续 14 天内的 3 个替代日期。同日允许多课程，距离目标不能可靠估算时间时明确阻止自动改期。确认后复用 edit-proposal → validate → apply；创建、更新、校验及最终事务都检查日期变化，冲突返回 409 `WORKOUT_SCHEDULE_CONFLICT`。
+
+人工 apply 支持检查 `expectedProposalVersion`；与正式版本冲突分别返回 `PROPOSAL_VERSION_CONFLICT`、`PLAN_VERSION_CONFLICT`。相同已应用提案仍可幂等重试。

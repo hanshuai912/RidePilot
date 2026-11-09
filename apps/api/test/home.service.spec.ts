@@ -1,3 +1,4 @@
+import type { HomeActionsService } from "../src/modules/home/home-actions.service";
 import { HomeService } from "../src/modules/home/home.service";
 import type { ProfileService } from "../src/modules/profile/profile.service";
 import type { TrainingOverviewService } from "../src/modules/training/training-overview.service";
@@ -7,10 +8,12 @@ const userId = "00000000-0000-4000-8000-000000000001";
 const profiles = { get: jest.fn() };
 const training = { today: jest.fn() };
 const nutrition = { get: jest.fn() };
+const actions = { get: jest.fn() };
 const service = new HomeService(
   profiles as unknown as ProfileService,
   training as unknown as TrainingOverviewService,
   nutrition as unknown as NutritionPlanService,
+  actions as unknown as HomeActionsService,
 );
 const trainingData = (date: string) => ({
   plan: { hasActivePlan: false, planVersion: 0 },
@@ -19,6 +22,7 @@ const trainingData = (date: string) => ({
 });
 beforeEach(() => {
   jest.resetAllMocks();
+  actions.get.mockRejectedValue(new Error("offline"));
   jest.useFakeTimers().setSystemTime(new Date("2026-10-30T16:30:00Z"));
   profiles.get.mockResolvedValue({
     userId,
@@ -97,4 +101,15 @@ test("missing account context fails the request without guessing a timezone", as
   await expect(service.today(userId)).rejects.toThrow("account unavailable");
   expect(training.today).not.toHaveBeenCalled();
   expect(nutrition.get).not.toHaveBeenCalled();
+});
+
+test("failed status aggregation stays unavailable while training and nutrition remain usable", async () => {
+  const result = await service.today(userId);
+  expect(actions.get).toHaveBeenCalledWith(userId, "2026-10-31");
+  expect(result.actions).toMatchObject({
+    status: "UNAVAILABLE",
+    error: { code: "HOME_ACTIONS_UNAVAILABLE" },
+  });
+  expect(result.training.status).toBe("READY");
+  expect(result.nutrition.status).toBe("READY");
 });

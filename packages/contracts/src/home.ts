@@ -1,3 +1,4 @@
+import { coachOverviewSchema, coachSuggestionsSchema } from "./coach-center";
 import { z } from "zod";
 import { activePlanStatusSchema } from "./coach";
 import { nutritionPlanResponseSchema } from "./nutrition";
@@ -18,6 +19,19 @@ export const homeTrainingSchema = z.object({
   calendar: calendarResponseSchema,
   nextWorkout: workoutSummarySchema.nullable(),
 });
+export const homeActionsSchema = z.object({
+  overview: coachOverviewSchema,
+  suggestions: coachSuggestionsSchema.shape.pending,
+  nextRace: z
+    .object({
+      id: z.uuid(),
+      date: z.iso.date(),
+      title: z.string(),
+      priority: z.string(),
+    })
+    .nullable(),
+});
+export type HomeActions = z.infer<typeof homeActionsSchema>;
 export const homeTodayResponseSchema = z.object({
   localDate: z.iso.date(),
   profile: profileResponseSchema.pick({
@@ -27,6 +41,7 @@ export const homeTodayResponseSchema = z.object({
   }),
   training: homeSection(homeTrainingSchema),
   nutrition: homeSection(nutritionPlanResponseSchema),
+  actions: homeSection(homeActionsSchema).optional(),
 });
 export type HomeTodayResponse = z.infer<typeof homeTodayResponseSchema>;
 export type HomeTraining = z.infer<typeof homeTrainingSchema>;

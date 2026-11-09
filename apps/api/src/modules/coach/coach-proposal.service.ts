@@ -52,7 +52,7 @@ interface AiDraft extends AiWeekOutput {
   weekStartDate: string;
   endDate?: string;
   stageId?: string;
-  replacedWorkouts?: { id: string; scheduledDate: string; title: string }[];
+  replacedWorkouts?: AiProposalResponse["replacedWorkouts"];
   scene:
     | "WEEK_PLAN"
     | "RANGE_PLAN"

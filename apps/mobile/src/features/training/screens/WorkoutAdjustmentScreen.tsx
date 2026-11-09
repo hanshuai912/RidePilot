@@ -43,10 +43,13 @@ export function WorkoutAdjustmentScreen() {
         <AppText>当前课程已记录或不可调整，请返回刷新计划。</AppText>
       ) : route.data ? (
         <WorkoutAdjustmentForm
+          scheduledDate={route.data.scheduledDate}
           loading={action.busy}
           error={action.error}
           onClose={route.back}
-          onSubmit={(reason, notes) => void action.generate(reason, notes)}
+          onSubmit={(reason, notes, endDate) =>
+            void action.generate(reason, notes, endDate)
+          }
           onDirtyChange={setDirty}
           onChange={action.markChanged}
         />

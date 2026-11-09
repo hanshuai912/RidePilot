@@ -41,6 +41,10 @@ export function useWorkoutAdjustmentPreview() {
     try {
       if (applyAttempt.current?.id !== proposal.proposalId) {
         const validated = await coachApi.validate(token, proposal.proposalId);
+        if (validated.proposalVersion !== proposal.proposalVersion) {
+          resource.retry();
+          throw new Error("候选已变化，请重新预览后确认");
+        }
         if (validated.status !== "READY" || validated.blockers.length)
           throw new Error(
             validated.blockers[0] ?? "草稿未通过校验，请返回修改",
@@ -57,6 +61,7 @@ export function useWorkoutAdjustmentPreview() {
         proposal.proposalId,
         proposal.basePlanVersion,
         applyAttempt.current.key,
+        proposal.proposalVersion,
       );
       setAppliedDate(applied.affectedDates[0] ?? workout.scheduledDate);
     } catch (cause) {

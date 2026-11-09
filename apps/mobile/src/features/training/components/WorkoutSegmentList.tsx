@@ -1,5 +1,12 @@
+import { useCallback, useContext } from "react";
+import Sortable, {
+  type SortableGridDragEndParams,
+  type SortableGridRenderItem,
+} from "react-native-sortables";
+import { useSortableSegments } from "../hooks/useSortableSegments";
+import { TrainingScrollContext } from "./TrainingScrollContext";
 import { Pressable, StyleSheet, View } from "react-native";
-import { Ellipsis, GripVertical, Plus, Trash2 } from "lucide-react-native";
+import { GripVertical, Plus, Trash2 } from "lucide-react-native";
 import type { WorkoutSegment } from "@ridepilot/contracts";
 
 import { colors } from "../../../theme/tokens";
@@ -28,59 +35,98 @@ function intensityLabel(segment: WorkoutSegment, ftpWatts?: number | null) {
     : `${segment.intensity.min}–${segment.intensity.max} W`;
 }
 
+type SegmentListProps = {
+  onMove?: (from: number, to: number) => void;
+  segments: WorkoutSegment[];
+  ftpWatts?: number | null;
+  onAdd?: () => void;
+  onEdit?: (index: number) => void;
+  onDelete?: (index: number) => void;
+};
+
+type SortableSegment = { key: string; segment: WorkoutSegment };
+const segmentKey = (item: SortableSegment) => item.key;
+
 export function WorkoutSegmentList({
   segments,
   ftpWatts,
   onAdd,
   onEdit,
   onDelete,
-}: {
-  segments: WorkoutSegment[];
-  ftpWatts?: number | null;
-  onAdd?: () => void;
-  onEdit?: (index: number) => void;
-  onDelete?: (index: number) => void;
-}) {
+  onMove,
+}: SegmentListProps) {
+  const data = useSortableSegments(segments);
+  const scrollableRef = useContext(TrainingScrollContext);
+  const renderItem = useCallback<SortableGridRenderItem<SortableSegment>>(
+    ({ item, index }) => (
+      <WorkoutSegmentRow
+        segment={item.segment}
+        index={index}
+        count={segments.length}
+        ftpWatts={ftpWatts}
+        onMove={onMove}
+        onEdit={onEdit}
+        onDelete={onDelete}
+      />
+    ),
+    [segments.length, ftpWatts, onMove, onEdit, onDelete],
+  );
+  const finishDrag = useCallback(
+    ({ fromIndex, toIndex }: SortableGridDragEndParams<SortableSegment>) => {
+      if (
+        Number.isInteger(fromIndex) &&
+        Number.isInteger(toIndex) &&
+        fromIndex >= 0 &&
+        fromIndex < segments.length &&
+        toIndex >= 0 &&
+        toIndex < segments.length &&
+        fromIndex !== toIndex
+      )
+        onMove?.(fromIndex, toIndex);
+    },
+    [onMove, segments.length],
+  );
   return (
     <Card style={styles.card}>
-      {segments.map((segment, index) => (
-        <View key={`${segment.id ?? "new"}-${index}`} style={styles.segment}>
-          <View style={styles.segmentHead}>
-            <View style={styles.segmentTitle}>
-              <GripVertical size={15} color={colors.textMuted} />
-              <AppText variant="card">
-                {index + 1} · {typeLabels[segment.type]}
-              </AppText>
-            </View>
-            <View style={styles.actions}>
-              {onEdit ? (
-                <Pressable
-                  onPress={() => onEdit(index)}
-                  accessibilityLabel={`编辑第${index + 1}个动作`}
-                >
-                  <Ellipsis size={19} color={colors.textMuted} />
-                </Pressable>
-              ) : null}
-              {onDelete ? (
-                <Pressable
-                  onPress={() => onDelete(index)}
-                  accessibilityLabel={`删除第${index + 1}个动作`}
-                >
-                  <Trash2 size={16} color={colors.negative} />
-                </Pressable>
-              ) : null}
-            </View>
-          </View>
-          <View style={styles.metaRow}>
+      {onMove ? (
+        <>
+          {segments.length > 1 ? (
             <AppText variant="caption" muted>
-              {targetLabel(segment)}
+              长按六点图标拖动排序
             </AppText>
-            <AppText variant="caption" style={styles.intensity}>
-              {intensityLabel(segment, ftpWatts)}
-            </AppText>
-          </View>
-        </View>
-      ))}
+          ) : null}
+          <Sortable.Grid
+            columns={1}
+            data={data}
+            keyExtractor={segmentKey}
+            renderItem={renderItem}
+            customHandle
+            sortEnabled={segments.length > 1}
+            dragActivationDelay={180}
+            enableActiveItemSnap={false}
+            activeItemScale={1.02}
+            inactiveItemOpacity={0.75}
+            rowGap={8}
+            showDropIndicator
+            dropIndicatorStyle={styles.dropIndicator}
+            scrollableRef={scrollableRef}
+            autoScrollMaxVelocity={500}
+            onDragEnd={finishDrag}
+          />
+        </>
+      ) : (
+        data.map((item, index) => (
+          <WorkoutSegmentRow
+            key={item.key}
+            segment={item.segment}
+            index={index}
+            count={data.length}
+            ftpWatts={ftpWatts}
+            onEdit={onEdit}
+            onDelete={onDelete}
+          />
+        ))
+      )}
       {onAdd ? (
         <Pressable
           onPress={onAdd}
@@ -97,6 +143,93 @@ export function WorkoutSegmentList({
   );
 }
 
+function WorkoutSegmentRow({
+  segment,
+  index,
+  count,
+  ftpWatts,
+  onEdit,
+  onDelete,
+  onMove,
+}: {
+  segment: WorkoutSegment;
+  index: number;
+  count: number;
+} & Pick<SegmentListProps, "ftpWatts" | "onEdit" | "onDelete" | "onMove">) {
+  const content = (
+    <>
+      <AppText variant="card">
+        {index + 1} · {typeLabels[segment.type]}
+      </AppText>
+      <View style={styles.metaRow}>
+        <AppText variant="caption" muted>
+          {targetLabel(segment)}
+        </AppText>
+        <AppText variant="caption" style={styles.intensity}>
+          {intensityLabel(segment, ftpWatts)}
+        </AppText>
+      </View>
+    </>
+  );
+  return (
+    <View style={styles.segment}>
+      {onMove && count > 1 ? (
+        <Sortable.Handle>
+          <View
+            accessible
+            accessibilityRole="adjustable"
+            accessibilityLabel={`拖动第${index + 1}个动作排序`}
+            accessibilityHint="长按六点图标后上下拖动；读屏可使用调整操作改变顺序"
+            accessibilityValue={{ min: 1, max: count, now: index + 1 }}
+            accessibilityActions={[
+              ...(index > 0
+                ? [{ name: "decrement", label: "移至前一位" }]
+                : []),
+              ...(index < count - 1
+                ? [{ name: "increment", label: "移至后一位" }]
+                : []),
+            ]}
+            onAccessibilityAction={({ nativeEvent }) => {
+              if (nativeEvent.actionName === "decrement" && index > 0)
+                onMove(index, index - 1);
+              if (nativeEvent.actionName === "increment" && index < count - 1)
+                onMove(index, index + 1);
+            }}
+            style={styles.touch}
+          >
+            <GripVertical size={21} color={colors.textMuted} />
+          </View>
+        </Sortable.Handle>
+      ) : null}
+      {onEdit ? (
+        <Pressable
+          style={({ pressed }) => [
+            styles.segmentBody,
+            pressed && styles.pressed,
+          ]}
+          onPress={() => onEdit(index)}
+          accessibilityRole="button"
+          accessibilityLabel={`编辑第${index + 1}个动作`}
+        >
+          {content}
+        </Pressable>
+      ) : (
+        <View style={styles.segmentBody}>{content}</View>
+      )}
+      {onDelete ? (
+        <Pressable
+          style={({ pressed }) => [styles.touch, pressed && styles.pressed]}
+          onPress={() => onDelete(index)}
+          accessibilityRole="button"
+          accessibilityLabel={`删除第${index + 1}个动作`}
+        >
+          <Trash2 size={18} color={colors.negative} />
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}
+
 export function segmentTotals(segments: WorkoutSegment[]) {
   return segments.reduce(
     (totals, segment) => {
@@ -110,20 +243,35 @@ export function segmentTotals(segments: WorkoutSegment[]) {
 }
 
 const styles = StyleSheet.create({
+  touch: {
+    minHeight: 44,
+    minWidth: 44,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   card: { padding: 10, gap: 8 },
+  dropIndicator: {
+    borderColor: colors.brand,
+    backgroundColor: colors.brandSubtle,
+    borderRadius: 14,
+  },
   segment: {
     backgroundColor: colors.surface2,
     borderRadius: 14,
-    padding: 13,
-    gap: 10,
-  },
-  segmentHead: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
+    paddingHorizontal: 4,
   },
-  segmentTitle: { flexDirection: "row", alignItems: "center", gap: 6 },
-  actions: { flexDirection: "row", gap: 13, alignItems: "center" },
+  segmentBody: {
+    flex: 1,
+    minWidth: 0,
+    minHeight: 44,
+    paddingHorizontal: 9,
+    paddingVertical: 13,
+    gap: 10,
+    borderRadius: 10,
+  },
+  pressed: { backgroundColor: colors.brandSubtle },
   metaRow: { flexDirection: "row", flexWrap: "wrap", gap: 7 },
   intensity: {
     color: colors.brand,

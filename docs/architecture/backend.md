@@ -8,7 +8,7 @@ AI 教练持续协作中心在 `CoachModule` 内新增 `CoachOverviewService`、
 
 `CoachModule` 按资料、训练事件、AI 生成任务、提案应用、恢复与只读聊天拆分。AI 生成任务持久化在 PostgreSQL，由带租约的 worker 执行，状态可轮询；模型只产出待校验草稿，正式计划写入仍走用户锁和版本事务。业务 Skill 从固定版本的 MIT 开源骑行资料适配，原文与许可保存在服务端 Skill 目录；运行加载器只读取经审查的骑行规则、一个场景引用和来源清单哈希。详见 [AI 教练功能](../features/ai-coach.md)。
 
-`InfraModule` 显式导出 Prisma 与 Redis 服务，后续业务模块按需导入，避免为每个模块重复建立连接。PostgreSQL 是持久化数据源，由 Prisma 访问。Redis 目前用于健康检查和鉴权频率限制；AI 任务首版使用 PostgreSQL 持久化与租约，不依赖 Redis 队列。容器由 `compose.yaml` 管理；API 可在宿主机或 Docker 中运行。
+`InfraModule` 显式导出 Prisma 与 Redis 服务，后续业务模块按需导入，避免为每个模块重复建立连接。PostgreSQL 是持久化数据源，由 Prisma 访问。Redis 目前用于健康检查和鉴权频率限制；AI 任务首版使用 PostgreSQL 持久化与租约，不依赖 Redis 队列。容器由 `compose.yaml` 管理；API 可在宿主机或 Docker 中运行。Redis 注册连接错误监听，启动连接失败会停止重连并提示依赖启动命令；API 捕获启动失败并关闭已创建的应用后以非零状态退出，防止残留连接。详见 [API 启动](../features/api-startup.md)。
 
 `AuthModule` 注册全局认证守卫。所有 Nest Controller 路由默认要求 Access Token；只有显式标记 `@Public()` 的健康检查、注册、登录和刷新接口公开。守卫校验 JWT 类型、签名和数据库会话状态，退出后访问立即失效。后续涉及用户数据的服务还需按当前 `userId` 检查资源归属，不能把登录态验证当作归属校验。
 
@@ -27,3 +27,9 @@ CoachModule 新增 cycle-review 子目录，分别承担只读数据查询、聚
 ## 资料变更影响领域补充
 
 `CoachModule` 内新增 `plan-impact`，拆分只读仓储、变化/功率策略、决定与正式写入服务、薄控制器；移动端对应独立 feature。它比较课程发布时的资料快照与当前事实，复用现有 AI 范围生成、草稿校验、正式版本和营养日期签名，不增加第二套模型流水线。保留与 FTP 重算决定使用独立持久化记录；部分范围处理不会清除其余课程的影响。详见 [功能与并发规则](../features/plan-input-impact.md)。
+
+## 2026-11-09：日历与首页聚合边界
+
+Training 模块将日历读取、改期预览分别放在 `TrainingCalendarService`、`WorkoutRescheduleService`，日期冲突规则集中到 `workout-schedule.ts`，正式应用仍复用 `TrainingApplicationService` 的事务、用户锁、版本及幂等保护。严格 API 时间规则 schema 在持久层映射后验证，避免把数据库的 ID/时间戳误当成非法业务字段。
+
+Home 模块的 `HomeActionsService` 通过 CoachModule 导出的概览/建议服务复用状态规则，独立聚合下一赛事；`HomeService` 负责各区块的部分失败。课程编辑统一专业模式，Profile 不再提供专用视图偏好接口。

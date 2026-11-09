@@ -5,6 +5,7 @@ import type {
   CalendarResponse,
   HomeTodayResponse,
   HomeTraining,
+  HomeActions,
   NutritionPlanResponse,
 } from "@ridepilot/contracts";
 import { localDateInTimezone } from "../../coach/model/plan-dates";
@@ -24,6 +25,7 @@ type State = {
   profile: HomeResource<HomeTodayResponse["profile"]>;
   training: HomeResource<HomeTraining>;
   nutrition: HomeResource<NutritionPlanResponse>;
+  actions: HomeResource<HomeActions>;
   date: string | null;
 };
 const resource = <T>(
@@ -36,6 +38,7 @@ export function useHomeData(token: string) {
     profile: initial(),
     training: initial(),
     nutrition: initial(),
+    actions: initial(),
     date: null,
   });
   const version = useRef(0);
@@ -52,6 +55,11 @@ export function useHomeData(token: string) {
       profile: { ...previous.profile, loading: true, error: null },
       training: {
         data: preserve ? previous.training.data : null,
+        loading: true,
+        error: null,
+      },
+      actions: {
+        data: preserve ? previous.actions.data : null,
         loading: true,
         error: null,
       },
@@ -72,6 +80,15 @@ export function useHomeData(token: string) {
       setState((previous) => ({
         date: response.localDate,
         profile: resource(response.profile),
+        actions:
+          response.actions?.status === "READY"
+            ? resource(response.actions.data)
+            : resource(
+                sameDate ? previous.actions.data : null,
+                response.actions?.status === "UNAVAILABLE"
+                  ? response.actions.error.message
+                  : "服务尚未返回状态与待办，请重试",
+              ),
         training:
           response.training.status === "READY"
             ? resource(response.training.data)
@@ -94,6 +111,11 @@ export function useHomeData(token: string) {
       setState((previous) => ({
         ...previous,
         profile: { ...previous.profile, loading: false, error: message },
+        actions: {
+          ...previous.actions,
+          loading: false,
+          error: "状态与待办尚未更新，请重试",
+        },
         training: {
           ...previous.training,
           loading: false,
@@ -139,6 +161,7 @@ export function useHomeData(token: string) {
   }, [refresh]);
 
   return {
+    actions: state.actions,
     profile: state.profile,
     plan: {
       ...state.training,

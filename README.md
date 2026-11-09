@@ -25,7 +25,7 @@ git clone https://github.com/hanshuai912/RidePilot_UI.git
 cp .env.example .env
 cp apps/api/.env.example apps/api/.env
 pnpm install --frozen-lockfile
-docker compose up -d postgres redis
+docker compose up -d --wait postgres redis
 pnpm db:generate
 pnpm --filter @ridepilot/api db:deploy
 pnpm dev:api
@@ -34,6 +34,10 @@ pnpm dev:api
 复制环境文件后，先分别用 `openssl rand -hex 32` 生成两段不同的随机值，填入 `JWT_ACCESS_SECRET` 与 `JWT_REFRESH_SECRET`。本地 API 读取 `apps/api/.env`，Compose 读取根目录 `.env`；示例文件中的密钥为空，未设置时 API 不会启动。
 
 本地 API 地址为 `http://127.0.0.1:3000/api/v1/health`。开发时 PostgreSQL 和 Redis 在 Docker 中运行，API 在宿主机运行。也可使用 `docker compose up --build -d` 将 API 一并放入 Docker。已提交的 Prisma 迁移通过 `pnpm --filter @ridepilot/api db:deploy` 显式应用，不在容器启动时自动执行。
+
+若启动报 `connect ECONNREFUSED 127.0.0.1:6379`，表示配置地址上的 Redis 没有接受连接。先在仓库根目录执行 `docker compose up -d --wait postgres redis`，再用 `docker compose exec -T redis redis-cli ping` 确认返回 `PONG`，然后重新运行 `pnpm dev:api`。宿主机 API 的 `apps/api/.env` 应指向实际映射端口（默认 `REDIS_URL=redis://127.0.0.1:6379`）；API 容器使用 `redis://redis:6379`。端口被其他服务占用时，应同步修改 Compose 的 `REDIS_PORT` 和本地 `REDIS_URL`。Redis 参与认证限流，连接失败时 API 会提示处理步骤并以非零状态退出。详见 [依赖启动与故障处理](./docs/features/api-startup.md)。
+
+若宿主机启动报 `EADDRINUSE ...:3000`，先用 `docker ps --filter publish=3000` 和 `ss -ltnp 'sport = :3000'` 定位占用者。仓库 API 容器与宿主机 API 同时使用默认 3000 端口时，可执行 `docker compose stop api`，保留 postgres/redis，再启动 `pnpm dev:api`。只启动开发依赖时使用 `docker compose up -d --wait postgres redis`，避免无服务名的 Compose 启动命令同时拉起 API 容器。
 
 ## 移动端本地认证
 

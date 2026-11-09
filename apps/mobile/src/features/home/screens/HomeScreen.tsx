@@ -18,6 +18,7 @@ function HomeContent({ token }: { token: string }) {
   const refresh = () => void home.refresh();
   const refreshing = [
     home.profile,
+    home.actions,
     home.plan,
     home.training,
     home.nutrition,
@@ -83,7 +84,7 @@ function HomeContent({ token }: { token: string }) {
           })
         }
       />
-      <HomeStatusCard />
+      <HomeStatusCard resource={home.actions} onRetry={refresh} />
       <HomeNutritionSection
         resource={home.nutrition}
         onRetry={refresh}

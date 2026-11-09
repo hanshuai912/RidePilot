@@ -10,3 +10,7 @@
 - 身高和体重使用显式单位字段名对应的 Decimal 数值；接口转换为 JSON number。FTP 等能力测量不放在此表，后续使用带来源、时间和可信度的历史表。
 
 POST 通过单一事务更新账户和档案，档案首次更新使用 upsert。手机号、验证状态和凭据不在档案写路径中。当前用户归属来自全局认证守卫，不接受客户端提供用户 ID。
+
+## 2026-11-09：课程编辑统一专业模式
+
+移除 `me/profile/workout-view` 专用接口；既有 `athlete_profiles.view_preference` 仅保留兼容历史数据，不再由课程编辑器读写。即使历史值为 SIMPLE，也统一展示完整参数；不回写档案、不增加 `users.profile_version`，无需 migration。

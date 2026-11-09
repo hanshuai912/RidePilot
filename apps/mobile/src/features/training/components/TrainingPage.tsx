@@ -1,11 +1,13 @@
 import type { ReactNode } from "react";
 import { router } from "expo-router";
-import { KeyboardAvoidingView, Platform, ScrollView } from "react-native";
+import { KeyboardAvoidingView, Platform, type ScrollView } from "react-native";
+import Animated, { useAnimatedRef } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { NavigationHeader } from "../../../components/layout/NavigationHeader";
 import { Screen } from "../../../components/layout/Screen";
 import { AppText, Button, Spinner } from "../../../components/ui";
 import { styles } from "./training.styles";
+import { TrainingScrollContext } from "./TrainingScrollContext";
 
 export function backToTraining() {
   if (router.canGoBack()) router.back();
@@ -28,6 +30,7 @@ export function TrainingPage({
   busy?: boolean;
   children?: ReactNode;
 }) {
+  const scrollRef = useAnimatedRef<ScrollView>();
   return (
     <Screen>
       <KeyboardAvoidingView
@@ -42,7 +45,8 @@ export function TrainingPage({
               disabled={busy}
             />
           ) : null}
-          <ScrollView
+          <Animated.ScrollView
+            ref={scrollRef}
             testID="training-page-content"
             style={{ flex: 1 }}
             keyboardShouldPersistTaps="handled"
@@ -66,9 +70,11 @@ export function TrainingPage({
                 </Button>
               </>
             ) : (
-              <>{children}</>
+              <TrainingScrollContext.Provider value={scrollRef}>
+                {children}
+              </TrainingScrollContext.Provider>
             )}
-          </ScrollView>
+          </Animated.ScrollView>
         </SafeAreaView>
       </KeyboardAvoidingView>
     </Screen>

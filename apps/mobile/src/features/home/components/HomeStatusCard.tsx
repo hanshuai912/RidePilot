@@ -1,35 +1,122 @@
-import { CircleHelp } from "lucide-react-native";
 import { View } from "react-native";
+import { router } from "expo-router";
+import type { HomeActions } from "@ridepilot/contracts";
+import { AppText, Button, Card, Spinner } from "../../../components/ui";
+import type { HomeResource } from "../hooks/useHomeData";
+import { HomeResourceFeedback } from "./HomeResourceFeedback";
 
-import { colors } from "../../../theme/colors";
-import { AppText, Card } from "../../../components/ui";
-
-export function HomeStatusCard() {
+export function HomeStatusCard({
+  resource,
+  onRetry,
+}: {
+  resource: HomeResource<HomeActions>;
+  onRetry: () => void;
+}) {
+  const data = resource.data;
+  const overview = data?.overview;
   return (
-    <View className="mt-6">
-      <AppText variant="section" className="mb-3">
-        身体状态
-      </AppText>
-      <Card className="flex-row items-center gap-3">
-        <View className="h-11 w-11 items-center justify-center rounded-full border border-border bg-surface-2">
-          <CircleHelp
-            color={colors.textSecondary}
-            size={21}
-            strokeWidth={1.7}
-          />
-        </View>
-        <View className="flex-1">
-          <AppText variant="label" muted>
-            身体状态尚未综合评估
+    <View className="mt-3 gap-3">
+      <AppText variant="section">身体状态</AppText>
+      <HomeResourceFeedback
+        {...resource}
+        label="状态与待办"
+        cached={!!data}
+        onRetry={onRetry}
+      />
+      {resource.loading && !data ? (
+        <Spinner accessibilityLabel="正在读取身体状态" />
+      ) : null}
+      {overview ? (
+        <Card>
+          <AppText variant="card">{overview.status.label}</AppText>
+          <AppText muted className="mt-2">
+            {overview.status.explanation}
           </AppText>
-          <AppText variant="card" className="mt-1">
-            状态待评估
-          </AppText>
-          <AppText variant="caption" className="mt-1 text-secondary">
-            有训练和反馈数据后，这里会显示可解释的状态信息。
-          </AppText>
-        </View>
-      </Card>
+          {overview.status.evidence.map((evidence) => (
+            <AppText
+              key={`${evidence.kind}-${evidence.id}`}
+              variant="caption"
+              muted
+              className="mt-2"
+            >
+              {evidence.date} · {evidence.title}：{evidence.detail}
+            </AppText>
+          ))}
+          <Button variant="ghost" onPress={() => router.push("/(tabs)/coach")}>
+            查看状态依据与教练建议
+          </Button>
+        </Card>
+      ) : !resource.loading ? (
+        <AppText muted>状态数据暂不可用，请刷新重试。</AppText>
+      ) : null}
+      {data ? (
+        <>
+          <AppText variant="section">接下来与待确认</AppText>
+          {overview?.goal ? (
+            <Card>
+              <AppText variant="card">目标 · {overview.goal.title}</AppText>
+              <AppText muted className="mt-2">
+                {overview.stage
+                  ? `${overview.stage.upcoming ? "下一阶段" : "当前阶段"}：${overview.stage.title} · ${overview.stage.purpose}`
+                  : overview.stageNotice}
+              </AppText>
+              <Button
+                variant="ghost"
+                onPress={() =>
+                  router.push({
+                    pathname: "/goals/[goalId]",
+                    params: { goalId: overview.goal!.id },
+                  })
+                }
+              >
+                查看目标与阶段
+              </Button>
+            </Card>
+          ) : null}
+          {overview?.nextAssessment ? (
+            <Button
+              variant="secondary"
+              onPress={() =>
+                router.push({
+                  pathname: "/assessments/[assessmentId]",
+                  params: { assessmentId: overview.nextAssessment!.id },
+                })
+              }
+            >
+              {overview.nextAssessment.overdue ? "待补测试" : "下一测试"} ·{" "}
+              {overview.nextAssessment.date} · {overview.nextAssessment.title}
+            </Button>
+          ) : (
+            <AppText muted>暂无下一测试安排</AppText>
+          )}
+          {data.nextRace ? (
+            <Button
+              variant="secondary"
+              onPress={() =>
+                router.push({
+                  pathname: "/races/[raceId]",
+                  params: { raceId: data.nextRace!.id },
+                })
+              }
+            >
+              下一比赛 · {data.nextRace.date} · {data.nextRace.title} ·{" "}
+              {data.nextRace.priority} 级
+            </Button>
+          ) : (
+            <AppText muted>暂无未来比赛安排</AppText>
+          )}
+          {data.suggestions.length ? (
+            <Button
+              variant="secondary"
+              onPress={() => router.push("/(tabs)/coach/suggestions")}
+            >
+              {data.suggestions.length} 项建议待确认
+            </Button>
+          ) : (
+            <AppText muted>暂无待确认建议</AppText>
+          )}
+        </>
+      ) : null}
     </View>
   );
 }

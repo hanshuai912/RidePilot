@@ -131,3 +131,12 @@ export * from "./cycle-review";
 export * from "./goal-lifecycle";
 export * from "./stage-review";
 export * from "./plan-impact";
+
+export {
+  calendarEventSchema,
+  rescheduleInputSchema,
+  reschedulePreviewSchema,
+} from "./training";
+export type { RescheduleInput, ReschedulePreview } from "./training";
+export { homeActionsSchema } from "./home";
+export type { HomeActions } from "./home";

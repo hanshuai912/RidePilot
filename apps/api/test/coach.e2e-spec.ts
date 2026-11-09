@@ -1013,4 +1013,119 @@ describeWithDatabase("AI coach weekly plan API", () => {
     expect(impact.workouts.length).toBeGreaterThan(0);
     expect(impact.affectedDates).toHaveLength(14);
   });
+  it("edits AI candidates as a new draft revision, revalidates before apply and snapshots detailed originals", async () => {
+    await post("me/ability-measurements/ftp")
+      .send({ valueWatts: 250, source: "MANUAL" })
+      .expect(201);
+    await request(app.getHttpServer())
+      .put("/api/v1/me/availability")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        timezone: "Asia/Shanghai",
+        weekdays: [{ weekday: 1, availableMinutes: 90 }],
+        maxSessionMinutes: 90,
+      })
+      .expect(200);
+    const goal = (
+      await post("goals")
+        .send({
+          type: "ENDURANCE",
+          targetDate: "2030-12-31",
+          priority: "PRIMARY",
+        })
+        .expect(201)
+    ).body;
+    const job = (
+      await post("plans/generate-proposal")
+        .set("Idempotency-Key", randomUUID())
+        .send({
+          weekStartDate: monday(),
+          goalId: goal.id,
+          mode: "initial",
+          expectedBaseVersion: 0,
+        })
+        .expect(202)
+    ).body;
+    const generated = await waitForGeneration(job.generationId);
+    expect(generated.status).toBe("READY");
+    const initial = (await get(`proposals/${generated.proposalId}`).expect(200))
+      .body;
+    const candidate = {
+      summary: initial.summary,
+      stageSummary: initial.stageSummary,
+      assessmentSuggestion: initial.assessmentSuggestion,
+      workouts: initial.workouts.map((w: { title: string }) => ({
+        ...w,
+        title: "局部修改后的耐力课",
+      })),
+    };
+    const edit = (accessToken: string, version: number) =>
+      request(app.getHttpServer())
+        .patch(`/api/v1/ai-coach/proposals/${generated.proposalId}`)
+        .set("Authorization", `Bearer ${accessToken}`)
+        .send({ expectedProposalVersion: version, draft: candidate });
+    const changed = (await edit(token, initial.proposalVersion).expect(200))
+      .body;
+    expect(changed).toMatchObject({
+      proposalVersion: initial.proposalVersion + 1,
+      status: "DRAFT",
+      workouts: [{ title: "局部修改后的耐力课" }],
+    });
+    expect(
+      await prisma.workout.count({
+        where: { planVersion: { plan: { userId } } },
+      }),
+    ).toBe(0);
+    await edit(token, initial.proposalVersion).expect(409);
+    const other = await register();
+    await edit(other.tokens.accessToken, changed.proposalVersion).expect(404);
+    await post(`proposals/${generated.proposalId}/apply`)
+      .set("Idempotency-Key", randomUUID())
+      .send({
+        expectedBaseVersion: 0,
+        expectedProposalVersion: changed.proposalVersion,
+      })
+      .expect(409);
+    await post(`proposals/${generated.proposalId}/validate`).expect(201);
+    await post(`proposals/${generated.proposalId}/apply`)
+      .set("Idempotency-Key", randomUUID())
+      .send({
+        expectedBaseVersion: 0,
+        expectedProposalVersion: initial.proposalVersion,
+      })
+      .expect(409);
+    await post(`proposals/${generated.proposalId}/apply`)
+      .set("Idempotency-Key", randomUUID())
+      .send({
+        expectedBaseVersion: 0,
+        expectedProposalVersion: changed.proposalVersion,
+      })
+      .expect(201);
+    const workout = (
+      await get(`calendar?from=${monday()}&to=${monday()}`).expect(200)
+    ).body.items[0];
+    const adjustment = (
+      await post(`workouts/${workout.id}/ai-adjust-proposal`)
+        .set("Idempotency-Key", randomUUID())
+        .send({
+          weekStartDate: monday(),
+          goalId: goal.id,
+          mode: "replace_workout",
+          expectedBaseVersion: 1,
+          reason: "TIME_SHORT",
+        })
+        .expect(202)
+    ).body;
+    const replacement = await waitForGeneration(adjustment.generationId);
+    expect(replacement.status).toBe("READY");
+    const snapshot = (
+      await get(`proposals/${replacement.proposalId}`).expect(200)
+    ).body.replacedWorkouts[0];
+    expect(snapshot).toMatchObject({
+      id: workout.id,
+      title: "局部修改后的耐力课",
+      purpose: workout.purpose,
+      segments: workout.segments,
+    });
+  });
 });

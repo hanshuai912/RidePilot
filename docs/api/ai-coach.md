@@ -209,3 +209,9 @@ GET 建议列表把版本/资料失效的候选投影为 EXPIRED，从 pending �
 目标变更必须提交 expectedVersion、原因与预览 fingerprint；确认接口要求用户唯一幂等键。阶段复评提交当前 snapshot fingerprint 和 expectedReviewId（首次为 null），避免新决定被旧页面覆盖；同键不同内容返回 409。阶段条件用独立 criteriaVersion 保护。
 
 阶段/范围生成新增可选 stageReviewId，阶段及课程预览返回保存时 evidence。后续请求只能沿用该阶段最新且依据未变化的决定。保持/进入下一阶段限制课程 stageId，延长先确认阶段草稿，调整允许日期课程或阶段重规划。所有正式应用仍需校验和用户确认，目标操作不隐式发布训练或营养。
+
+## 候选局部编辑与明细快照（2026-11-09）
+
+移动端现在调用已有 `PATCH /ai-coach/proposals/:id`，以 `expectedProposalVersion` 更新完整结构化候选中的单节课程，其他课程保留；成功后草稿版本递增、状态为 DRAFT，清除旧校验。必须重新预览校验和确认应用。已应用/失效/其他用户的草稿不可编辑。所有移动端 AI 应用入口传预览时的草稿版本，避免应用未审阅内容。
+
+新草稿 `replacedWorkouts[]` 增加可选 `purpose`、`segments` 原安排快照，用于原/新目标、强度、重复次数比较；字段缺失表示旧数据不具备明细。多课程按完整旧/新安排展示，不仅凭日期强行配对。

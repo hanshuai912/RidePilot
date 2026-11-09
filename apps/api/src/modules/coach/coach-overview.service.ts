@@ -62,7 +62,7 @@ export class CoachOverviewService {
             orderBy: { actualDate: "desc" },
           }),
           tx.trainingAssessment.findFirst({
-            where: { userId, status: "SCHEDULED" },
+            where: { userId, status: { in: ["SCHEDULED", "POSTPONED"] } },
             orderBy: { localDate: "asc" },
           }),
           tx.trainingAvailability.findUnique({ where: { userId } }),

@@ -1,3 +1,5 @@
+import { WorkoutProfileChart } from "./WorkoutProfileChart";
+import { moveSegment } from "../model/workout-edit";
 import { TextInput, View } from "react-native";
 import { AppText, Button, Card } from "../../../components/ui";
 import { colors } from "../../../theme/tokens";
@@ -18,7 +20,9 @@ export function Editor({
   onEdit,
   onDelete,
   onSave,
+  saveLabel = "保存当天课程",
 }: {
+  saveLabel?: string;
   draft: Draft;
   setDraft: (draft: Draft) => void;
   hasFtp: boolean;
@@ -61,10 +65,11 @@ export function Editor({
           placeholderTextColor={colors.textMuted}
         />
       </Card>
+      <WorkoutProfileChart segments={draft.segments} />
       <View style={styles.sectionRow}>
         <AppText variant="card">训练动作 · {draft.segments.length} 个</AppText>
         <AppText variant="label" style={styles.goldChip}>
-          手动创建
+          课程草稿
         </AppText>
       </View>
       <WorkoutSegmentList
@@ -72,6 +77,15 @@ export function Editor({
         onAdd={busy ? undefined : onAdd}
         onEdit={busy ? undefined : onEdit}
         onDelete={busy ? undefined : onDelete}
+        onMove={
+          busy
+            ? undefined
+            : (from, to) =>
+                setDraft({
+                  ...draft,
+                  segments: moveSegment(draft.segments, from, to),
+                })
+        }
       />
       <Card style={styles.card}>
         <View style={styles.totalGrid}>
@@ -102,7 +116,7 @@ export function Editor({
           返回
         </Button>
         <Button loading={busy} onPress={onSave}>
-          保存当天课程
+          {saveLabel}
         </Button>
       </View>
       {busy ? (

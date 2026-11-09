@@ -510,6 +510,11 @@ export function useInitialPlan() {
     try {
       const validated = await coachApi.validate(token, proposal.proposalId);
       setProposal(validated);
+      if (validated.proposalVersion !== proposal.proposalVersion) {
+        setConfirmOpen(false);
+        setError("候选已变化，请重新预览后校验");
+        return;
+      }
       if (validated.status !== "READY" || validated.blockers.length) {
         setError("草稿未通过校验，请返回修改资料后重新生成");
       } else {
@@ -533,6 +538,7 @@ export function useInitialPlan() {
         proposal.proposalId,
         proposal.basePlanVersion,
         applyKey.current,
+        proposal.proposalVersion,
       );
       setConfirmOpen(false);
       setAppliedDates(applied.affectedDates);

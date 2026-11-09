@@ -1,3 +1,4 @@
+import { HomeActionsService } from "./home-actions.service";
 import { Injectable, Logger } from "@nestjs/common";
 import {
   homeTodayResponseSchema,
@@ -14,6 +15,7 @@ export class HomeService {
     private readonly profiles: ProfileService,
     private readonly training: TrainingOverviewService,
     private readonly nutrition: NutritionPlanService,
+    private readonly actions: HomeActionsService,
   ) {}
 
   async today(userId: string): Promise<HomeTodayResponse> {
@@ -24,7 +26,7 @@ export class HomeService {
       month: "2-digit",
       day: "2-digit",
     }).format(new Date());
-    const [training, nutrition] = await Promise.all([
+    const [training, nutrition, actions] = await Promise.all([
       this.section(
         "HOME_TRAINING_UNAVAILABLE",
         "训练安排暂时无法读取，请重试",
@@ -35,12 +37,18 @@ export class HomeService {
         "饮食安排暂时无法读取，请重试",
         () => this.nutrition.get(userId, { date: localDate }),
       ),
+      this.section(
+        "HOME_ACTIONS_UNAVAILABLE",
+        "状态与待办暂时无法读取，请重试",
+        () => this.actions.get(userId, localDate),
+      ),
     ]);
     return homeTodayResponseSchema.parse({
       localDate,
       profile,
       training,
       nutrition,
+      actions,
     });
   }
 

@@ -1,3 +1,4 @@
+import { workoutSegments } from "../training/calendar-events";
 import { validateCycleRecovery } from "./cycle-review/cycle-review.evidence";
 import {
   BadRequestException,
@@ -363,7 +364,9 @@ export class AiGenerationService implements OnModuleInit, OnModuleDestroy {
                 .map((item) => ({
                   id: item.id,
                   scheduledDate: item.scheduledDate,
-                  title: item.title,
+                  title: item.title || "骑行训练",
+                  purpose: item.purpose,
+                  segments: workoutSegments(item.structure),
                 })),
               goalId: context.goal.id,
               goalVersion: context.goal.version,

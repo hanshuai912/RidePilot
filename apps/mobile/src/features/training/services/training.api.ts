@@ -1,4 +1,6 @@
 import {
+  reschedulePreviewSchema,
+  type RescheduleInput,
   applyProposalResponseSchema,
   calendarResponseSchema,
   nextWorkoutResponseSchema,
@@ -81,6 +83,19 @@ async function request<T>(
 }
 
 export const trainingApi = {
+  async reschedulePreview(
+    token: string,
+    workoutId: string,
+    input: RescheduleInput,
+  ) {
+    return reschedulePreviewSchema.parse(
+      await request(
+        `workouts/${encodeURIComponent(workoutId)}/reschedule-preview`,
+        token,
+        { method: "POST", body: input },
+      ),
+    );
+  },
   async getNextWorkout(accessToken: string) {
     const data = await request<unknown>("workouts/next", accessToken);
     return nextWorkoutResponseSchema.parse(data).workout;
@@ -172,11 +187,21 @@ export const trainingApi = {
     proposalId: string,
     expectedBaseVersion: number,
     idempotencyKey: string,
+    expectedProposalVersion?: number,
   ): Promise<ApplyProposalResponse> {
     const data = await request<unknown>(
       `proposals/${proposalId}/apply`,
       accessToken,
-      { method: "POST", body: { expectedBaseVersion }, idempotencyKey },
+      {
+        method: "POST",
+        body: {
+          expectedBaseVersion,
+          ...(expectedProposalVersion === undefined
+            ? {}
+            : { expectedProposalVersion }),
+        },
+        idempotencyKey,
+      },
     );
     const parsed = applyProposalResponseSchema.safeParse(data);
     if (!parsed.success)

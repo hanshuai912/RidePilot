@@ -32,3 +32,9 @@ AI 教练的新增模型、迁移和 AI 课程来源见 [AI 教练数据模型](
 新增迁移 `20261106160000_plan_input_decisions`，建立 `plan_input_decisions`，按本人归属保存保留决定或 FTP 重算草稿及应用结果；只有新表和索引，不回填历史训练数据。详细字段、事务、幂等和回退策略见 [资料变更处理](../features/plan-input-impact.md)。
 
 新正式课程 `structure.inputSnapshot` 保存 FTP、可训练时间与目标依据，`structure.ftpSnapshotWatts` 保存执行瓦数的计算基准。复制未调整课程、恢复历史版本时保留原依据；缺失旧快照时标记未知，禁止用当前 FTP 假冒历史值。FTP 重算更新所选未来未记录课程的 FTP 快照并创建新正式版本，其他内容和实际记录身份保持。
+
+## 2026-11-09：候选对比与日历事件
+
+AI `ChangeProposal.draft.replacedWorkouts[]` JSON 快照增加可选 `purpose/segments`，旧草稿缺失时不补造原动作。候选编辑保留原快照，更新只增加提案版本并清空校验。
+
+日历的 REST 事件由既有 `training_availability.weekdays` 推导，RECOVERY 事件来自正式课程动作类型；不在 PlanItem 写入虚构的空课程，无 migration。改期仍创建新 PlanVersion；跨日期移动的课程在目标日分配最大 dayOrder + 1。记录保护、原 FTP 快照与旧版本均保留。

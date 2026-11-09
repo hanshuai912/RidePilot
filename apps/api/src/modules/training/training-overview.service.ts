@@ -1,3 +1,5 @@
+import { parseTrainingAvailability } from "./training-availability";
+import { calendarEvents } from "./calendar-events";
 import { Injectable } from "@nestjs/common";
 import { homeTrainingSchema, type HomeTraining } from "@ridepilot/contracts";
 import { PrismaService } from "../../infra/prisma/prisma.service";
@@ -31,6 +33,13 @@ export class TrainingOverviewService {
           where: { userId, metricType: "FTP", unit: "W" },
           orderBy: { measuredAt: "desc" },
         });
+        const availability = parseTrainingAvailability(
+          await tx.trainingAvailability.findUnique({ where: { userId } }),
+        );
+        const user = await tx.user.findUniqueOrThrow({
+          where: { id: userId },
+          select: { timezone: true },
+        });
         const version = plan?.activeVersion;
         const workouts = version?.workouts ?? [];
         const activities = await workoutActivities(tx, userId, workouts);
@@ -50,6 +59,14 @@ export class TrainingOverviewService {
           calendar: {
             from: localDate,
             to: localDate,
+            timezone: user.timezone,
+            localDate,
+            events: calendarEvents(
+              localDate,
+              localDate,
+              availability.success ? availability.data.weekdays : null,
+              summaries,
+            ),
             ftpAvailable: !!ftp && Number(ftp.value) > 0,
             items: summaries.filter(
               (workout) => workout.scheduledDate === localDate,

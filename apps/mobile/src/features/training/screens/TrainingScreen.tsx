@@ -1,10 +1,15 @@
+import {
+  calendarDays,
+  moveCalendar,
+  type CalendarView,
+} from "../model/calendar-period";
 import { PlanImpactEntryCard } from "../../plan-impact/components/PlanImpactEntryCard";
 import { TrainingNutritionLinkCard } from "../../nutrition/components/TrainingNutritionLinkCard";
 import { coachApi } from "../../coach/services/coach.api";
 import { RaceDayEvents } from "../../races/components/RaceDayEvents";
 import { assessmentsApi } from "../../assessments/services/assessments.api";
 import { AssessmentList } from "../../assessments/components/AssessmentList";
-import { useCallback, useState } from "react";
+import { useCallback, useState, useRef } from "react";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import type { CalendarResponse, Assessment } from "@ridepilot/contracts";
 import { Screen } from "../../../components/layout/Screen";
@@ -12,7 +17,7 @@ import { AppText, Button } from "../../../components/ui";
 import { useAuth } from "../../auth/hooks/AuthProvider";
 import { Home } from "../components/Home";
 import { styles } from "../components/training.styles";
-import { addDays, isTrainingDate, iso, type Workout } from "../model/training";
+import { isTrainingDate, iso, type Workout } from "../model/training";
 import { trainingApi } from "../services/training.api";
 
 export function TrainingScreen() {
@@ -34,15 +39,11 @@ function TrainingCalendar({
 }) {
   const { session } = useAuth();
   const token = session?.accessToken;
-  const today = iso(new Date());
+  const [today, setToday] = useState(iso(new Date()));
+  const [view, setView] = useState<CalendarView>("WEEK");
+  const initialized = useRef(false);
   const initialDate = date && isTrainingDate(date) ? date : today;
   const [selectedDate, setSelectedDate] = useState(initialDate);
-  const [weekStart, setWeekStart] = useState(
-    addDays(
-      initialDate,
-      -((new Date(`${initialDate}T12:00:00`).getDay() + 6) % 7),
-    ),
-  );
   const [calendar, setCalendar] = useState<CalendarResponse | null>(null);
   const [races, setRaces] = useState<
     Awaited<ReturnType<typeof coachApi.races>>
@@ -53,11 +54,11 @@ function TrainingCalendar({
   const [loading, setLoading] = useState(true);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
-  const weekEnd = addDays(weekStart, 6);
-  const moveWeek = (offsetDays: number) => {
-    setWeekStart((current) => addDays(current, offsetDays));
-    setSelectedDate((current) => addDays(current, offsetDays));
-  };
+  const days = calendarDays(selectedDate, view);
+  const weekStart = days[0];
+  const weekEnd = days[days.length - 1];
+  const moveWeek = (direction: number) =>
+    setSelectedDate((current) => moveCalendar(current, view, direction));
   useFocusEffect(
     useCallback(() => {
       void attempt;
@@ -71,13 +72,22 @@ function TrainingCalendar({
         Promise.resolve().then(() => coachApi.races(token)),
       ]).then(([courses, tests, events]) => {
         if (!active) return;
-        if (courses.status === "fulfilled") setCalendar(courses.value);
-        else
+        if (courses.status === "fulfilled") {
+          setCalendar(courses.value);
+          if (courses.value.localDate) {
+            setToday(courses.value.localDate);
+            if (!initialized.current && !date)
+              setSelectedDate(courses.value.localDate);
+          }
+          initialized.current = true;
+        } else {
+          setCalendar(null);
           setFeedback(
             courses.reason instanceof Error
               ? courses.reason.message
               : "训练日历加载失败",
           );
+        }
         if (tests.status === "fulfilled") {
           setAssessments(tests.value);
           setAssessmentError(null);
@@ -96,10 +106,7 @@ function TrainingCalendar({
       return () => {
         active = false;
       };
-    }, [token, weekStart, weekEnd, attempt]),
-  );
-  const days = Array.from({ length: 7 }, (_, index) =>
-    addDays(weekStart, index),
+    }, [token, weekStart, weekEnd, attempt, date]),
   );
   const edit = (workout: Workout) =>
     router.push({
@@ -121,7 +128,19 @@ function TrainingCalendar({
       ) : null}
       <Home
         days={days}
-        assessmentDates={assessments.map((item) => item.localDate)}
+        today={today}
+        view={view}
+        onView={setView}
+        events={calendar?.events ?? []}
+        onReschedule={(workout) =>
+          router.push({
+            pathname: "/workouts/reschedule",
+            params: { workoutId: workout.id },
+          })
+        }
+        assessmentDates={assessments
+          .filter((item) => ["SCHEDULED", "POSTPONED"].includes(item.status))
+          .map((item) => item.localDate)}
         raceDates={races.map((item) => item.localDate)}
         selectedDate={selectedDate}
         workouts={calendar?.items ?? []}
@@ -133,8 +152,8 @@ function TrainingCalendar({
         loading={loading}
         feedback={feedback}
         setSelectedDate={setSelectedDate}
-        onPrev={() => moveWeek(-7)}
-        onNext={() => moveWeek(7)}
+        onPrev={() => moveWeek(-1)}
+        onNext={() => moveWeek(1)}
         onRefresh={() => setAttempt((value) => value + 1)}
         onAdd={() =>
           router.push({

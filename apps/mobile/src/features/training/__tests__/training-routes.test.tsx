@@ -1,3 +1,6 @@
+import { AiCandidateEditorScreen } from "../screens/AiCandidateEditorScreen";
+import { WorkoutRescheduleScreen } from "../screens/WorkoutRescheduleScreen";
+import { goalsApi } from "../../goals/services/goals.api";
 import { assessmentsApi } from "../../assessments/services/assessments.api";
 import { Text } from "react-native";
 import { within } from "@testing-library/react-native";
@@ -31,12 +34,16 @@ import { WorkoutPreviewScreen } from "../screens/WorkoutPreviewScreen";
 import { WorkoutSegmentScreen } from "../screens/WorkoutSegmentScreen";
 import { addDays, iso } from "../model/training";
 
+jest.mock("../../goals/services/goals.api", () => ({
+  goalsApi: { generateCourses: jest.fn() },
+}));
 jest.mock("../../home/services/home.api", () => ({
   homeApi: { today: jest.fn() },
 }));
 jest.mock("../../auth/hooks/AuthProvider", () => ({ useAuth: jest.fn() }));
 jest.mock("../../coach/services/coach.api", () => ({
   coachApi: {
+    updateProposal: jest.fn(),
     goals: jest.fn(),
     races: jest.fn(),
     ftp: jest.fn(),
@@ -54,6 +61,7 @@ jest.mock("../../assessments/services/assessments.api", () => ({
 jest.mock("../services/training.api", () => ({
   ...jest.requireActual("../services/training.api"),
   trainingApi: {
+    reschedulePreview: jest.fn(),
     getCalendar: jest.fn(),
     getWorkout: jest.fn(),
     getProposal: jest.fn(),
@@ -142,6 +150,10 @@ const routes = {
   "workouts/feedback": WorkoutFeedbackScreen,
   "workouts/adjustment-preview": WorkoutAdjustmentPreviewScreen,
   "workouts/editor": WorkoutEditorScreen,
+  "workouts/candidate": AiCandidateEditorScreen,
+  "workouts/reschedule": WorkoutRescheduleScreen,
+  "(tabs)/coach/suggestion": () => <Text>局部编辑后重新预览</Text>,
+  "goals/course-preview": () => <Text>后续课程范围预览</Text>,
   "workouts/segment": WorkoutSegmentScreen,
   "workouts/preview": WorkoutPreviewScreen,
   "workouts/[workoutId]": WorkoutDetailScreen,
@@ -425,6 +437,7 @@ test("workout detail generates, previews, validates and applies an AI adjustment
     aiProposal.proposalId,
     aiProposal.basePlanVersion,
     expect.any(String),
+    aiProposal.proposalVersion,
   );
 });
 
@@ -564,6 +577,7 @@ test("new course saves to the formal plan in one action after returning from seg
     proposal.proposalId,
     0,
     `training-${proposal.proposalId}`,
+    proposal.proposalVersion,
   );
   expect(screen.getByText("保存成功")).toBeTruthy();
   expect(screen.queryByText("校验课程")).toBeNull();
@@ -1222,7 +1236,9 @@ test("calendar displays test events with courses and opens the test route", asyn
   ]);
   await renderRouter(routes, { initialUrl: `/(tabs)/training?date=${today}` });
   await screen.findByText(`日历 FTP 方案`, { exact: false });
-  expect(screen.getByLabelText(`${today}，有阶段测试`)).toBeTruthy();
+  expect(
+    screen.getByLabelText(new RegExp(`${today}.*有阶段测试`)),
+  ).toBeTruthy();
   expect(screen.getByText("耐力骑行")).toBeTruthy();
   await fireEvent.press(screen.getByText("查看测试"));
   await screen.findByText("已打开日历测试");
@@ -1289,6 +1305,144 @@ test("cycle review feedback returns to its original range without generating or 
     "/coach/cycle-review",
   );
   expect(coach.recordActivity).toHaveBeenCalledTimes(1);
+  expect(coach.adjustWorkout).not.toHaveBeenCalled();
+  expect(coach.apply).not.toHaveBeenCalled();
+});
+
+test("AI candidate local editing keeps other courses and never publishes, with recoverable version conflicts", async () => {
+  const second = {
+    ...aiProposal.workouts[0],
+    title: "另一节保留课程",
+    scheduledDate: addDays(today, 2),
+  };
+  coach.proposal.mockResolvedValue({
+    ...aiProposal,
+    workouts: [...aiProposal.workouts, second],
+  });
+  coach.updateProposal
+    .mockRejectedValueOnce(new Error("草稿已被其他请求修改，请重新读取"))
+    .mockResolvedValueOnce({
+      ...aiProposal,
+      proposalVersion: 2,
+      status: "DRAFT",
+    });
+  await renderRouter(routes, {
+    initialUrl: `/workouts/candidate?proposalId=${aiProposal.proposalId}&index=0`,
+  });
+  await screen.findByDisplayValue(aiProposal.workouts[0].title);
+  await fireEvent.changeText(
+    screen.getByDisplayValue(aiProposal.workouts[0].title),
+    "我修改的课程",
+  );
+  await fireEvent.press(screen.getByText("保存草稿并预览"));
+  await screen.findByText("草稿已被其他请求修改，请重新读取");
+  expect(screen.getByDisplayValue("我修改的课程")).toBeTruthy();
+  await fireEvent.press(screen.getByText("保存草稿并预览"));
+  await screen.findByText("局部编辑后重新预览");
+  expect(coach.updateProposal).toHaveBeenLastCalledWith(
+    "token",
+    aiProposal.proposalId,
+    expect.objectContaining({
+      expectedProposalVersion: 1,
+      draft: expect.objectContaining({
+        workouts: [
+          { ...aiProposal.workouts[0], title: "我修改的课程" },
+          second,
+        ],
+      }),
+    }),
+  );
+  expect(api.createEdit).not.toHaveBeenCalled();
+  expect(coach.apply).not.toHaveBeenCalled();
+});
+
+test("reschedule previews conflicts and alternatives, requires confirmation, and retries the same versioned write", async () => {
+  const target = addDays(today, 1);
+  const alternative = addDays(today, 2);
+  api.reschedulePreview
+    .mockResolvedValueOnce({
+      workoutId: workout.id,
+      planVersion: 1,
+      from: today,
+      to: target,
+      conflicts: ["目标日期有比赛"],
+      alternatives: [{ date: alternative, availableMinutes: 60 }],
+    })
+    .mockResolvedValueOnce({
+      workoutId: workout.id,
+      planVersion: 1,
+      from: today,
+      to: alternative,
+      conflicts: [],
+      alternatives: [],
+    });
+  const ready = {
+    ...proposal,
+    proposalType: "MANUAL_WORKOUT_EDIT" as const,
+    originalWorkout: workout,
+    basePlanVersion: 1,
+    status: "READY" as const,
+    validation: { passed: true, warnings: [], blockers: [] },
+  };
+  api.createEdit.mockResolvedValue(ready);
+  api.validate.mockResolvedValue(ready);
+  api.apply.mockRejectedValueOnce(new Error("连接超时")).mockResolvedValueOnce({
+    success: true,
+    newPlanVersion: 2,
+    affectedDates: [today, alternative],
+  });
+  await renderRouter(routes, {
+    initialUrl: `/workouts/reschedule?workoutId=${workout.id}`,
+  });
+  await screen.findByText("检查改期方案");
+  await fireEvent.press(screen.getByText("检查改期方案"));
+  await screen.findByText("目标日期有比赛");
+  await fireEvent.press(screen.getByText("确认应用改期"));
+  expect(api.createEdit).not.toHaveBeenCalled();
+  await fireEvent.press(screen.getByText(`${alternative} · 剩余 60 分钟`));
+  await screen.findByText("当前检查无日程冲突，应用时会重新检查。");
+  await fireEvent.press(screen.getByText("确认应用改期"));
+  await screen.findByText("连接超时");
+  await fireEvent.press(screen.getByText("重试确认此改期"));
+  await screen.findByText("课程已改期；动作与强度保留，请查看最新日历。");
+  expect(api.createEdit).toHaveBeenCalledTimes(1);
+  expect(api.validate).toHaveBeenCalledTimes(1);
+  expect(api.apply.mock.calls[0]).toEqual(api.apply.mock.calls[1]);
+  expect(api.apply.mock.calls[0][4]).toBe(1);
+});
+
+test("confirmed future adjustment uses range generation and routes to the complete range preview", async () => {
+  const endDate = addDays(today, 8);
+  jest.mocked(goalsApi.generateCourses).mockResolvedValue({
+    generationId: "job",
+    status: "READY",
+    proposalId: aiProposal.proposalId,
+    errorCode: null,
+    requestId: null,
+  });
+  await renderRouter(routes, {
+    initialUrl: `/workouts/adjust?workoutId=${workout.id}`,
+  });
+  await screen.findByText("联动后续课程");
+  await fireEvent.press(screen.getByText("联动后续课程"));
+  await fireEvent.changeText(
+    screen.getByLabelText("后续联动结束日期"),
+    endDate,
+  );
+  await fireEvent.press(screen.getByText("生成调整草稿"));
+  expect(goalsApi.generateCourses).not.toHaveBeenCalled();
+  await fireEvent.press(screen.getByText("确认范围并生成草稿"));
+  await screen.findByText("后续课程范围预览");
+  expect(goalsApi.generateCourses).toHaveBeenCalledWith(
+    "token",
+    expect.objectContaining({
+      scope: "DATES",
+      startDate: today,
+      endDate,
+      expectedBaseVersion: 1,
+    }),
+    expect.any(String),
+  );
   expect(coach.adjustWorkout).not.toHaveBeenCalled();
   expect(coach.apply).not.toHaveBeenCalled();
 });

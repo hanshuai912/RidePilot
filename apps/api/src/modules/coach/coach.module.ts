@@ -80,6 +80,11 @@ import { CoachSuggestionsRepository } from "./coach-suggestions.repository";
     RaceTrainingService,
     RaceImpactService,
   ],
-  exports: [CoachProposalService, PlanRestoreService],
+  exports: [
+    CoachProposalService,
+    PlanRestoreService,
+    CoachOverviewService,
+    CoachSuggestionsService,
+  ],
 })
 export class CoachModule {}

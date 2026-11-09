@@ -1,3 +1,5 @@
+import { TrainingCalendarService } from "./training-calendar.service";
+import { WorkoutRescheduleService } from "./workout-reschedule.service";
 import { Module } from "@nestjs/common";
 import { InfraModule } from "../../infra/infra.module";
 import { TrainingOverviewService } from "./training-overview.service";
@@ -12,6 +14,8 @@ import { CoachModule } from "../coach/coach.module";
   controllers: [TrainingController],
   providers: [
     TrainingRepository,
+    TrainingCalendarService,
+    WorkoutRescheduleService,
     TrainingService,
     TrainingApplicationService,
     TrainingOverviewService,

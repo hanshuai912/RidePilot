@@ -15,3 +15,7 @@
 `userId`、手机号、验证状态、密码及密码哈希不是允许字段；未知字段也会被拒绝。`expectedVersion` 可选，提交时若与当前版本不一致返回 409 `PROFILE_VERSION_CONFLICT`。成功后版本递增并返回完整最新档案。
 
 性别选项为 `MALE`、`FEMALE`、`OTHER`、`PREFER_NOT_TO_SAY`；经验为 `BEGINNER`、`INTERMEDIATE`、`ADVANCED`。这些值来自当前 PRD 建议口径，性别暂不参与训练或营养计算。训练时区和课程显示偏好不通过本接口写入。FTP 历史、训练时段、饮食禁忌和正式目标不通过本接口写入。
+
+## 课程编辑显示（2026-11-09 更新）
+
+课程编辑统一使用专业模式，移除 `GET/POST /api/v1/me/profile/workout-view` 及对应共享契约。客户端不再读写显示偏好；普通资料 API 继续不接收 `viewPreference`。历史数据库列保留兼容，不影响课程内容、资料版本或训练提案。

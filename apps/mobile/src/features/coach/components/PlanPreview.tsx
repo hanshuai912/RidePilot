@@ -1,10 +1,13 @@
+import { WorkoutSegmentList } from "../../training/components/WorkoutSegmentList";
+import { router } from "expo-router";
+import { WorkoutDiff } from "../../training/components/WorkoutDiff";
 import { ImpactWorkoutCard } from "../../plan-impact/components/ImpactWorkoutCard";
 import { StageReviewEvidenceCard } from "../../goals/components/StageReviewEvidenceCard";
 import { CycleReviewEvidenceCard } from "../cycle-review/CycleReviewEvidenceCard";
 import { View } from "react-native";
 import type { AiProposalResponse } from "@ridepilot/contracts";
 
-import { AppText, Card } from "../../../components/ui";
+import { AppText, Card, Button } from "../../../components/ui";
 
 function segmentLabel(
   segment: AiProposalResponse["workouts"][number]["segments"][number],
@@ -181,20 +184,35 @@ export function PlanPreview({
           此处的阶段与复评是课程建议说明。正式阶段安排请在目标详情查看；本次不会创建测试日程。
         </AppText>
       </View>
-      {proposal.replacedWorkouts?.length ? (
-        <Card>
-          <AppText variant="card">将替换的未来课程</AppText>
-          {proposal.replacedWorkouts.map((workout) => (
-            <AppText
-              key={workout.id}
-              variant="caption"
-              className="mt-2 text-secondary"
-            >
-              {workout.scheduledDate} · {workout.title || "骑行训练"}
+      {proposal.replacedWorkouts?.map((before) => {
+        const after =
+          proposal.scene === "WORKOUT_ADJUST"
+            ? proposal.workouts[0]
+            : undefined;
+        if (before.segments && after)
+          return (
+            <WorkoutDiff
+              key={`diff-${before.id}`}
+              before={{ ...before, segments: before.segments }}
+              after={after}
+            />
+          );
+        return (
+          <Card key={`before-${before.id}`}>
+            <AppText variant="card">
+              原课程 · {before.scheduledDate} · {before.title}
             </AppText>
-          ))}
-        </Card>
-      ) : null}
+            {before.segments ? (
+              <>
+                <AppText muted>{before.purpose || "未填写训练目的"}</AppText>
+                <WorkoutSegmentList segments={before.segments} />
+              </>
+            ) : (
+              <AppText muted>旧草稿未保存动作明细，请读取原课程核对。</AppText>
+            )}
+          </Card>
+        );
+      })}
       <View className="gap-3">
         {proposal.workouts.map((workout, index) => (
           <View
@@ -209,6 +227,23 @@ export function PlanPreview({
                 {workout.segments.length} 个动作
               </AppText>
             </View>
+            {["DRAFT", "READY", "BLOCKED"].includes(proposal.status) ? (
+              <Button
+                variant="secondary"
+                className="mt-3"
+                onPress={() =>
+                  router.push({
+                    pathname: "/workouts/candidate",
+                    params: {
+                      proposalId: proposal.proposalId,
+                      index: String(index),
+                    },
+                  })
+                }
+              >
+                局部编辑第 {index + 1} 节候选
+              </Button>
+            ) : null}
             <AppText variant="card" className="mt-2">
               {workout.title}
             </AppText>

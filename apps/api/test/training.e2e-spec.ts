@@ -80,7 +80,11 @@ describeWithDatabase("manual training plan API", () => {
       .send({ expectedBaseVersion });
   const calendar = async () =>
     calendarResponseSchema.parse(
-      (await get(`calendar?from=${today()}&to=2099-12-31`).expect(200)).body,
+      (
+        await get(
+          `calendar?from=${today()}&to=${new Date(Date.now() + 84 * 86400000).toISOString().slice(0, 10)}`,
+        ).expect(200)
+      ).body,
     );
   const register = async () => {
     const phone = `19${randomInt(100_000_000, 1_000_000_000)}`;
@@ -562,9 +566,10 @@ describeWithDatabase("manual training plan API", () => {
       .expect(404);
     expect(
       (
-        await get(`calendar?from=${today()}&to=2099-12-31`, otherToken).expect(
-          200,
-        )
+        await get(
+          `calendar?from=${today()}&to=${new Date(Date.now() + 84 * 86400000).toISOString().slice(0, 10)}`,
+          otherToken,
+        ).expect(200)
       ).body.items,
     ).toEqual([]);
     await request(app.getHttpServer())
@@ -597,5 +602,131 @@ describeWithDatabase("manual training plan API", () => {
       await prisma.planVersion.count({ where: { plan: { userId } } }),
     ).toBe(2);
     expect((await calendar()).items).toHaveLength(2);
+  });
+  it("checks rescheduling alternatives, ownership, late conflicts, and publishes once with a new day order", async () => {
+    const date = (offset: number) =>
+      new Date(new Date(`${today()}T00:00:00Z`).getTime() + offset * 86400000)
+        .toISOString()
+        .slice(0, 10);
+    await prisma.trainingAvailability.create({
+      data: {
+        userId,
+        timezone: "Asia/Shanghai",
+        weekdays: Array.from({ length: 7 }, (_, weekday) => ({
+          weekday,
+          availableMinutes: 90,
+        })),
+        maxSessionMinutes: 60,
+      },
+    });
+    const initial = await ready(await create());
+    await apply(initial).expect(201);
+    const second = await ready(
+      await create(draft({ scheduledDate: date(1), title: "目标日已有课程" })),
+    );
+    await apply(second).expect(201);
+    const original = (await calendar()).items.find(
+      (w) => w.scheduledDate === today(),
+    )!;
+    const race = await prisma.trainingRace.create({
+      data: {
+        userId,
+        name: "冲突赛事",
+        localDate: new Date(`${date(1)}T00:00:00Z`),
+        timezone: "Asia/Shanghai",
+        distanceKm: 50,
+        priority: "B",
+      },
+    });
+    const previewBody = {
+      scheduledDate: date(1),
+      expectedPlanVersion: original.planVersion,
+    };
+    await request(app.getHttpServer())
+      .post(`/api/v1/workouts/${original.id}/reschedule-preview`)
+      .send(previewBody)
+      .expect(401);
+    const other = await register();
+    await post(
+      `workouts/${original.id}/reschedule-preview`,
+      other.tokens.accessToken,
+    )
+      .send(previewBody)
+      .expect(404);
+    await post(`workouts/${original.id}/reschedule-preview`)
+      .send({ ...previewBody, expectedPlanVersion: 1 })
+      .expect(409);
+    const conflict = (
+      await post(`workouts/${original.id}/reschedule-preview`)
+        .send(previewBody)
+        .expect(201)
+    ).body;
+    expect(conflict.conflicts.join()).toContain("比赛");
+    expect(conflict.alternatives).toHaveLength(3);
+    const editBody = {
+      ...draft({ scheduledDate: date(1) }),
+      expectedPlanVersion: original.planVersion,
+    };
+    await post(`workouts/${original.id}/edit-proposal`)
+      .send(editBody)
+      .expect(409);
+    await prisma.trainingRace.delete({ where: { id: race.id } });
+    const candidate = proposalResponseSchema.parse(
+      (
+        await post(`workouts/${original.id}/edit-proposal`)
+          .send(editBody)
+          .expect(201)
+      ).body,
+    );
+    await ready(candidate);
+    const late = await prisma.trainingAssessment.create({
+      data: {
+        userId,
+        localDate: new Date(`${date(1)}T00:00:00Z`),
+        protocol: "FTP",
+        status: "POSTPONED",
+      },
+    });
+    expect((await apply(candidate).expect(409)).body.code).toBe(
+      "WORKOUT_SCHEDULE_CONFLICT",
+    );
+    expect(
+      await prisma.planVersion.count({ where: { plan: { userId } } }),
+    ).toBe(2);
+    await prisma.trainingAssessment.delete({ where: { id: late.id } });
+    await post(`proposals/${candidate.proposalId}/apply`)
+      .set("Idempotency-Key", candidate.proposalId)
+      .send({ expectedBaseVersion: 2, expectedProposalVersion: 99 })
+      .expect(409);
+    const published = (await apply(candidate).expect(201)).body;
+    expect((await apply(candidate).expect(201)).body).toEqual(published);
+    const current = (await calendar()).items;
+    expect(current).toHaveLength(2);
+    expect(current.map((w) => w.scheduledDate)).toEqual([date(1), date(1)]);
+    expect(current.map((w) => w.dayOrder)).toEqual([1, 2]);
+    expect(current[1].segments).toEqual(original.segments);
+  });
+
+  it("calendar emits explicit rest events only when availability is known and home exposes actionable real status", async () => {
+    const range = `calendar?from=${today()}&to=${today()}`;
+    expect((await get(range).expect(200)).body.events).toEqual([]);
+    const weekday = new Date(`${today()}T00:00:00Z`).getUTCDay();
+    await prisma.trainingAvailability.create({
+      data: {
+        userId,
+        timezone: "Asia/Shanghai",
+        weekdays: [{ weekday: (weekday + 1) % 7, availableMinutes: 60 }],
+        maxSessionMinutes: 60,
+      },
+    });
+    expect((await get(range).expect(200)).body.events[0]).toMatchObject({
+      date: today(),
+      kind: "REST",
+      source: "AVAILABILITY",
+    });
+    const response = (await get("home/today").expect(200)).body;
+    expect(response.actions.status).toBe("READY");
+    expect(response.actions.data.overview.status.code).toBe("INSUFFICIENT");
+    expect(response.actions.data.nextRace).toBeNull();
   });
 });
