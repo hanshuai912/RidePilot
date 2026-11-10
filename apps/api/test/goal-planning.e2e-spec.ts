@@ -567,11 +567,16 @@ describeDb("goal stages and selected course ranges", () => {
     expect(paused.goal.status).toBe("PAUSED");
     await applyGoal("RESUME");
     await applyGoal("UPDATE", {
-      successCriteria: "完成百公里并保存实际记录",
       targetDate: addDays(start, 200),
     });
-    const { change, preview } = await goalChange("COMPLETE");
+    const { change, preview } = await goalChange("COMPLETE", {
+      successCriteria: "完成百公里并保存实际记录",
+    });
     expect(preview.affected.workouts).toHaveLength(1);
+    expect(preview.before.successCriteria).toBeNull();
+    expect(
+      (await get(`goals/${goalId}`).expect(200)).body.successCriteria,
+    ).toBeNull();
     const key = randomUUID();
     const body = { change, fingerprint: preview.fingerprint };
     const first = (
@@ -588,6 +593,7 @@ describeDb("goal stages and selected course ranges", () => {
     ).body;
     expect(second).toEqual(first);
     expect(first.goal.closureReason).toBe("COMPLETED");
+    expect(first.goal.successCriteria).toBe("完成百公里并保存实际记录");
     await post(`goals/${goalId}/changes`)
       .set("Idempotency-Key", key)
       .send({ ...body, change: { ...change, reason: "不同输入" } })
@@ -613,9 +619,159 @@ describeDb("goal stages and selected course ranges", () => {
     expect(await prisma.trainingStageReview.count({ where: { userId } })).toBe(
       0,
     );
+    {
+      goalId = next.nextGoal.id;
+      const originalId = goalId;
+      await applyGoal("CLOSE");
+      const closed = (await get(`goals/${originalId}`).expect(200)).body;
+      const input = {
+        type: "CUSTOM",
+        targetDate: addDays(start, 80),
+        priority: "SECONDARY",
+        description: "新的独立目标",
+      };
+      await post("goals/evaluate").send(input).expect(409);
+      await post("goals")
+        .set("Idempotency-Key", randomUUID())
+        .send(input)
+        .expect(409);
+      expect(await prisma.trainingGoal.count({ where: { userId } })).toBe(2);
+      await post("goals/evaluate")
+        .send({ ...input, priority: "PRIMARY" })
+        .expect(201);
+      const key = randomUUID();
+      const added = (
+        await post("goals")
+          .set("Idempotency-Key", key)
+          .send({ ...input, priority: "PRIMARY" })
+          .expect(201)
+      ).body;
+      expect(added.id).not.toBe(originalId);
+      expect(added.priority).toBe("PRIMARY");
+      expect((await get(`goals/${originalId}`).expect(200)).body).toEqual(
+        closed,
+      );
+      expect(
+        (
+          await post("goals")
+            .set("Idempotency-Key", key)
+            .send({ ...input, priority: "PRIMARY" })
+            .expect(201)
+        ).body,
+      ).toEqual(added);
+      const rejected = (
+        await post(`goals/${added.id}/change-preview`)
+          .send({
+            action: "UPDATE",
+            expectedVersion: added.version,
+            reason: "唯一目标不能直接降级",
+            changes: { priority: "SECONDARY" },
+          })
+          .expect(400)
+      ).body;
+      expect(rejected.code).toBe("PRIMARY_GOAL_REPLACEMENT_REQUIRED");
+      expect((await get(`goals/${added.id}`).expect(200)).body.priority).toBe(
+        "PRIMARY",
+      );
+    }
+  });
+
+  it("completes expired goals with criteria in one confirmed change and rejects unrelated edits or stale criteria", async () => {
+    await prisma.trainingGoal.update({
+      where: { id: goalId },
+      data: { targetDate: new Date("2020-01-01") },
+    });
+    const current = (await get(`goals/${goalId}`).expect(200)).body;
+    const base = {
+      action: "COMPLETE",
+      expectedVersion: current.version,
+      reason: "已完成百公里，实际记录可核对",
+    };
+    for (const changes of [
+      undefined,
+      { successCriteria: null },
+      { successCriteria: "  " },
+      { successCriteria: "完成百公里", targetDate: addDays(start, 40) },
+      { successCriteria: "完成百公里", priority: "SECONDARY" },
+    ]) {
+      await post(`goals/${goalId}/change-preview`)
+        .send({ ...base, ...(changes ? { changes } : {}) })
+        .expect(400);
+    }
+    for (const action of ["PAUSE", "CLOSE"]) {
+      await post(`goals/${goalId}/change-preview`)
+        .send({ ...base, action, changes: { successCriteria: "完成百公里" } })
+        .expect(400);
+    }
+    const change = { ...base, changes: { successCriteria: "完成百公里" } };
+    const preview = (
+      await post(`goals/${goalId}/change-preview`).send(change).expect(201)
+    ).body;
+    expect(preview.after).toMatchObject({
+      targetDate: "2020-01-01",
+      successCriteria: "完成百公里",
+      status: "CLOSED",
+      closureReason: "COMPLETED",
+    });
+    expect((await get(`goals/${goalId}`).expect(200)).body).toMatchObject({
+      successCriteria: null,
+      status: "ACTIVE",
+      version: current.version,
+    });
+    await post(`goals/${goalId}/changes`)
+      .set("Idempotency-Key", randomUUID())
+      .send({
+        change: { ...change, changes: { successCriteria: "改变核对条件" } },
+        fingerprint: preview.fingerprint,
+      })
+      .expect(409);
+    expect(
+      await prisma.goalMutation.count({
+        where: { userId, goalId, action: "COMPLETE" },
+      }),
+    ).toBe(0);
+    const result = (
+      await post(`goals/${goalId}/changes`)
+        .set("Idempotency-Key", randomUUID())
+        .send({ change, fingerprint: preview.fingerprint })
+        .expect(201)
+    ).body;
+    expect(result.goal).toMatchObject({
+      targetDate: "2020-01-01",
+      successCriteria: "完成百公里",
+      status: "CLOSED",
+      closureReason: "COMPLETED",
+      version: current.version + 1,
+    });
+    expect(
+      await prisma.goalMutation.count({
+        where: { userId, goalId, action: "COMPLETE" },
+      }),
+    ).toBe(1);
   });
 
   it("evaluates facts without AI, prevents silent primary replacement and atomically switches primary goals", async () => {
+    {
+      await prisma.trainingGoal.update({
+        where: { id: goalId },
+        data: { priority: "SECONDARY" },
+      });
+      const { change, preview } = await goalChange("UPDATE", {
+        description: "保持当前唯一目标",
+      });
+      expect(preview.before.priority).toBe("SECONDARY");
+      expect(preview.after.priority).toBe("PRIMARY");
+      expect((await get(`goals/${goalId}`).expect(200)).body.priority).toBe(
+        "SECONDARY",
+      );
+      const applied = (
+        await post(`goals/${goalId}/changes`)
+          .set("Idempotency-Key", randomUUID())
+          .send({ change, fingerprint: preview.fingerprint })
+          .expect(201)
+      ).body;
+      expect(applied.goal.priority).toBe("PRIMARY");
+    }
     const input = {
       type: "FTP",
       targetFtpWatts: 300,
@@ -631,12 +787,15 @@ describeDb("goal stages and selected course ranges", () => {
     });
     await post("goals").send(input).expect(409);
     const key = randomUUID();
+    const original = (await get(`goals/${goalId}`).expect(200)).body;
     const secondary = (
       await post("goals")
         .set("Idempotency-Key", key)
         .send({ ...input, priority: "SECONDARY" })
         .expect(201)
     ).body;
+    expect(secondary.id).not.toBe(goalId);
+    expect((await get(`goals/${goalId}`).expect(200)).body).toEqual(original);
     expect(
       (
         await post("goals")
@@ -645,7 +804,16 @@ describeDb("goal stages and selected course ranges", () => {
           .expect(201)
       ).body.id,
     ).toBe(secondary.id);
+
     const oldId = goalId;
+    await post(`goals/${oldId}/change-preview`)
+      .send({
+        action: "UPDATE",
+        expectedVersion: original.version,
+        reason: "尝试直接降级",
+        changes: { priority: "SECONDARY" },
+      })
+      .expect(400);
     goalId = secondary.id;
     const { preview } = await goalChange("UPDATE", { priority: "PRIMARY" });
     expect(
@@ -654,7 +822,7 @@ describeDb("goal stages and selected course ranges", () => {
     await applyGoal("UPDATE", { priority: "PRIMARY" });
     expect((await get(`goals/${oldId}`).expect(200)).body).toMatchObject({
       priority: "SECONDARY",
-      version: 2,
+      version: original.version + 1,
     });
     expect(
       await prisma.trainingGoal.count({

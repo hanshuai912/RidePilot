@@ -13,7 +13,12 @@ export const goalChangeSchema = z.strictObject({
   action: goalActionSchema,
   expectedVersion: z.number().int().positive(),
   reason: z.string().trim().min(1).max(300),
-  changes: goalInputSchema.partial().optional(),
+  changes: goalInputSchema
+    .partial()
+    .optional()
+    .describe(
+      "UPDATE/RESUME 可调整目标字段；COMPLETE 仅可填写 successCriteria",
+    ),
   nextGoal: goalInputSchema.optional(),
 });
 export const goalEvaluationSchema = z.object({

@@ -10,6 +10,8 @@ import { useUnsavedTraining } from "../../training/hooks/useUnsavedTraining";
 import { useGoalPlanning } from "../hooks/useGoalPlanning";
 import { StageTimeline } from "../components/StageTimeline";
 import { GoalSummaryCard } from "../components/GoalSummaryCard";
+import { AddGoalButton } from "../components/AddGoalButton";
+import { GoalSwitcher } from "../components/GoalSwitcher";
 import { GoalCoursePlanner } from "../components/GoalCoursePlanner";
 import { StagePlanHeading } from "../components/StagePlanHeading";
 import { GoalStagePlanner } from "../components/GoalStagePlanner";
@@ -19,6 +21,22 @@ export function GoalDetailScreen() {
     goalId?: string;
     assessmentId?: string;
   }>();
+  return (
+    <GoalDetailContent
+      key={`${goalId}:${assessmentId ?? ""}`}
+      goalId={goalId}
+      assessmentId={assessmentId}
+    />
+  );
+}
+
+function GoalDetailContent({
+  goalId,
+  assessmentId,
+}: {
+  goalId: string;
+  assessmentId?: string;
+}) {
   const flow = useGoalPlanning(goalId, assessmentId);
   const focused = useIsFocused();
   const [dirty, setDirty] = useState(false);
@@ -34,6 +52,7 @@ export function GoalDetailScreen() {
     <TrainingPage
       title="目标与阶段"
       busy={flow.busy}
+      headerAction={<AddGoalButton disabled={flow.busy} />}
       onBack={() =>
         router.canGoBack() ? router.back() : router.replace("/goals")
       }
@@ -44,6 +63,7 @@ export function GoalDetailScreen() {
       {guard}
       {data ? (
         <View className="gap-6 py-3">
+          <GoalSwitcher current={data.goal} disabled={flow.busy} />
           <GoalSummaryCard
             goal={data.goal}
             currentFtp={data.ftp?.valueWatts}

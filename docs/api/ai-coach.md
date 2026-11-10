@@ -208,6 +208,10 @@ GET 建议列表把版本/资料失效的候选投影为 EXPIRED，从 pending �
 
 目标变更必须提交 expectedVersion、原因与预览 fingerprint；确认接口要求用户唯一幂等键。阶段复评提交当前 snapshot fingerprint 和 expectedReviewId（首次为 null），避免新决定被旧页面覆盖；同键不同内容返回 409。阶段条件用独立 criteriaVersion 保护。
 
+新增和编辑分开：`POST /goals` 始终创建新 ID，已有目标的内容和状态保留；已有活跃主目标时，新目标使用 `SECONDARY`，如请求再次创建 `PRIMARY` 则返回既有 409 `PRIMARY_GOAL_EXISTS`。没有进行中目标时，评价与创建均要求 `PRIMARY`，否则返回 409 `PRIMARY_GOAL_REQUIRED`，刷新目标列表后重新预览；不在确认写入时静默改变请求的优先级。`UPDATE` / `RESUME` 不能将已有主目标直接降为次目标，返回 400 `PRIMARY_GOAL_REPLACEMENT_REQUIRED`；应在另一个目标上请求设为主目标，预览列出原主目标，确认时原主目标在同一事务内降级。唯一活跃的旧次目标在调整/恢复预览中会成为主目标，确认后才保存；建立下一目标且没有其他活跃目标时也以主目标预览。暂停、完成或结束仍是独立动作，不自动指定其他目标为主目标。
+
+`COMPLETE` 可通过 `changes: { successCriteria: "可观察的达成条件" }` 在完成操作中补充或核对条件，与 `reason` 中的实际证据一起预览、确认并原子保存，无需先执行 `UPDATE`。最终条件为空仍返回 400 `GOAL_CRITERIA_REQUIRED`；省略 `changes` 时兼容沿用已保存条件。完成时不得同时调整日期、类型、主次或数值等其他字段，否则返回 400 `INVALID_GOAL_ACTION`。已过期目标可直接确认完成，不强制改期；预览无写入，修改条件后必须重新预览，原 fingerprint 不可复用。`PAUSE`、`CLOSE`、`CREATE_NEXT` 仍不得携带 `changes`。`UPDATE`、`RESUME` 保持原有字段规则，新建目标的条件继续可选。
+
 阶段/范围生成新增可选 stageReviewId，阶段及课程预览返回保存时 evidence。后续请求只能沿用该阶段最新且依据未变化的决定。保持/进入下一阶段限制课程 stageId，延长先确认阶段草稿，调整允许日期课程或阶段重规划。所有正式应用仍需校验和用户确认，目标操作不隐式发布训练或营养。
 
 ## 候选局部编辑与明细快照（2026-11-09）

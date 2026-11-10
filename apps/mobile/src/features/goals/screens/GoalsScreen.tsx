@@ -3,6 +3,7 @@ import { router, useFocusEffect } from "expo-router";
 import { View } from "react-native";
 import { AppText, Button, Card } from "../../../components/ui";
 import { GoalListCard } from "../components/GoalListCard";
+import { AddGoalButton } from "../components/AddGoalButton";
 import { useAuth } from "../../auth/hooks/AuthProvider";
 import { coachApi } from "../../coach/services/coach.api";
 import {
@@ -65,7 +66,8 @@ export function GoalsScreen() {
   );
   return (
     <TrainingPage
-      title="目标与阶段"
+      title="目标管理"
+      headerAction={goals?.length ? <AddGoalButton /> : undefined}
       onBack={backToTraining}
       error={error}
       retry={() => setAttempt((value) => value + 1)}
@@ -74,13 +76,6 @@ export function GoalsScreen() {
       <View className="gap-6 py-3">
         <View className="flex-row flex-wrap items-center justify-between gap-2">
           <AppText variant="section">我的目标</AppText>
-          <Button
-            variant={goals?.length ? "ghost" : "primary"}
-            size="sm"
-            onPress={() => router.push("/goals/new")}
-          >
-            建立新目标
-          </Button>
         </View>
         {primary ? (
           <View className="gap-3">
@@ -110,6 +105,13 @@ export function GoalsScreen() {
             <AppText className="text-secondary">
               建立目标后，规划训练阶段与课程。
             </AppText>
+            <Button
+              size="lg"
+              className="mt-3"
+              onPress={() => router.push("/goals/new")}
+            >
+              添加目标
+            </Button>
           </Card>
         ) : null}
         <View className="border-t border-divider pt-3">

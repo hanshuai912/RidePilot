@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from "react";
+import { useFocusEffect } from "expo-router";
 import type {
   GoalChange,
   GoalChangePreview,
@@ -8,6 +9,8 @@ import type {
 import { useAuth } from "../../auth/hooks/AuthProvider";
 import { coachApi, CoachApiError } from "../../coach/services/coach.api";
 import { useTrainingResource } from "../../training/hooks/useTrainingResource";
+import { getProfile } from "../../profile/services/profile.api";
+import { localDateInTimezone } from "../../coach/model/plan-dates";
 import { goalLifecycleApi as api } from "../services/goal-lifecycle.api";
 import {
   goalFormValue,
@@ -28,26 +31,67 @@ export function useGoalLifecycle(goalId?: string) {
   const token = session?.accessToken;
   const load = useCallback(async () => {
     if (!token) throw new Error("请先登录");
-    return goalId ? api.overview(token, goalId) : null;
+    const goals = await coachApi.goals(token);
+    if (goalId) {
+      const overview = await api.overview(token, goalId);
+      return { overview, goals, today: overview.evaluation.localDate };
+    }
+    const profile = await getProfile(token);
+    return {
+      overview: null,
+      goals,
+      today: localDateInTimezone(new Date(), profile.timezone),
+    };
   }, [token, goalId]);
   const resource = useTrainingResource(load);
+  const retry = resource.retry;
+  const firstFocus = useRef(true);
+  useFocusEffect(
+    useCallback(() => {
+      if (firstFocus.current) firstFocus.current = false;
+      else retry();
+    }, [retry]),
+  );
+  const data = resource.data?.overview ?? null;
+  const otherActiveGoals = (resource.data?.goals ?? []).filter(
+    (goal) => goal.id !== goalId && goal.status === "ACTIVE",
+  );
+  const creating = !goalId || data?.goal.status === "CLOSED";
+  const newPriority = otherActiveGoals.some(
+    (goal) => goal.priority === "PRIMARY",
+  )
+    ? "SECONDARY"
+    : "PRIMARY";
   const [formOverride, setFormState] = useState<GoalFormValue | null>(null);
   const form =
     formOverride ??
-    (resource.data?.goal.status === "CLOSED"
+    (data?.goal.status === "CLOSED"
       ? goalFormValue({
-          type: resource.data.goal.type,
-          priority: "PRIMARY",
+          type: data.goal.type,
+          priority: newPriority,
           targetDate: "",
         })
-      : goalFormValue(resource.data?.goal));
+      : goalFormValue(
+          data?.goal ?? { type: "FTP", priority: newPriority, targetDate: "" },
+        ));
   const [actionOverride, setActionState] = useState<
     GoalChange["action"] | null
   >(null);
   const action =
     actionOverride ??
-    (resource.data?.goal.status === "CLOSED" ? "CREATE_NEXT" : "UPDATE");
+    (data?.goal.status === "CLOSED" ? "CREATE_NEXT" : "UPDATE");
+  const effectiveForm = creating
+    ? { ...form, priority: newPriority as GoalInput["priority"] }
+    : otherActiveGoals.length === 0 &&
+        (data?.goal.status === "ACTIVE" || action === "RESUME")
+      ? { ...form, priority: "PRIMARY" as const }
+      : form;
   const [reason, setReasonState] = useState("");
+  const [completionCriteriaOverride, setCompletionCriteria] = useState<
+    string | null
+  >(null);
+  const completionCriteria =
+    completionCriteriaOverride ?? data?.goal.successCriteria ?? "";
   const [dirty, setDirty] = useState(false);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [busy, setBusy] = useState(false);
@@ -66,15 +110,20 @@ export function useGoalLifecycle(goalId?: string) {
     if (value === "CREATE_NEXT")
       setFormState(
         goalFormValue({
-          type: resource.data?.goal.type ?? "FTP",
-          priority: "PRIMARY",
+          type: data?.goal.type ?? "FTP",
+          priority: newPriority,
           targetDate: "",
         }),
       );
-    else if (resource.data) setFormState(goalFormValue(resource.data.goal));
+    else if (data) setFormState(goalFormValue(data.goal));
   };
   const setReason = (value: string) => {
     setReasonState(value);
+    setDirty(true);
+    setPreview(null);
+  };
+  const changeCompletionCriteria = (value: string) => {
+    setCompletionCriteria(value);
     setDirty(true);
     setPreview(null);
   };
@@ -100,21 +149,28 @@ export function useGoalLifecycle(goalId?: string) {
     run(async () => {
       const key = `goal-change-${Date.now()}-${Math.random().toString(36).slice(2)}`;
       if (!goalId) {
-        const input = parseGoalForm(form);
+        const input = parseGoalForm(effectiveForm);
         const result = await api.evaluate(token!, input);
         setPreview({ input, ...result, key });
         return;
       }
-      if (!resource.data || !reason.trim())
+      if (action === "COMPLETE" && !completionCriteria.trim())
+        throw new Error("请填写达成条件");
+      if (!data || !reason.trim())
         throw new Error("请填写本次选择的理由或达成证据");
       const change: GoalChange = {
         action,
-        expectedVersion: resource.data.goal.version,
+        expectedVersion: data.goal.version,
         reason: reason.trim(),
         ...(["UPDATE", "RESUME"].includes(action)
-          ? { changes: parseGoalForm(form) }
+          ? { changes: parseGoalForm(effectiveForm) }
           : {}),
-        ...(action === "CREATE_NEXT" ? { nextGoal: parseGoalForm(form) } : {}),
+        ...(action === "COMPLETE"
+          ? { changes: { successCriteria: completionCriteria.trim() } }
+          : {}),
+        ...(action === "CREATE_NEXT"
+          ? { nextGoal: parseGoalForm(effectiveForm) }
+          : {}),
       };
       const comparison = await api.preview(token!, goalId, change);
       setPreview({
@@ -150,12 +206,21 @@ export function useGoalLifecycle(goalId?: string) {
     });
   return {
     ...resource,
-    form,
+    data,
+    today: resource.data?.today ?? "",
+    form: effectiveForm,
+    showPriority: otherActiveGoals.length > 0,
+    canPromote:
+      !creating &&
+      data?.goal.priority === "SECONDARY" &&
+      otherActiveGoals.length > 0,
     changeForm,
     action,
     setAction,
     reason,
     setReason,
+    completionCriteria,
+    changeCompletionCriteria,
     dirty: dirty && !savedId,
     preview,
     cancelPreview: () => setPreview(null),

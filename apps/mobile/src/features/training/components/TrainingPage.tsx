@@ -21,6 +21,7 @@ export function TrainingPage({
   onBack,
   busy = false,
   children,
+  headerAction,
 }: {
   loading?: boolean;
   error?: string | null;
@@ -29,6 +30,7 @@ export function TrainingPage({
   onBack?: () => void;
   busy?: boolean;
   children?: ReactNode;
+  headerAction?: ReactNode;
 }) {
   const scrollRef = useAnimatedRef<ScrollView>();
   return (
@@ -43,6 +45,7 @@ export function TrainingPage({
               title={title}
               onBack={onBack ?? backToTraining}
               disabled={busy}
+              rightAction={headerAction}
             />
           ) : null}
           <Animated.ScrollView

@@ -42,7 +42,7 @@ export async function readGoalContext(
     plan,
     assessments,
     stages,
-    otherPrimaryGoals,
+    otherActiveGoals,
   ] = await Promise.all([
     db.abilityMeasurement.findFirst({
       where: { userId, metricType: "FTP", unit: "W" },
@@ -76,7 +76,6 @@ export async function readGoalContext(
         userId,
         id: { not: goalId },
         status: "ACTIVE",
-        priority: "PRIMARY",
       },
       orderBy: { id: "asc" },
     }),
@@ -91,7 +90,10 @@ export async function readGoalContext(
     plan,
     assessments,
     stages,
-    otherPrimaryGoals,
+    otherActiveGoals,
+    otherPrimaryGoals: otherActiveGoals.filter(
+      (goal) => goal.priority === "PRIMARY",
+    ),
   };
 }
 export type GoalContext = Awaited<ReturnType<typeof readGoalContext>>;

@@ -1,4 +1,4 @@
-import { Stack, router, usePathname } from "expo-router";
+import { Stack, router, usePathname, useLocalSearchParams } from "expo-router";
 import { Text } from "react-native";
 import {
   renderRouter,
@@ -154,6 +154,11 @@ const routes = {
   },
   "goals/index": GoalsScreen,
   "goals/[goalId]": GoalDetailScreen,
+  "goals/new": () => <Text>独立添加目标表单</Text>,
+  "goals/manage": function EditGoal() {
+    const { goalId: id } = useLocalSearchParams<{ goalId: string }>();
+    return <Text>{`编辑当前目标表单 ${id}`}</Text>;
+  },
   "goals/stage-preview": StagePreviewScreen,
   "goals/course-preview": CoursePreviewScreen,
   "cycling-power-zones": function FtpSettings() {
@@ -221,6 +226,7 @@ test("missing FTP links directly to settings and resumes the selected goal", asy
   );
   await fireEvent.press(screen.getByText("保存 FTP 并返回"));
   await screen.findByText("当前 FTP 250 W");
+  expect(screen.queryByText("达成条件待补充")).toBeNull();
   expect(screen.getByTestId("path").props.children).toBe(`/goals/${goalId}`);
   expect(api.generateCourses).not.toHaveBeenCalled();
 });
@@ -538,6 +544,140 @@ test("goals are grouped by current primary, other and historical goals and cards
   await screen.findByText("当前 FTP 250 W");
   expect(screen.getByTestId("path").props.children).toBe(`/goals/${goalId}`);
   expect(api.generateCourses).not.toHaveBeenCalled();
+});
+
+test("the list and detail expose the add action, while editing keeps the selected goal ID", async () => {
+  await renderRouter(routes, { initialUrl: "/goals" });
+  await screen.findByText("当前主目标");
+  await fireEvent.press(screen.getByRole("button", { name: "添加目标" }));
+  await screen.findByText("独立添加目标表单");
+  expect(screen.getByTestId("path").props.children).toBe("/goals/new");
+});
+
+test("empty lists have one clear add action", async () => {
+  coach.goals.mockResolvedValue([]);
+  await renderRouter(routes, { initialUrl: "/goals" });
+  await screen.findByText("还没有训练目标");
+  expect(screen.getAllByRole("button", { name: "添加目标" })).toHaveLength(1);
+  await fireEvent.press(screen.getByRole("button", { name: "添加目标" }));
+  await screen.findByText("独立添加目标表单");
+});
+
+test("detail has independent add and edit entries", async () => {
+  await detail();
+  await screen.findByText("编辑目标");
+  expect(screen.getByRole("button", { name: "添加目标" })).toBeTruthy();
+  await fireEvent.press(screen.getByText("编辑目标"));
+  await screen.findByText(`编辑当前目标表单 ${goalId}`);
+  expect(screen.getByTestId("path").props.children).toBe("/goals/manage");
+});
+
+test("goal detail shows secondary goals and switching loads their own content without mutations", async () => {
+  const secondary = {
+    ...goal,
+    id: proposalId,
+    type: "CUSTOM" as const,
+    description: "完成百公里路线",
+    priority: "SECONDARY" as const,
+  };
+  const paused = {
+    ...goal,
+    id: planId,
+    description: "暂停的爬坡目标",
+    status: "PAUSED" as const,
+    priority: "SECONDARY" as const,
+  };
+  coach.goals.mockResolvedValue([paused, secondary, goal]);
+  coach.goal.mockImplementation(async (_token, id) =>
+    id === secondary.id ? secondary : id === paused.id ? paused : goal,
+  );
+  api.activeStages.mockImplementation(async (_token, id) =>
+    id === goal.id ? stagePlan : null,
+  );
+  await detail();
+  const target = await screen.findByRole("button", {
+    name: "切换目标：完成百公里路线",
+  });
+  expect(
+    screen.getByRole("button", { name: "切换目标：提升耐力" }).props
+      .accessibilityState.selected,
+  ).toBe(true);
+  await fireEvent.press(target);
+  await screen.findByText("尚无阶段安排");
+  expect(screen.getByTestId("path").props.children).toBe(
+    `/goals/${secondary.id}`,
+  );
+  expect(coach.goal).toHaveBeenLastCalledWith("token", secondary.id);
+  expect(api.activeStages).toHaveBeenLastCalledWith("token", secondary.id);
+  expect(
+    screen.getByRole("button", { name: "切换目标：完成百公里路线" }).props
+      .accessibilityState.selected,
+  ).toBe(true);
+  expect(screen.queryByText("基础耐力阶段")).toBeNull();
+  await fireEvent.press(
+    screen.getByRole("button", { name: "切换目标：暂停的爬坡目标" }),
+  );
+  await screen.findByText("尚无阶段安排");
+  expect(screen.queryByText("生成课程草稿")).toBeNull();
+  expect(api.generateCourses).not.toHaveBeenCalled();
+  expect(api.generateStages).not.toHaveBeenCalled();
+  expect(coach.apply).not.toHaveBeenCalled();
+});
+
+test("switching goals confirms discarding planning inputs and starts a clean form", async () => {
+  const secondary = {
+    ...goal,
+    id: proposalId,
+    description: "另一目标",
+    priority: "SECONDARY" as const,
+  };
+  coach.goals.mockResolvedValue([goal, secondary]);
+  coach.goal.mockImplementation(async (_token, id) =>
+    id === secondary.id ? secondary : goal,
+  );
+  api.activeStages.mockImplementation(async (_token, id) =>
+    id === goal.id ? stagePlan : null,
+  );
+  await detail();
+  await fireEvent.changeText(
+    await screen.findByLabelText("课程补充要求"),
+    "仅属于当前目标",
+  );
+  await fireEvent.press(
+    await screen.findByRole("button", { name: "切换目标：另一目标" }),
+  );
+  await screen.findByText("返回将放弃当前生成条件，确认离开？");
+  expect(screen.getByTestId("path").props.children).toBe(`/goals/${goalId}`);
+  await fireEvent.press(screen.getByText("关闭"));
+  expect(screen.getByLabelText("课程补充要求").props.value).toBe(
+    "仅属于当前目标",
+  );
+  await fireEvent.press(
+    screen.getByRole("button", { name: "切换目标：另一目标" }),
+  );
+  await fireEvent.press(await screen.findByText("确认返回"));
+  await screen.findByText("尚无阶段安排");
+  expect(screen.getByLabelText("课程补充要求").props.value).toBe("");
+  expect(api.generateCourses).not.toHaveBeenCalled();
+});
+
+test("failure to load other goals can retry without hiding the current goal", async () => {
+  coach.goals.mockRejectedValueOnce(new Error("列表暂时不可用"));
+  await detail();
+  await screen.findByText("其他目标读取失败");
+  expect(screen.getByText("当前 FTP 250 W")).toBeTruthy();
+  coach.goals.mockResolvedValue([
+    goal,
+    {
+      ...goal,
+      id: proposalId,
+      description: "重试后可见的次目标",
+      priority: "SECONDARY",
+    },
+  ]);
+  await fireEvent.press(screen.getByText("重试读取其他目标"));
+  await screen.findByRole("button", { name: "切换目标：重试后可见的次目标" });
+  expect(screen.queryByText("其他目标读取失败")).toBeNull();
 });
 
 test("browsing the timeline does not change course scope and inline selection preserves inputs", async () => {

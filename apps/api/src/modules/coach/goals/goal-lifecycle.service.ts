@@ -28,22 +28,25 @@ export class GoalLifecycleService {
   evaluate(userId: string, input: GoalInput) {
     return this.prisma.$transaction(
       async (tx) => {
-        const [user, ftp, profile, availability, primary] = await Promise.all([
-          tx.user.findUniqueOrThrow({ where: { id: userId } }),
-          tx.abilityMeasurement.findFirst({
-            where: { userId, metricType: "FTP", unit: "W" },
-            orderBy: [{ measuredAt: "desc" }, { createdAt: "desc" }],
-          }),
-          tx.athleteProfile.findUnique({ where: { userId } }),
-          tx.trainingAvailability.findUnique({ where: { userId } }),
-          tx.trainingGoal.count({
-            where: { userId, status: "ACTIVE", priority: "PRIMARY" },
-          }),
-        ]);
+        const [user, ftp, profile, availability, activeGoals] =
+          await Promise.all([
+            tx.user.findUniqueOrThrow({ where: { id: userId } }),
+            tx.abilityMeasurement.findFirst({
+              where: { userId, metricType: "FTP", unit: "W" },
+              orderBy: [{ measuredAt: "desc" }, { createdAt: "desc" }],
+            }),
+            tx.athleteProfile.findUnique({ where: { userId } }),
+            tx.trainingAvailability.findUnique({ where: { userId } }),
+            tx.trainingGoal.findMany({
+              where: { userId, status: "ACTIVE" },
+              select: { priority: true },
+            }),
+          ]);
         const localDate = new Intl.DateTimeFormat("en-CA", {
           timeZone: user.timezone,
         }).format(new Date());
         validateGoalInput(input, localDate);
+        this.checkFirstGoalPriority(input, activeGoals.length);
         return {
           evaluation: evaluateGoal(
             { ftp, profile, availability, localDate },
@@ -51,9 +54,9 @@ export class GoalLifecycleService {
           ),
           warnings: [
             "保存目标后，阶段与课程需主动生成并确认。",
-            ...(primary
+            ...(activeGoals.some((goal) => goal.priority === "PRIMARY")
               ? [
-                  "已有活跃主目标。新目标可先设为次目标；切换主目标需要单独预览确认。",
+                  "新目标作为次目标添加，现有主目标保留。需要切换时，请在添加后编辑新目标并选择设为主目标。",
                 ]
               : []),
           ],
@@ -191,6 +194,10 @@ export class GoalLifecycleService {
         return goalChangeResultSchema.parse(existing.result).goal;
       }
       const user = await tx.user.findUniqueOrThrow({ where: { id: userId } });
+      const activeCount = await tx.trainingGoal.count({
+        where: { userId, status: "ACTIVE" },
+      });
+      this.checkFirstGoalPriority(input, activeCount);
       validateGoalInput(
         input,
         new Intl.DateTimeFormat("en-CA", { timeZone: user.timezone }).format(
@@ -208,7 +215,11 @@ export class GoalLifecycleService {
           message: "已有活跃主目标，请将新目标设为次目标，再通过预览切换主目标",
         });
       const goal = await tx.trainingGoal.create({
-        data: { ...input, userId, targetDate: dateToDb(input.targetDate) },
+        data: {
+          ...input,
+          userId,
+          targetDate: dateToDb(input.targetDate),
+        },
       });
       const result = {
         mutationId: randomUUID(),
@@ -265,6 +276,13 @@ export class GoalLifecycleService {
       throw new BadRequestException({
         code: "IDEMPOTENCY_KEY_REQUIRED",
         message: "缺少有效幂等键",
+      });
+  }
+  private checkFirstGoalPriority(input: GoalInput, activeCount: number) {
+    if (activeCount === 0 && input.priority !== "PRIMARY")
+      throw new ConflictException({
+        code: "PRIMARY_GOAL_REQUIRED",
+        message: "当前没有进行中的目标，请刷新后将新目标作为主目标添加",
       });
   }
 }

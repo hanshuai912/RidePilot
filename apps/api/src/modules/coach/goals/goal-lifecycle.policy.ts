@@ -18,7 +18,7 @@ export function validateGoalInput(input: GoalInput, today: string) {
   if (input.type !== "FTP" && (input.targetWkg || input.targetFtpWatts))
     throw new BadRequestException({
       code: "GOAL_METRIC_MISMATCH",
-      message: "FTP 数值仅用于 FTP 目标，其他目标请填写可观察的达成条件",
+      message: "非 FTP 目标不能填写 FTP 数值",
     });
 }
 
@@ -58,9 +58,6 @@ export function evaluateGoal(
       "难度需结合目标差距、期限、经验和可用训练时间判断；不预测固定增长速度或保证达成。可延长期限、调整目标或补充测试后再规划。",
       ...(daysRemaining <= 0
         ? ["目标已到期，请复评后选择完成、延期、结束或建立下一目标。"]
-        : []),
-      ...(!goal.successCriteria
-        ? ["尚未填写可观察的达成条件，不能仅凭日期或完成率判断目标达成。"]
         : []),
       ...(!ctx.ftp ? ["缺少 FTP 基线，无法计算能力差距。"] : []),
       ...(goal.targetWkg
@@ -104,7 +101,14 @@ export function buildGoalPreview(ctx: GoalContext, change: GoalChange) {
       code: "GOAL_STATE_CONFLICT",
       message: "目标状态已变化，请刷新",
     });
-  if (change.changes && !["UPDATE", "RESUME"].includes(change.action))
+  if (
+    change.changes &&
+    !["UPDATE", "RESUME"].includes(change.action) &&
+    !(
+      change.action === "COMPLETE" &&
+      Object.keys(change.changes).every((key) => key === "successCriteria")
+    )
+  )
     throw new BadRequestException({
       code: "INVALID_GOAL_ACTION",
       message: "此操作不能同时修改目标条件",
@@ -115,28 +119,47 @@ export function buildGoalPreview(ctx: GoalContext, change: GoalChange) {
       message: "建立下一目标时需要完整的新目标条件",
     });
   const after = { ...before, ...change.changes, version: before.version + 1 };
+  if (
+    ["UPDATE", "RESUME"].includes(change.action) &&
+    before.priority === "PRIMARY" &&
+    change.changes?.priority === "SECONDARY"
+  )
+    throw new BadRequestException({
+      code: "PRIMARY_GOAL_REPLACEMENT_REQUIRED",
+      message: "请在其他目标中选择设为主目标，预览确认后再切换",
+    });
   if (change.action === "PAUSE") after.status = "PAUSED";
   if (change.action === "RESUME") after.status = "ACTIVE";
+  if (
+    ["UPDATE", "RESUME"].includes(change.action) &&
+    after.status === "ACTIVE" &&
+    ctx.otherActiveGoals.length === 0
+  )
+    after.priority = "PRIMARY";
   if (["COMPLETE", "CLOSE"].includes(change.action)) {
     after.status = "CLOSED";
     after.closureReason =
       change.action === "COMPLETE" ? "COMPLETED" : "STOPPED";
   }
-  if (change.action === "COMPLETE" && !before.successCriteria)
+  if (change.action === "COMPLETE" && !after.successCriteria?.trim())
     throw new BadRequestException({
       code: "GOAL_CRITERIA_REQUIRED",
-      message: "请先填写达成条件，并在完成理由中说明实际证据",
+      message: "请填写达成条件，并在完成理由中说明实际证据",
     });
   if (["UPDATE", "RESUME"].includes(change.action))
     validateGoalInput(after, ctx.localDate);
-  if (change.nextGoal) validateGoalInput(change.nextGoal, ctx.localDate);
+  const nextGoal =
+    change.nextGoal && ctx.otherActiveGoals.length === 0
+      ? { ...change.nextGoal, priority: "PRIMARY" as const }
+      : change.nextGoal;
+  if (nextGoal) validateGoalInput(nextGoal, ctx.localDate);
   const demotes =
-    (change.nextGoal ?? after).priority === "PRIMARY" &&
-    (change.nextGoal || after.status === "ACTIVE");
+    (nextGoal ?? after).priority === "PRIMARY" &&
+    (nextGoal || after.status === "ACTIVE");
   const data = {
     before,
     after,
-    nextGoal: change.nextGoal ?? null,
+    nextGoal: nextGoal ?? null,
     affected: {
       workouts: (ctx.plan?.activeVersion?.workouts ?? []).map((w) => ({
         id: w.id,
@@ -153,7 +176,7 @@ export function buildGoalPreview(ctx: GoalContext, change: GoalChange) {
       ),
       otherPrimaryGoals: demotes ? ctx.otherPrimaryGoals.map(goalResponse) : [],
     },
-    evaluation: evaluateGoal(ctx, change.nextGoal ?? after),
+    evaluation: evaluateGoal(ctx, nextGoal ?? after),
     warnings: [
       "本次保存目标状态与决策记录。正式课程、测试和营养仍按原安排执行；如需变更，请继续生成草稿并预览确认。",
       "目标条件变化后，相关阶段与未应用草稿需重新核对。未来课程属于当前完整计划，未必只服务本目标。",

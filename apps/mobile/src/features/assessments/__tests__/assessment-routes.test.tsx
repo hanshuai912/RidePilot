@@ -21,6 +21,7 @@ jest.mock("../../profile/services/profile.api", () => ({
 }));
 jest.mock("../../coach/services/coach.api", () => ({
   coachApi: {
+    goals: jest.fn().mockResolvedValue([]),
     goal: jest.fn(),
     ftp: jest.fn(),
     planStatus: jest.fn(),

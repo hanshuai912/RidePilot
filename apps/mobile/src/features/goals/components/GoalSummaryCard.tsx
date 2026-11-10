@@ -26,7 +26,7 @@ export function GoalSummaryCard({
           {goalStatusLabel(goal)}
         </Badge>
         <Button variant="ghost" size="sm" disabled={busy} onPress={onManage}>
-          管理目标
+          编辑目标
         </Button>
       </View>
       <AppText variant="card" className="mt-3">
@@ -84,11 +84,7 @@ export function GoalSummaryCard({
           </AppText>
           <AppText className="mt-1">{goal.successCriteria}</AppText>
         </View>
-      ) : (
-        <AppText variant="caption" className="mt-3 text-secondary">
-          达成条件待补充
-        </AppText>
-      )}
+      ) : null}
     </Card>
   );
 }

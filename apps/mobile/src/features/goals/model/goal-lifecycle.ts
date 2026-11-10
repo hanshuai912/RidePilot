@@ -61,7 +61,7 @@ export function parseGoalForm(value: GoalFormValue): GoalInput {
   });
   if (!parsed.success)
     throw new Error(
-      "请检查目标日期、达成条件和数值；FTP 为 50–800 W，功体比为 1–10 W/kg。",
+      "请检查目标日期和数值；FTP 为 50–800 W，功体比为 1–10 W/kg。",
     );
   return parsed.data;
 }

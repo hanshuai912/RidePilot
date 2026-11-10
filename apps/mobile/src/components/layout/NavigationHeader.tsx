@@ -1,4 +1,5 @@
 import { Pressable, StyleSheet, View } from "react-native";
+import type { ReactNode } from "react";
 import { ArrowLeft } from "lucide-react-native";
 import { AppText } from "../ui";
 import { colors } from "../../theme/colors";
@@ -10,11 +11,13 @@ export function NavigationHeader({
   onBack,
   disabled = false,
   backLabel = "返回上一页",
+  rightAction,
 }: {
   title: string;
   onBack: () => void;
   disabled?: boolean;
   backLabel?: string;
+  rightAction?: ReactNode;
 }) {
   return (
     <View style={styles.header}>
@@ -37,7 +40,9 @@ export function NavigationHeader({
       >
         {title}
       </AppText>
-      <View style={styles.side} />
+      <View style={[styles.side, { alignItems: "flex-end" }]}>
+        {rightAction}
+      </View>
     </View>
   );
 }
