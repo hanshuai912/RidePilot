@@ -36,7 +36,9 @@ export class PlanImpactService {
           where: {
             userId,
             scene: "RANGE_PLAN",
-            status: { in: ["QUEUED", "RUNNING", "READY", "FAILED"] },
+            status: {
+              in: ["QUEUED", "RUNNING", "READY", "FAILED", "CANCELLED"],
+            },
           },
           orderBy: { createdAt: "desc" },
           take: 100,

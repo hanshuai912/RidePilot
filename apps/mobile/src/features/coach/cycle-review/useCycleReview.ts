@@ -1,4 +1,5 @@
-import { useCallback, useRef, useState } from "react";
+import { useGenerationCancellation } from "../hooks/useGenerationCancellation";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   cycleReviewGenerationSchema,
@@ -27,6 +28,8 @@ const shouldPoll = (data: Result) =>
 export function useCycleReview() {
   const { session } = useAuth();
   const token = session?.accessToken;
+  const cancellation = useGenerationCancellation(token);
+  const { track: trackGeneration } = cancellation;
   const router = useRouter();
   const params = useLocalSearchParams<{
     startDate?: string;
@@ -73,6 +76,10 @@ export function useCycleReview() {
   }, [token, startDate, endDate, generationId]);
   const resource = useCoachResource(load, shouldPoll);
   const review = resource.data?.review;
+  const jobId = resource.data?.job?.generationId;
+  useEffect(() => {
+    if (jobId) trackGeneration({ generationId: jobId });
+  }, [jobId, trackGeneration]);
   const defaultStart = review
     ? shiftCycleDate(
         review.localDate > review.endDate ? review.localDate : review.endDate,
@@ -179,6 +186,7 @@ export function useCycleReview() {
   };
   return {
     ...resource,
+    cancellation,
     review,
     busy,
     actionError,

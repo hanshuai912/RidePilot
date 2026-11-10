@@ -56,3 +56,9 @@ FTP 使用现有 `AbilityMeasurement` 的 `metricType=FTP`、`unit=W`。课程�
 - 两类记录均关联用户，按用户幂等键唯一；阶段复评有阶段/时间索引，FK 随账户删除级联。
 
 目标变更、主次切换及决策写入同一事务。阶段复评不写 FTP、正式训练或阶段日期；正式课程应用沿用现有版本事务。迁移为增量、无数据回填；自动化测试使用本机 *_test 数据库，后续按用户授权已应用到本机开发库 `ridepilot`，迁移状态及业务只读查询验证通过，正式环境尚未部署；回滚应用时保留新增数据表列，避免删除用户历史。详见 [功能与边界](../features/goal-lifecycle-stage-review.md)。
+
+## 生成任务取消（2026-11-10）
+
+`AiGeneration.status` 增加应用层终态 `CANCELLED`，现有 varchar(16) 可直接保存，无 schema 或迁移变化。QUEUED/RUNNING 可取消；取消清空 leaseUntil/errorCode，保留输入、幂等键、尝试次数和追踪 ID。重复取消不变；原提交键返回已取消结果，新键才创建新任务。
+
+取消与训练/阶段/营养草稿完成均锁定所属用户行，Worker 按 RUNNING 与 attempts 条件写入。先取消则迟到结果丢弃，先完成则取消返回冲突，避免取消后复活或生成候选。CANCELLED 进入历史记录，去重和待处理查询排除该状态。详见 [取消生成功能](../features/ai-generation-cancellation.md)。

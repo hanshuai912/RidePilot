@@ -72,28 +72,28 @@ POST 返回 `{id,valueWatts,source,measuredAt}`，`measuredAt` 始终必填；GE
 
 版本冲突返回 409；过期阶段返回 `STAGE_PLAN_STALE`；不合法范围返回 `INVALID_DATE_RANGE`。每个目标最多一个 ACTIVE 阶段安排。阶段、课程生成失败不改正式安排；课程确认继续进行服务端重验与正式版本检查。
 
-| 方法               | 路径                                              | 作用                                                            |
-| ------------------ | ------------------------------------------------- | --------------------------------------------------------------- |
-| GET / POST         | `/me/ability-measurements/ftp`                    | 查询最新 FTP / 追加一次 FTP 测量                                |
-| GET / PUT          | `/me/availability`                                | 查询 / 保存每周可训练时间；更新传 `expectedVersion`             |
-| GET / POST / PATCH | `/goals`、`/goals/:id`                            | 目标列表、创建、查看和版本化修改                                |
-| GET                | `/ai-coach/readiness`、`/plans/active/status`     | AI 输入缺失项及当前正式版本                                     |
-| GET / POST         | `/activities`                                     | 查询 / 记录已发布课程的完成状态、RPE 与疲劳                     |
-| GET / POST / PATCH | `/assessments`、`/assessments/:id`                | 测试安排及结果；需预览、幂等键和版本，见下文阶段测试 API        |
-| GET / POST / PATCH | `/races`、`/races/:id`                            | 赛事及状态；更新传 `expectedVersion`                            |
-| GET                | `/races/:id/impact-preview`                       | 范围内课程/测试/赛事/阶段影响和当前正式训练版本                 |
-| GET / POST         | `/races/:id/result`                               | 读取 / 保存赛后结果                                             |
-| POST               | `/plans/generate-proposal`                        | 首份或空白未来周计划，返回异步任务                              |
-| POST               | `/workouts/:id/ai-adjust-proposal`                | 调整一节未来课程                                                |
-| POST               | `/plans/adjust-proposal`                          | 调整已有计划中的未来课程                                        |
-| POST               | `/assessments/:id/review-proposal`                | 根据测试结果提出未来课程调整                                    |
-| POST               | `/races/:id/replan-proposal`                      | 手动生成跨周备赛/恢复/取消后回归草稿，支持复用与重新生成        |
-| GET                | `/ai-coach/generations/:id`                       | 轮询 `QUEUED / RUNNING / READY / FAILED`；READY 带 `proposalId` |
-| GET / PATCH        | `/proposals/:id`、`/ai-coach/proposals/:id`       | 读取提案及修改 AI 草稿                                          |
-| POST               | `/proposals/:id/validate`、`/proposals/:id/apply` | 重新校验并确认应用，沿用正式计划事务入口                        |
-| GET                | `/plans/versions`、`/plans/versions/:id`          | 历史版本列表与详情                                              |
-| POST               | `/plans/versions/:id/restore-proposal`            | 从历史版本创建未来课程恢复提案                                  |
-| POST               | `/ai-coach/chat`                                  | 解释当前正式计划，只读                                          |
+| 方法               | 路径                                              | 作用                                                                        |
+| ------------------ | ------------------------------------------------- | --------------------------------------------------------------------------- |
+| GET / POST         | `/me/ability-measurements/ftp`                    | 查询最新 FTP / 追加一次 FTP 测量                                            |
+| GET / PUT          | `/me/availability`                                | 查询 / 保存每周可训练时间；更新传 `expectedVersion`                         |
+| GET / POST / PATCH | `/goals`、`/goals/:id`                            | 目标列表、创建、查看和版本化修改                                            |
+| GET                | `/ai-coach/readiness`、`/plans/active/status`     | AI 输入缺失项及当前正式版本                                                 |
+| GET / POST         | `/activities`                                     | 查询 / 记录已发布课程的完成状态、RPE 与疲劳                                 |
+| GET / POST / PATCH | `/assessments`、`/assessments/:id`                | 测试安排及结果；需预览、幂等键和版本，见下文阶段测试 API                    |
+| GET / POST / PATCH | `/races`、`/races/:id`                            | 赛事及状态；更新传 `expectedVersion`                                        |
+| GET                | `/races/:id/impact-preview`                       | 范围内课程/测试/赛事/阶段影响和当前正式训练版本                             |
+| GET / POST         | `/races/:id/result`                               | 读取 / 保存赛后结果                                                         |
+| POST               | `/plans/generate-proposal`                        | 首份或空白未来周计划，返回异步任务                                          |
+| POST               | `/workouts/:id/ai-adjust-proposal`                | 调整一节未来课程                                                            |
+| POST               | `/plans/adjust-proposal`                          | 调整已有计划中的未来课程                                                    |
+| POST               | `/assessments/:id/review-proposal`                | 根据测试结果提出未来课程调整                                                |
+| POST               | `/races/:id/replan-proposal`                      | 手动生成跨周备赛/恢复/取消后回归草稿，支持复用与重新生成                    |
+| GET                | `/ai-coach/generations/:id`                       | 轮询 `QUEUED / RUNNING / READY / FAILED / CANCELLED`；READY 带 `proposalId` |
+| GET / PATCH        | `/proposals/:id`、`/ai-coach/proposals/:id`       | 读取提案及修改 AI 草稿                                                      |
+| POST               | `/proposals/:id/validate`、`/proposals/:id/apply` | 重新校验并确认应用，沿用正式计划事务入口                                    |
+| GET                | `/plans/versions`、`/plans/versions/:id`          | 历史版本列表与详情                                                          |
+| POST               | `/plans/versions/:id/restore-proposal`            | 从历史版本创建未来课程恢复提案                                              |
+| POST               | `/ai-coach/chat`                                  | 解释当前正式计划，只读                                                      |
 
 功体比目标可在 `POST /goals` 传 `targetWkg`。例如 `{"type":"FTP","targetWkg":4,"targetDate":"2027-04-26","priority":"PRIMARY"}`；若档案体重为 55 kg，服务端在生成上下文中换算为目标 FTP 220 W。`GET /ai-coach/readiness` 对缺少体重的此类目标返回 `missingFields:["weightKg"]`。修改体重后，旧 AI 提案需要重新生成。
 
@@ -215,3 +215,7 @@ GET 建议列表把版本/资料失效的候选投影为 EXPIRED，从 pending �
 移动端现在调用已有 `PATCH /ai-coach/proposals/:id`，以 `expectedProposalVersion` 更新完整结构化候选中的单节课程，其他课程保留；成功后草稿版本递增、状态为 DRAFT，清除旧校验。必须重新预览校验和确认应用。已应用/失效/其他用户的草稿不可编辑。所有移动端 AI 应用入口传预览时的草稿版本，避免应用未审阅内容。
 
 新草稿 `replacedWorkouts[]` 增加可选 `purpose`、`segments` 原安排快照，用于原/新目标、强度、重复次数比较；字段缺失表示旧数据不具备明细。多课程按完整旧/新安排展示，不仅凭日期强行配对。
+
+## 取消生成（2026-11-10）
+
+新增 `POST /ai-coach/generations/:id/cancel`，要求 Bearer 登录态、UUID，无请求体；返回 200 共享 `generationResponseSchema`，状态为 `CANCELLED`。此统一入口可取消本人训练、阶段或营养任务。仅 `QUEUED/RUNNING` 可迁移，重复取消幂等成功。任务已结束返回 409 `GENERATION_NOT_CANCELLABLE`；非法 ID 400，非本人或不存在 404。取消与草稿落库在用户行锁下串行；不会修改已有草稿或正式计划。完整行为见 [取消生成功能](../features/ai-generation-cancellation.md)。

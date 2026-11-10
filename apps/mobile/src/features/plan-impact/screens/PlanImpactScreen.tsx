@@ -1,3 +1,4 @@
+import { GenerationCancelButton } from "../../coach/components/GenerationCancelButton";
 import { useState } from "react";
 import { router } from "expo-router";
 import { AppText, Button, Card, Dialog, Input } from "../../../components/ui";
@@ -141,10 +142,11 @@ export function PlanImpactScreen() {
                     RUNNING: "生成中",
                     READY: "草稿已就绪",
                     FAILED: "生成失败，可重新生成",
+                    CANCELLED: "已取消，可重新生成",
                   }[g.status]
                 }
               </AppText>
-              {g.status !== "FAILED" ? (
+              {g.status !== "FAILED" && g.status !== "CANCELLED" ? (
                 <Button
                   variant="secondary"
                   disabled={s.busy}
@@ -204,6 +206,9 @@ export function PlanImpactScreen() {
           确认保留安排
         </Button>
       </Dialog>
+      {s.generating ? (
+        <GenerationCancelButton cancellation={s.cancellation} />
+      ) : null}
     </TrainingPage>
   );
 }

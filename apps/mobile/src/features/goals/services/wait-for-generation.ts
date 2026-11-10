@@ -1,3 +1,4 @@
+import { GenerationCancelledError } from "../../../lib/generation-cancelled";
 import { coachApi } from "../../coach/services/coach.api";
 
 export async function waitForGeneration(
@@ -8,6 +9,7 @@ export async function waitForGeneration(
   let job = initial;
   for (let attempt = 0; attempt < 180; attempt++) {
     if (!active()) return null;
+    if (job.status === "CANCELLED") throw new GenerationCancelledError();
     if (job.status === "READY") {
       if (!job.proposalId) throw new Error("生成完成但缺少草稿，请重试");
       return job.proposalId;

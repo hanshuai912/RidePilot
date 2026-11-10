@@ -1,3 +1,4 @@
+import { GenerationCancelButton } from "../../coach/components/GenerationCancelButton";
 import { useState } from "react";
 import { router, useLocalSearchParams } from "expo-router";
 import { AppText, Button, Card, Input, Spinner } from "../../../components/ui";
@@ -107,6 +108,7 @@ export function TrainingNutritionScreen() {
       {flow.status ? (
         <Card>
           <Spinner accessibilityLabel="正在生成训练补给草稿" />
+          <GenerationCancelButton cancellation={flow.cancellation} />
           <AppText className="mt-3">
             {flow.status === "QUEUED"
               ? "草稿正在排队"

@@ -1,3 +1,5 @@
+import { GenerationCancelledError } from "../../../lib/generation-cancelled";
+import { useGenerationCancellation } from "../../coach/hooks/useGenerationCancellation";
 import { useCallback, useRef, useState } from "react";
 import { useFocusEffect } from "expo-router";
 import type { NutritionProposalResponse } from "@ridepilot/contracts";
@@ -15,6 +17,8 @@ type Task = {
 };
 
 export function useRaceNutritionDraft(raceId: string, token?: string) {
+  const cancellation = useGenerationCancellation(token, true);
+  const { track: trackGeneration, reset: resetCancellation } = cancellation;
   const [proposal, setProposal] = useState<NutritionProposalResponse | null>(
     null,
   );
@@ -58,6 +62,7 @@ export function useRaceNutritionDraft(raceId: string, token?: string) {
         );
         return;
       }
+      resetCancellation();
       setGenerating(true);
       setStatus("READING");
       const current: Run = {
@@ -97,6 +102,7 @@ export function useRaceNutritionDraft(raceId: string, token?: string) {
             throw new NutritionGenerationFailedError(
               "未找到赛事补给任务，请重试",
             );
+          trackGeneration(initial.generation);
           const next = await waitForNutritionProposal(
             token,
             initial.generation,
@@ -112,7 +118,9 @@ export function useRaceNutritionDraft(raceId: string, token?: string) {
           // Polling/network timeouts must resume the already submitted task.
           if (
             task.current === pending &&
-            (!submitted || cause instanceof NutritionGenerationFailedError)
+            (!submitted ||
+              cause instanceof NutritionGenerationFailedError ||
+              cause instanceof GenerationCancelledError)
           )
             task.current = null;
           setError(
@@ -126,7 +134,7 @@ export function useRaceNutritionDraft(raceId: string, token?: string) {
         }
       })();
     },
-    [raceId, token, stop],
+    [raceId, token, stop, trackGeneration, resetCancellation],
   );
 
   useFocusEffect(
@@ -137,6 +145,7 @@ export function useRaceNutritionDraft(raceId: string, token?: string) {
   );
 
   return {
+    cancellation,
     proposal,
     setProposal,
     error,

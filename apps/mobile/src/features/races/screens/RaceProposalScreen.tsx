@@ -1,8 +1,9 @@
+import { GenerationCancelButton } from "../../coach/components/GenerationCancelButton";
 import { TrainingNutritionLinkCard } from "../../nutrition/components/TrainingNutritionLinkCard";
 import { useRef } from "react";
 import { router, useLocalSearchParams } from "expo-router";
 import { racePlanningPhaseSchema } from "@ridepilot/contracts";
-import { AppText, Button, Card, Input } from "../../../components/ui";
+import { AppText, Button, Card, Input, Spinner } from "../../../components/ui";
 import { TrainingPage } from "../../training/components/TrainingPage";
 import { useAuth } from "../../auth/hooks/AuthProvider";
 import { coachApi } from "../../coach/services/coach.api";
@@ -80,10 +81,17 @@ export function RaceProposalScreen() {
   return (
     <TrainingPage
       title={`${label}计划`}
-      loading={busy && !proposal}
+      loading={busy && !proposal && !draft.cancellation.canCancel}
       error={!draft.startDate ? error : undefined}
       retry={draft.retry}
     >
+      {busy && !proposal && draft.cancellation.canCancel ? (
+        <Card>
+          <Spinner accessibilityLabel="正在生成赛事训练草稿" />
+          <AppText>正在生成并校验赛事训练草稿</AppText>
+          <GenerationCancelButton cancellation={draft.cancellation} />
+        </Card>
+      ) : null}
       {draft.startDate && error ? (
         <AppText className="text-negative">{error}</AppText>
       ) : null}

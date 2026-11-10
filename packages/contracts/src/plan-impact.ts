@@ -45,7 +45,7 @@ export const planImpactPreviewSchema = z.object({
   generations: z.array(
     z.object({
       id: z.uuid(),
-      status: z.enum(["QUEUED", "RUNNING", "READY", "FAILED"]),
+      status: z.enum(["QUEUED", "RUNNING", "READY", "FAILED", "CANCELLED"]),
       proposalId: z.uuid().nullable(),
       startDate: z.iso.date(),
       endDate: z.iso.date(),

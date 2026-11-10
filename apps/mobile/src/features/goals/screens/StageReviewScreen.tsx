@@ -1,3 +1,4 @@
+import { GenerationCancelButton } from "../../coach/components/GenerationCancelButton";
 import { View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import type { StageReviewInput } from "@ridepilot/contracts";
@@ -43,6 +44,7 @@ export function StageReviewScreen() {
       retry={s.retry}
     >
       {guard}
+      {g.busy ? <GenerationCancelButton cancellation={g.cancellation} /> : null}
       {current ? (
         <>
           <Card>

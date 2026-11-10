@@ -207,11 +207,13 @@ export class CoachSuggestionsService {
               ? "补给生成任务"
               : "训练建议生成任务",
         summary:
-          j.status === "FAILED"
-            ? j.errorCode?.toUpperCase() === "INSUFFICIENT_RECOVERY"
-              ? "草稿包含连续高强度训练，恢复不足。请返回原入口重新生成，正式计划没有变化"
-              : "生成未完成，请返回原入口检查资料和范围后重试；正式计划没有变化"
-            : "正在生成，可稍后返回查看；不会自动应用",
+          j.status === "CANCELLED"
+            ? "生成已取消，正式计划没有变化"
+            : j.status === "FAILED"
+              ? j.errorCode?.toUpperCase() === "INSUFFICIENT_RECOVERY"
+                ? "草稿包含连续高强度训练，恢复不足。请返回原入口重新生成，正式计划没有变化"
+                : "生成未完成，请返回原入口检查资料和范围后重试；正式计划没有变化"
+              : "正在生成，可稍后返回查看；不会自动应用",
         status: j.status,
         version: j.attempts + 1,
         createdAt: j.createdAt.toISOString(),

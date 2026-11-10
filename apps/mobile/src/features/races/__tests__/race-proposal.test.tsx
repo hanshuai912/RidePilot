@@ -26,6 +26,7 @@ jest.mock("../../coach/services/coach.api", () => ({
   CoachApiError: jest.requireActual("../../coach/services/coach.api")
     .CoachApiError,
   coachApi: {
+    cancelGeneration: jest.fn(),
     race: jest.fn(),
     raceTrainingState: jest.fn(),
     raceImpact: jest.fn(),
@@ -224,12 +225,40 @@ test("排队中的备赛任务轮询完成后展示草稿", async () => {
       proposalId: null,
     });
     const view = await startRaceDraft();
-    expect(view.getByText("加载中")).toBeTruthy();
+    expect(view.getByText("正在生成并校验赛事训练草稿")).toBeTruthy();
+    expect(view.getByText("取消生成")).toBeTruthy();
     await act(async () => {
       await jest.advanceTimersByTimeAsync(1500);
     });
     expect(view.getByText("备赛训练预览")).toBeTruthy();
     expect(coach.generation).toHaveBeenCalledWith("token", "job-1");
+  } finally {
+    jest.useRealTimers();
+  }
+});
+
+test("取消备赛生成后停止等待，并允许提交新的生成任务", async () => {
+  jest.useFakeTimers();
+  try {
+    const queued = { ...ready, status: "QUEUED" as const, proposalId: null };
+    const cancelled = { ...queued, status: "CANCELLED" as const };
+    coach.replanRace.mockResolvedValueOnce(queued);
+    coach.cancelGeneration.mockResolvedValueOnce(cancelled);
+    coach.generation.mockResolvedValueOnce(cancelled);
+    const view = await startRaceDraft();
+    await fireEvent.press(view.getByText("取消生成"));
+    expect(coach.cancelGeneration).toHaveBeenCalledWith("token", "job-1");
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(1500);
+    });
+    expect(
+      view.getByText("生成已取消，正式计划没有变化，可重新生成"),
+    ).toBeTruthy();
+    expect(coach.proposal).not.toHaveBeenCalled();
+    expect(coach.apply).not.toHaveBeenCalled();
+    await fireEvent.press(view.getByText("重新生成备赛计划草稿"));
+    await waitFor(() => expect(view.getByText("备赛训练预览")).toBeTruthy());
+    expect(coach.replanRace).toHaveBeenCalledTimes(2);
   } finally {
     jest.useRealTimers();
   }

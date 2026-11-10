@@ -1,3 +1,4 @@
+import { GenerationCancelButton } from "../../coach/components/GenerationCancelButton";
 import { useState } from "react";
 import { router, useLocalSearchParams } from "expo-router";
 import { AppText, Button, Card, Spinner } from "../../../components/ui";
@@ -17,6 +18,7 @@ export function RaceNutritionProposalScreen() {
     error,
     setError,
     generating,
+    cancellation,
     status,
     retry,
     regenerate,
@@ -60,6 +62,7 @@ export function RaceNutritionProposalScreen() {
       {generating && !proposal ? (
         <Card>
           <Spinner accessibilityLabel="正在生成赛事补给草稿" />
+          <GenerationCancelButton cancellation={cancellation} />
           <AppText variant="card" className="mt-3">
             {status === "READING"
               ? "正在读取赛事和饮食计划"

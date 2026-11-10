@@ -216,7 +216,7 @@ export const weekGenerationInputSchema = z.strictObject({
 });
 export const generationResponseSchema = z.object({
   generationId: z.uuid(),
-  status: z.enum(["QUEUED", "RUNNING", "READY", "FAILED"]),
+  status: z.enum(["QUEUED", "RUNNING", "READY", "FAILED", "CANCELLED"]),
   proposalId: z.uuid().nullable(),
   errorCode: z.string().nullable(),
   requestId: z.string().nullable(),

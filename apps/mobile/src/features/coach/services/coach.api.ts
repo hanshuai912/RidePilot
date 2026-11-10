@@ -217,6 +217,13 @@ export const coachApi = {
       token,
       generationResponseSchema,
     ),
+  cancelGeneration: (token: string, id: string) =>
+    request(
+      `ai-coach/generations/${encodeURIComponent(id)}/cancel`,
+      token,
+      generationResponseSchema,
+      { method: "POST" },
+    ),
   proposal: (token: string, id: string) =>
     request(
       `proposals/${encodeURIComponent(id)}`,

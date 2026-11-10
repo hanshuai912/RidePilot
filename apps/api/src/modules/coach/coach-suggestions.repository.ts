@@ -100,7 +100,7 @@ export class CoachSuggestionsRepository {
               orderBy: { createdAt: "desc" },
             }),
             tx.aiGeneration.findMany({
-              where: { userId, status: "FAILED" },
+              where: { userId, status: { in: ["FAILED", "CANCELLED"] } },
               orderBy: { createdAt: "desc" },
               take: 10,
             }),

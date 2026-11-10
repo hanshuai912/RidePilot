@@ -1,3 +1,5 @@
+import { GenerationCancelledError } from "../../../lib/generation-cancelled";
+import { useGenerationCancellation } from "./useGenerationCancellation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useFocusEffect } from "expo-router";
 import {
@@ -59,6 +61,8 @@ function errorMessage(cause: unknown, fallback: string) {
 export function useInitialPlan() {
   const { session } = useAuth();
   const token = session?.accessToken;
+  const cancellation = useGenerationCancellation(token);
+  const { track: trackGeneration, reset: resetCancellation } = cancellation;
   const [resources, setResources] = useState<Resources | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -87,9 +91,9 @@ export function useInitialPlan() {
   const [restriction, setRestriction] = useState("无特殊限制");
   const [restrictionNote, setRestrictionNote] = useState("");
   const [meal, setMeal] = useState("家常饮食");
-  const [jobStatus, setJobStatus] = useState<"QUEUED" | "RUNNING" | "FAILED">(
-    "QUEUED",
-  );
+  const [jobStatus, setJobStatus] = useState<
+    "QUEUED" | "RUNNING" | "FAILED" | "CANCELLED"
+  >("QUEUED");
   const [proposal, setProposal] = useState<AiProposalResponse | null>(null);
   const [appliedDates, setAppliedDates] = useState<string[]>([]);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -346,6 +350,7 @@ export function useInitialPlan() {
     generationRequest.current = { mode, weekStartDate, ...scope };
     const currentOperation = ++operation.current;
     setError(null);
+    resetCancellation();
     setJobStatus("QUEUED");
     setStage("loading");
     setProposal(null);
@@ -403,6 +408,7 @@ export function useInitialPlan() {
           : mode === "replace_week"
             ? await coachApi.adjustPlan(token, input, key())
             : await coachApi.generate(token, input, key());
+      trackGeneration(job);
       const draft = await waitForCoachProposal(
         token,
         job,
@@ -415,7 +421,9 @@ export function useInitialPlan() {
       setStage("proposals");
     } catch (cause) {
       if (operation.current !== currentOperation) return;
-      setJobStatus("FAILED");
+      setJobStatus(
+        cause instanceof GenerationCancelledError ? "CANCELLED" : "FAILED",
+      );
       setError(errorMessage(cause, "生成训练计划失败"));
     }
   };
@@ -579,6 +587,7 @@ export function useInitialPlan() {
   };
 
   return {
+    cancellation,
     token,
     resources,
     loading,

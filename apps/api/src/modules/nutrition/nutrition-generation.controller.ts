@@ -1,3 +1,5 @@
+import { GenerationCancellationService } from "../../infra/prisma/generation-cancellation.service";
+import { generationResponseSchema } from "@ridepilot/contracts";
 import {
   Body,
   Controller,
@@ -5,6 +7,7 @@ import {
   Headers,
   HttpCode,
   Param,
+  ParseUUIDPipe,
   Post,
   Query,
 } from "@nestjs/common";
@@ -37,6 +40,7 @@ import { RaceNutritionService } from "./race-nutrition.service";
 @Controller("nutrition")
 export class NutritionGenerationController {
   constructor(
+    private readonly cancellation: GenerationCancellationService,
     private readonly service: NutritionGenerationService,
     private readonly races: RaceNutritionService,
     private readonly training: TrainingNutritionService,
@@ -76,6 +80,18 @@ export class NutritionGenerationController {
     input: NutritionGenerationInput,
   ) {
     return this.service.submit(principal.userId, input, idempotencyKey);
+  }
+
+  @Post("generations/:id/cancel")
+  @HttpCode(200)
+  @ApiOkResponse({
+    schema: toOpenApiSchema(generationResponseSchema, "output"),
+  })
+  cancel(
+    @CurrentPrincipal() principal: AuthPrincipal,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.cancellation.cancel(principal.userId, id, true);
   }
 
   @Get("generations/:id")

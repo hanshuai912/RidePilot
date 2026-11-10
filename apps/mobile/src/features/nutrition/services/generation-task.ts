@@ -1,3 +1,4 @@
+import { GenerationCancelledError } from "../../../lib/generation-cancelled";
 import type { NutritionProposalResponse } from "@ridepilot/contracts";
 
 import { nutritionApi } from "./nutrition.api";
@@ -25,6 +26,7 @@ export async function waitForNutritionProposal(
   let job = initial;
   const deadline = Date.now() + 150_000;
   while (isActive()) {
+    if (job.status === "CANCELLED") throw new GenerationCancelledError();
     if (job.status === "READY") {
       if (!job.proposalId)
         throw new NutritionGenerationFailedError("营养生成完成但未收到草稿");

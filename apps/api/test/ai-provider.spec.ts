@@ -99,6 +99,46 @@ describe("OpenAiCompatibleProvider", () => {
     );
   });
 
+  it("aborts an active provider request without retrying on cancellation", async () => {
+    const controller = new AbortController();
+    fetchMock.mockImplementationOnce(
+      (_url: string, options: RequestInit) =>
+        new Promise((_resolve, reject) => {
+          options.signal!.addEventListener(
+            "abort",
+            () => reject(new DOMException("aborted", "AbortError")),
+            { once: true },
+          );
+        }),
+    );
+    const result = provider.generate({
+      signal: controller.signal,
+      messages: [{ role: "user", content: "question" }],
+    });
+    const assertion = expect(result).rejects.toMatchObject({
+      code: "AI_GENERATION_CANCELLED",
+      retryable: false,
+    });
+    controller.abort();
+    await assertion;
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not submit an already cancelled request", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    await expect(
+      provider.generate({
+        signal: controller.signal,
+        messages: [{ role: "user", content: "question" }],
+      }),
+    ).rejects.toMatchObject({
+      code: "AI_GENERATION_CANCELLED",
+      retryable: false,
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("maps an abort to a retryable timeout error", async () => {
     fetchMock.mockRejectedValue(new DOMException("aborted", "AbortError"));
 

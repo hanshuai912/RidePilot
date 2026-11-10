@@ -7,13 +7,13 @@ export function GenerationProgress({
   status,
   error,
 }: {
-  status: "QUEUED" | "RUNNING" | "FAILED";
+  status: "QUEUED" | "RUNNING" | "FAILED" | "CANCELLED";
   error: string | null;
 }) {
   const [pulse] = useState(() => new Animated.Value(0));
 
   useEffect(() => {
-    if (status === "FAILED") return;
+    if (status === "FAILED" || status === "CANCELLED") return;
     const animation = Animated.loop(
       Animated.sequence([
         Animated.timing(pulse, {
@@ -39,7 +39,9 @@ export function GenerationProgress({
       ? "请求已提交，正在等待生成"
       : status === "RUNNING"
         ? "正在生成并校验训练草稿"
-        : "生成失败，正式计划没有变化";
+        : status === "CANCELLED"
+          ? "生成已取消，正式计划没有变化"
+          : "生成失败，正式计划没有变化";
 
   return (
     <View className="items-center pt-12">
@@ -47,7 +49,7 @@ export function GenerationProgress({
         className="h-24 w-24 items-center justify-center rounded-full border border-brand bg-brand-subtle"
         style={{
           opacity:
-            status === "FAILED"
+            status === "FAILED" || status === "CANCELLED"
               ? 1
               : pulse.interpolate({
                   inputRange: [0, 1],
@@ -56,7 +58,7 @@ export function GenerationProgress({
           transform: [
             {
               scale:
-                status === "FAILED"
+                status === "FAILED" || status === "CANCELLED"
                   ? 1
                   : pulse.interpolate({
                       inputRange: [0, 1],
@@ -82,7 +84,7 @@ export function GenerationProgress({
           ? "任务状态：排队中"
           : status === "RUNNING"
             ? "任务状态：生成与规则校验中"
-            : `任务状态：失败${error ? ` · ${error}` : ""}`}
+            : `任务状态：${status === "CANCELLED" ? "已取消" : "失败"}${error ? ` · ${error}` : ""}`}
       </AppText>
       <View className="mt-8 w-full">
         <View className="h-1 overflow-hidden rounded-full bg-surface-2">
@@ -98,7 +100,11 @@ export function GenerationProgress({
             {status === "QUEUED" ? "○" : "✓"} 生成近期课程和阶段路线
           </AppText>
           <AppText className="mt-3 text-secondary">
-            {status === "RUNNING" ? "○" : status === "FAILED" ? "!" : "✓"}{" "}
+            {status === "RUNNING"
+              ? "○"
+              : status === "FAILED" || status === "CANCELLED"
+                ? "!"
+                : "✓"}{" "}
             校验训练结构，饮食信息暂不提交
           </AppText>
         </View>

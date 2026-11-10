@@ -6,6 +6,7 @@ export interface AiMessage {
 }
 
 export interface AiRequest {
+  signal?: AbortSignal;
   messages: readonly AiMessage[];
   model?: string;
   temperature?: number;

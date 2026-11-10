@@ -1,3 +1,4 @@
+import { useGenerationCancellation } from "../../coach/hooks/useGenerationCancellation";
 import { useCallback, useRef, useState } from "react";
 import { useFocusEffect } from "expo-router";
 import {
@@ -18,6 +19,8 @@ export function useRaceTrainingDraft(
   requestedPhase?: RacePlanningPhase,
 ) {
   const phaseRequest = requestedPhase ?? (recovery ? "RECOVERY" : undefined);
+  const cancellation = useGenerationCancellation(token);
+  const { track: trackGeneration, reset: resetCancellation } = cancellation;
   const [proposal, setProposal] = useState<AiProposalResponse | null>(null);
   const [missingFields, setMissingFields] = useState<MissingFields>([]);
   const [error, setError] = useState<string | null>(null);
@@ -43,6 +46,7 @@ export function useRaceTrainingDraft(
   const run = useCallback(
     async (generate: boolean, forceRegenerate = false) => {
       if (!token || !raceId || running.current) return;
+      resetCancellation();
       const attempt = ++operation.current;
       const active = () => operation.current === attempt;
       running.current = true;
@@ -90,6 +94,7 @@ export function useRaceTrainingDraft(
         if (!generate) {
           setProposal(state.proposal);
           if (state.generation && !state.proposal) {
+            trackGeneration(state.generation);
             const next = await waitForCoachProposal(
               token,
               state.generation,
@@ -141,6 +146,7 @@ export function useRaceTrainingDraft(
           },
           key(),
         );
+        trackGeneration(generation);
         const next = await waitForCoachProposal(
           token,
           generation,
@@ -176,7 +182,7 @@ export function useRaceTrainingDraft(
         }
       }
     },
-    [raceId, token, phaseRequest, scope],
+    [raceId, token, phaseRequest, scope, trackGeneration, resetCancellation],
   );
 
   useFocusEffect(
@@ -223,6 +229,7 @@ export function useRaceTrainingDraft(
     }
   };
   return {
+    cancellation,
     proposal,
     rangeChanged:
       !!proposal?.weekStartDate &&

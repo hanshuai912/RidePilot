@@ -1,3 +1,4 @@
+import { GenerationCancelButton } from "../components/GenerationCancelButton";
 import { goalTypeLabels } from "../../goals/model/goal-lifecycle";
 import { TrainingNutritionLinkCard } from "../../nutrition/components/TrainingNutritionLinkCard";
 import { useEffect, useRef } from "react";
@@ -579,7 +580,11 @@ export function CoachScreen() {
           else router.replace(coachRoute("nutrition"));
         }}
         description="生成并校验草稿后即可预览。"
-        primary={flow.jobStatus === "FAILED" ? "重新生成" : undefined}
+        primary={
+          flow.jobStatus === "FAILED" || flow.jobStatus === "CANCELLED"
+            ? "重新生成"
+            : undefined
+        }
         onPrimary={() => {
           flow.retryGeneration();
         }}
@@ -593,6 +598,9 @@ export function CoachScreen() {
         error={error}
       >
         <GenerationProgress status={flow.jobStatus} error={error} />
+        {flow.jobStatus === "QUEUED" || flow.jobStatus === "RUNNING" ? (
+          <GenerationCancelButton cancellation={flow.cancellation} />
+        ) : null}
       </CoachPage>
     );
 

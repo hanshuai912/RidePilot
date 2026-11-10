@@ -1,3 +1,4 @@
+import { useGenerationCancellation } from "../../coach/hooks/useGenerationCancellation";
 import { goalsApi } from "../../goals/services/goals.api";
 import { useEffect, useRef, useState } from "react";
 import { router } from "expo-router";
@@ -14,6 +15,8 @@ export function useWorkoutAdjustment(
   workout: Workout | null,
   source: WorkoutActionSource,
 ) {
+  const cancellation = useGenerationCancellation(token);
+  const { track: trackGeneration, reset: resetCancellation } = cancellation;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [generated, setGenerated] = useState(false);
@@ -32,6 +35,7 @@ export function useWorkoutAdjustment(
     endDate?: string,
   ) => {
     if (!token || !workout || pending.current) return;
+    resetCancellation();
     pending.current = true;
     setBusy(true);
     setError(null);
@@ -74,6 +78,7 @@ export function useWorkoutAdjustment(
             },
             `adjust-${workout.id}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
           );
+      trackGeneration(job);
       const draft = await waitForCoachProposal(
         token,
         job,
@@ -102,6 +107,7 @@ export function useWorkoutAdjustment(
     }
   };
   return {
+    cancellation,
     busy,
     error,
     generated,

@@ -21,6 +21,7 @@ export function StageReviewFollowups({
     RUNNING: "正在生成",
     READY: "草稿已生成",
     FAILED: "生成未完成",
+    CANCELLED: "生成已取消",
   };
   return (
     <Card>

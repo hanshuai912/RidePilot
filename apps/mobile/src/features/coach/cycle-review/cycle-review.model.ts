@@ -33,6 +33,7 @@ export const cycleStatusLabel = (status: string) =>
     SKIPPED: "跳过",
     QUEUED: "排队中",
     RUNNING: "生成中",
+    CANCELLED: "已取消",
     FAILED: "生成失败",
     READY: "草稿待确认",
     DRAFT: "草稿待校验",

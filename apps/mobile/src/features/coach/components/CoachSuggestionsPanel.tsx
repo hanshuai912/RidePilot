@@ -1,3 +1,4 @@
+import { coachApi } from "../services/coach.api";
 import { useCallback, useRef, useState } from "react";
 import { useRouter } from "expo-router";
 import { View } from "react-native";
@@ -24,6 +25,7 @@ const statusLabels: Record<string, string> = {
   QUEUED: "排队中",
   RUNNING: "生成中",
   FAILED: "生成失败",
+  CANCELLED: "已取消",
   APPLIED: "已应用",
   REJECTED: "已放弃",
   EXPIRED: "已失效",
@@ -72,6 +74,21 @@ export function CoachSuggestionsPanel({
       setBusy(false);
     }
   };
+  const cancelGeneration = async (item: CoachSuggestion) => {
+    if (!token || pending.current) return;
+    pending.current = true;
+    setBusy(true);
+    setError(null);
+    try {
+      await coachApi.cancelGeneration(token, item.id);
+      resource.retry();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "取消失败，请重试");
+    } finally {
+      pending.current = false;
+      setBusy(false);
+    }
+  };
   if (compact) return <CoachSuggestionSummary resource={resource} />;
   const render = (item: CoachSuggestion, canDismiss: boolean) => (
     <Card key={`${item.kind}-${item.id}`}>
@@ -102,6 +119,15 @@ export function CoachSuggestionsPanel({
         <AppText variant="caption" className="mt-2 text-warning">
           {item.staleReason}
         </AppText>
+      ) : null}
+      {canDismiss && item.kind === "GENERATION" ? (
+        <Button
+          variant="secondary"
+          loading={busy}
+          onPress={() => void cancelGeneration(item)}
+        >
+          取消生成
+        </Button>
       ) : null}
       {item.kind !== "GENERATION" ? (
         <Button

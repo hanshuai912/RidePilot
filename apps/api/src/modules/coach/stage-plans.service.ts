@@ -139,11 +139,12 @@ export class StagePlansService {
     }
   }
 
-  async process(job: AiGeneration) {
+  async process(job: AiGeneration, signal?: AbortSignal) {
     const input = stagePlanGenerationSchema.parse(job.input);
     const ctx = await this.context(job.userId, input);
     const skill = await this.skills.load("stage-planning");
     const response = await this.ai.generate({
+      signal,
       requestId: job.requestId ?? job.id,
       temperature: 0.2,
       maxTokens: 6000,

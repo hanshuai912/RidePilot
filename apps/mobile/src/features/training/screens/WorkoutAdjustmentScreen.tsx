@@ -1,3 +1,4 @@
+import { GenerationCancelButton } from "../../coach/components/GenerationCancelButton";
 import { useState } from "react";
 import { AppText } from "../../../components/ui";
 import { TrainingPage } from "../components/TrainingPage";
@@ -53,6 +54,9 @@ export function WorkoutAdjustmentScreen() {
           onDirtyChange={setDirty}
           onChange={action.markChanged}
         />
+      ) : null}
+      {action.busy ? (
+        <GenerationCancelButton cancellation={action.cancellation} />
       ) : null}
     </TrainingPage>
   );

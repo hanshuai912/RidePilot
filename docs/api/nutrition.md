@@ -87,3 +87,7 @@ Content-Type: application/json
 INITIAL/REGENERATE 同样按完整请求与当前上下文复用已有任务/有效草稿；显式 `forceRegenerate:true` 创建新候选，运行中的相同任务仍恢复。RACE_LINKED/TRAINING_LINKED 保留原有已应用方案恢复和显式重新生成行为。只有新候选无 blockers 时才替代同任务范围旧候选，FAILED/BLOCKED 均保留原候选。旧候选 EXPIRED 并增加 proposalVersion；服务端拒绝重新应用。
 
 新 AI 提案 metadata 可含 `generationContext:{fingerprint,profileVersion,nutritionProfileVersion,trainingPlanVersionId,raceId?,raceVersion?}`。提交前后比较完整上下文，改变时任务失败 `GENERATION_CONTEXT_CHANGED`。应用重查快照，资料或赛事改变返回409 NUTRITION_GENERATION_STALE；训练联动已有 PLAN_VERSION_CONFLICT 语义保留。到期应用返回409 PROPOSAL_EXPIRED。无新增迁移；接口和客户端契约同步更新。
+
+## 取消生成（2026-11-10）
+
+`POST /nutrition/generations/:id/cancel`：Bearer 登录，UUID，无请求体。只允许本人 `NUTRITION_PLAN` 的 QUEUED/RUNNING 任务取消，返回 200 生成响应，状态为 CANCELLED；重复取消幂等成功。非本人、不存在或其他生成场景返回 404，已结束任务返回 409 `GENERATION_NOT_CANCELLABLE`。轮询接口也可返回 CANCELLED，客户端应停止等待，重新生成使用新幂等键。见 [取消生成功能](../features/ai-generation-cancellation.md)。

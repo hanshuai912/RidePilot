@@ -1,3 +1,4 @@
+import { watchGeneration } from "../../infra/prisma/watch-generation";
 import {
   BadRequestException,
   ConflictException,
@@ -237,8 +238,9 @@ export class NutritionGenerationService
       where: { id: jobId },
     });
     if (!job || job.status !== "RUNNING") return;
-    const input = nutritionGenerationInputSchema.parse(job.input);
+    const execution = watchGeneration(this.prisma, job);
     try {
+      const input = nutritionGenerationInputSchema.parse(job.input);
       const context = await this.context.read(job.userId, input);
       const skill = await this.skill.load(input.mode);
       const requestedDays =
@@ -247,6 +249,7 @@ export class NutritionGenerationService
           86_400_000 +
         1;
       const response = await this.ai.generate({
+        signal: execution.signal,
         requestId: job.requestId ?? job.id,
         temperature: 0.2,
         // A multi-day race draft includes meals plus the model's reasoning.
@@ -456,6 +459,8 @@ export class NutritionGenerationService
         code,
         retryable,
       });
+    } finally {
+      execution.stop();
     }
   }
 

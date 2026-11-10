@@ -1,3 +1,4 @@
+import { GenerationCancellationService } from "../src/infra/prisma/generation-cancellation.service";
 import { TrainingNutritionService } from "../src/modules/nutrition/training-nutrition.service";
 import { INestApplication, NotFoundException } from "@nestjs/common";
 import { APP_GUARD } from "@nestjs/core";
@@ -17,6 +18,7 @@ describe("race nutrition lookup HTTP contract", () => {
     const module = await Test.createTestingModule({
       controllers: [NutritionGenerationController],
       providers: [
+        { provide: GenerationCancellationService, useValue: {} },
         { provide: TrainingNutritionService, useValue: {} },
         { provide: NutritionGenerationService, useValue: {} },
         { provide: RaceNutritionService, useValue: { get } },

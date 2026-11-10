@@ -218,6 +218,151 @@ describeDb("coach generation candidate lifecycle", () => {
     await app.close();
   });
 
+  it("cancels queued tasks idempotently, isolates owners and allows a fresh submission", async () => {
+    const key = randomUUID();
+    const job = await training.submit(userId, input(), key);
+    await request(app.getHttpServer())
+      .post(`/api/v1/ai-coach/generations/${job.generationId}/cancel`)
+      .expect(401);
+    await post("ai-coach/generations/not-a-uuid/cancel").expect(400);
+    await post(`ai-coach/generations/${randomUUID()}/cancel`).expect(404);
+    const foreign = await db.user.create({
+      data: {},
+    });
+    users.push(foreign.id);
+    const foreignJob = await db.aiGeneration.create({
+      data: {
+        userId: foreign.id,
+        scene: "WEEK_PLAN",
+        input: {},
+        idempotencyKey: randomUUID(),
+      },
+    });
+    await post(`ai-coach/generations/${foreignJob.id}/cancel`).expect(404);
+    expect(
+      (
+        await db.aiGeneration.findUniqueOrThrow({
+          where: { id: foreignJob.id },
+        })
+      ).status,
+    ).toBe("QUEUED");
+    await post(`nutrition/generations/${job.generationId}/cancel`).expect(404);
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const cancelled = await post(
+        `ai-coach/generations/${job.generationId}/cancel`,
+      ).expect(200);
+      expect(cancelled.body).toMatchObject({
+        status: "CANCELLED",
+        proposalId: null,
+        errorCode: null,
+      });
+    }
+    await training.process(job.generationId);
+    expect(model.generate).not.toHaveBeenCalled();
+    expect((await training.submit(userId, input(), key)).status).toBe(
+      "CANCELLED",
+    );
+    expect(
+      (await training.submit(userId, input(), randomUUID())).generationId,
+    ).not.toBe(job.generationId);
+    const list = (await get("ai-coach/suggestions").expect(200)).body;
+    expect(
+      list.pending.some((item: { id: string }) => item.id === job.generationId),
+    ).toBe(false);
+    expect(list.recent).toContainEqual(
+      expect.objectContaining({ id: job.generationId, status: "CANCELLED" }),
+    );
+  });
+
+  it.each(["TRAINING", "STAGE", "NUTRITION"])(
+    "keeps %s cancelled when the provider returns a late result",
+    async (kind) => {
+      const stages = app.get(StagePlansService);
+      const job =
+        kind === "NUTRITION"
+          ? await nutrition.submit(userId, foodInput(), randomUUID())
+          : kind === "STAGE"
+            ? await stages.submit(
+                userId,
+                { goalId, startDate: start, endDate: add(start, 13) },
+                randomUUID(),
+              )
+            : await training.submit(userId, input(), randomUUID());
+      let release!: (value: ReturnType<typeof answer>) => void;
+      let started!: () => void;
+      const providerStarted = new Promise<void>((resolve) => {
+        started = resolve;
+      });
+      model.generate.mockImplementationOnce(() => {
+        started();
+        return new Promise((resolve) => {
+          release = resolve;
+        });
+      });
+      const processing = process(
+        job.generationId,
+        kind === "NUTRITION" ? kind : "TRAINING",
+      );
+      await providerStarted;
+      const route = kind === "NUTRITION" ? "nutrition" : "ai-coach";
+      await post(`${route}/generations/${job.generationId}/cancel`).expect(200);
+      release(
+        answer(
+          kind === "NUTRITION"
+            ? nutritionOutput()
+            : kind === "STAGE"
+              ? {
+                  summary: "阶段安排",
+                  stages: [
+                    {
+                      title: "基础",
+                      purpose: "耐力",
+                      startDate: start,
+                      endDate: add(start, 13),
+                      assessmentSuggestion: "之后复评",
+                    },
+                  ],
+                }
+              : trainingOutput(),
+        ),
+      );
+      expect(await processing).toMatchObject({
+        status: "CANCELLED",
+        proposalId: null,
+        leaseUntil: null,
+      });
+      expect(await db.changeProposal.count({ where: { userId } })).toBe(0);
+      expect(await db.trainingStagePlan.count({ where: { userId } })).toBe(0);
+      expect(await db.nutritionProposal.count({ where: { userId } })).toBe(0);
+      expect(await db.trainingPlan.count({ where: { userId } })).toBe(0);
+      expect(await db.nutritionPlan.count({ where: { userId } })).toBe(0);
+    },
+  );
+
+  it("does not retry a cancelled task after a provider failure, and rejects cancellation after completion", async () => {
+    const job = await training.submit(userId, input(), randomUUID());
+    model.generate.mockImplementationOnce(async () => {
+      await post(`ai-coach/generations/${job.generationId}/cancel`).expect(200);
+      throw new AiException("AI_PROVIDER_TIMEOUT", "timeout", true);
+    });
+    expect(await process(job.generationId)).toMatchObject({
+      status: "CANCELLED",
+      attempts: 1,
+      errorCode: null,
+    });
+    const ready = await process(
+      (await training.submit(userId, input(), randomUUID())).generationId,
+    );
+    const rejected = await post(
+      `ai-coach/generations/${ready.id}/cancel`,
+    ).expect(409);
+    expect(rejected.body.code).toBe("GENERATION_NOT_CANCELLABLE");
+    expect(
+      (await db.aiGeneration.findUniqueOrThrow({ where: { id: ready.id } }))
+        .status,
+    ).toBe("READY");
+  });
+
   it("serializes duplicate clicks across keys, resumes ready drafts and preserves one on failed regeneration", async () => {
     const jobs = await Promise.all([
       training.submit(userId, input(), randomUUID()),

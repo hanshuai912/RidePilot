@@ -1,3 +1,5 @@
+import { GenerationCancelledError } from "../../../lib/generation-cancelled";
+import { useGenerationCancellation } from "../../coach/hooks/useGenerationCancellation";
 import { assessmentsApi } from "../../assessments/services/assessments.api";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { router, useFocusEffect } from "expo-router";
@@ -16,6 +18,8 @@ import { waitForGeneration } from "../services/wait-for-generation";
 export function useGoalPlanning(goalId: string, assessmentId?: string) {
   const { session } = useAuth();
   const token = session?.accessToken;
+  const cancellation = useGenerationCancellation(token);
+  const { track: trackGeneration, reset: resetCancellation } = cancellation;
   const [data, setData] = useState<{
     goal: Awaited<ReturnType<typeof coachApi.goal>>;
     stages: Awaited<ReturnType<typeof goalsApi.activeStages>>;
@@ -100,6 +104,7 @@ export function useGoalPlanning(goalId: string, assessmentId?: string) {
     forceRegenerate = false,
   ) => {
     if (!token || !data || pending.current || !data.ftp) return;
+    resetCancellation();
     pending.current = true;
     setBusy(true);
     setError(null);
@@ -185,6 +190,7 @@ export function useGoalPlanning(goalId: string, assessmentId?: string) {
               saved.input as RangeGeneration,
               saved.key,
             );
+      trackGeneration(job);
       saved.jobId = job.generationId;
       const id = await waitForGeneration(token, job, () => mounted.current);
       if (id && mounted.current) {
@@ -202,7 +208,10 @@ export function useGoalPlanning(goalId: string, assessmentId?: string) {
         setError(cause instanceof Error ? cause.message : "生成失败，请重试");
       // Completed failures can be submitted again. Uncertain network responses
       // and timeouts retain the same request and key for safe resumption.
-      if (cause instanceof Error && cause.message.startsWith("生成失败（"))
+      if (
+        cause instanceof GenerationCancelledError ||
+        (cause instanceof Error && cause.message.startsWith("生成失败（"))
+      )
         request.current = null;
       if (
         cause instanceof CoachApiError &&
@@ -215,6 +224,7 @@ export function useGoalPlanning(goalId: string, assessmentId?: string) {
     }
   };
   return {
+    cancellation,
     data,
     loading,
     error,

@@ -1,3 +1,7 @@
+import { ApiOkResponse } from "@nestjs/swagger";
+import { toOpenApiSchema } from "../../docs/zod-openapi";
+import { GenerationCancellationService } from "../../infra/prisma/generation-cancellation.service";
+import { generationResponseSchema } from "@ridepilot/contracts";
 import {
   Body,
   BadRequestException,
@@ -6,6 +10,7 @@ import {
   Headers,
   HttpCode,
   Param,
+  ParseUUIDPipe,
   Post,
   Query,
 } from "@nestjs/common";
@@ -26,6 +31,7 @@ import { AiGenerationService } from "./ai-generation.service";
 @Controller()
 export class AiGenerationController {
   constructor(
+    private readonly cancellation: GenerationCancellationService,
     private readonly generations: AiGenerationService,
     private readonly raceTraining: RaceTrainingService,
   ) {}
@@ -111,6 +117,18 @@ export class AiGenerationController {
         message: "请选择有效的赛事规划类型",
       });
     return this.raceTraining.get(principal.userId, id, parsed.data);
+  }
+
+  @Post("ai-coach/generations/:id/cancel")
+  @HttpCode(200)
+  @ApiOkResponse({
+    schema: toOpenApiSchema(generationResponseSchema, "output"),
+  })
+  cancel(
+    @CurrentPrincipal() principal: AuthPrincipal,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.cancellation.cancel(principal.userId, id, false);
   }
 
   @Get("ai-coach/generations/:id")

@@ -1,3 +1,4 @@
+import { GenerationCancelButton } from "../components/GenerationCancelButton";
 import { AppText, Button, Card, Input } from "../../../components/ui";
 import type { useCycleReview } from "./useCycleReview";
 import { cycleActionLabels, cycleGenerationError } from "./cycle-review.model";
@@ -151,14 +152,19 @@ export function CycleReviewActions({
           <AppText className="mt-2 text-negative">{state.actionError}</AppText>
         ) : null}
       </Card>
+      {working ? (
+        <GenerationCancelButton cancellation={state.cancellation} />
+      ) : null}
       {job ? (
         <Card>
           <AppText variant="card">
             {working
               ? "草稿正在生成，可离开后继续查看"
-              : job.status === "FAILED"
-                ? "本次生成未完成"
-                : "生成任务已完成"}
+              : job.status === "CANCELLED"
+                ? "生成已取消，正式计划没有变化"
+                : job.status === "FAILED"
+                  ? "本次生成未完成"
+                  : "生成任务已完成"}
           </AppText>
           {job.status === "FAILED" ? (
             <AppText className="mt-2 text-warning">

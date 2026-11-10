@@ -1,3 +1,4 @@
+import { GenerationCancelButton } from "../../coach/components/GenerationCancelButton";
 import { GoalAssessments } from "../../assessments/components/GoalAssessments";
 import { router, useIsFocused, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
@@ -257,6 +258,7 @@ export function GoalDetailScreen() {
             <>
               <Spinner accessibilityLabel="正在生成计划草稿" />
               <AppText muted>正在生成并校验，请稍候…</AppText>
+              <GenerationCancelButton cancellation={flow.cancellation} />
             </>
           ) : null}
           {flow.error ? (

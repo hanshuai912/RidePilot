@@ -1,3 +1,5 @@
+import { useGenerationCancellation } from "../../coach/hooks/useGenerationCancellation";
+import { GenerationCancelButton } from "../../coach/components/GenerationCancelButton";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, View } from "react-native";
 import { Settings2, Sparkles } from "lucide-react-native";
@@ -52,6 +54,7 @@ function sectionTitle(date: string) {
 export function NutritionScreen() {
   const { session } = useAuth();
   const token = session?.accessToken;
+  const cancellation = useGenerationCancellation(token, true);
   const [date, setDate] = useState<string | null>(null);
   const [profile, setProfile] = useState<Awaited<
     ReturnType<typeof nutritionApi.getProfile>
@@ -149,6 +152,7 @@ export function NutritionScreen() {
       setProfileOpen(true);
       return;
     }
+    cancellation.reset();
     setGenerating(true);
     setGenerationStatus("QUEUED");
     setFeedback(null);
@@ -160,6 +164,7 @@ export function NutritionScreen() {
         mode: plan.status === "NOT_GENERATED" ? "INITIAL" : "REGENERATE",
         expectedNutritionVersion: plan.version,
       });
+      cancellation.track(initial);
       const next = await waitForNutritionProposal(
         token,
         initial,
@@ -453,6 +458,9 @@ export function NutritionScreen() {
               ? "正在生成营养草稿"
               : "生成今日营养草稿"}
           </Button>
+          {generating ? (
+            <GenerationCancelButton cancellation={cancellation} />
+          ) : null}
           {generationStatus ? (
             <AppText variant="label" muted className="mt-2 text-center">
               {generationStatus === "QUEUED"

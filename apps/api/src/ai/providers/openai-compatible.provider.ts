@@ -37,9 +37,13 @@ export class OpenAiCompatibleProvider implements AiProvider {
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), config.timeoutMs);
+    const signal = request.signal
+      ? AbortSignal.any([controller.signal, request.signal])
+      : controller.signal;
     const startedAt = Date.now();
 
     try {
+      signal.throwIfAborted();
       const response = await fetch(this.completionsUrl(config.baseUrl), {
         method: "POST",
         headers: {
@@ -64,7 +68,7 @@ export class OpenAiCompatibleProvider implements AiProvider {
             ? {}
             : { response_format: request.responseFormat }),
         }),
-        signal: controller.signal,
+        signal,
       });
 
       const payload = await this.readJson(response);
@@ -86,6 +90,8 @@ export class OpenAiCompatibleProvider implements AiProvider {
       });
       return parsed;
     } catch (error) {
+      if (request.signal?.aborted)
+        throw new AiException("AI_GENERATION_CANCELLED", "生成已取消", false);
       if (error instanceof AiException) throw error;
       if (error instanceof DOMException && error.name === "AbortError") {
         throw new AiException(

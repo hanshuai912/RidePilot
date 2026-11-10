@@ -64,7 +64,7 @@ export const stageReviewFollowupSchema = z.object({
   generationId: z.uuid(),
   reviewId: z.uuid(),
   kind: z.enum(["STAGES", "COURSES"]),
-  status: z.enum(["QUEUED", "RUNNING", "READY", "FAILED"]),
+  status: z.enum(["QUEUED", "RUNNING", "READY", "FAILED", "CANCELLED"]),
   proposalId: z.uuid().nullable(),
   errorCode: z.string().nullable(),
 });

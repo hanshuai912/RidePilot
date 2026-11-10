@@ -154,6 +154,13 @@ export const nutritionApi = {
         idempotencyKey: key(),
       },
     ),
+  cancelGeneration: (token: string, id: string) =>
+    request(
+      `nutrition/generations/${encodeURIComponent(id)}/cancel`,
+      token,
+      generationResponseSchema,
+      { method: "POST" },
+    ),
   generation: (token: string, generationId: string) =>
     request(
       `nutrition/generations/${encodeURIComponent(generationId)}`,

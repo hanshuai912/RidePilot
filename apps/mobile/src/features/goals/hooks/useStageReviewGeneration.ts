@@ -1,3 +1,5 @@
+import { GenerationCancelledError } from "../../../lib/generation-cancelled";
+import { useGenerationCancellation } from "../../coach/hooks/useGenerationCancellation";
 import { useEffect, useRef, useState } from "react";
 import { router } from "expo-router";
 import { z } from "zod";
@@ -16,6 +18,8 @@ export function useStageReviewGeneration(
   token: string | undefined,
   evidence: StageReviewEvidence | null,
 ) {
+  const cancellation = useGenerationCancellation(token);
+  const { track: trackGeneration, reset: resetCancellation } = cancellation;
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [busy, setBusy] = useState(false);
@@ -36,6 +40,7 @@ export function useStageReviewGeneration(
   }, []);
   const generate = async (roadmap: boolean) => {
     if (!token || !evidence || pending.current) return;
+    resetCancellation();
     pending.current = true;
     setBusy(true);
     setError(null);
@@ -97,6 +102,7 @@ export function useStageReviewGeneration(
               req.input as RangeGeneration,
               req.key,
             );
+      trackGeneration(job);
       req.jobId = job.generationId;
       const id = await waitForGeneration(token, job, () => mounted.current);
       if (id && mounted.current)
@@ -117,6 +123,7 @@ export function useStageReviewGeneration(
         (e instanceof CoachApiError &&
           e.status !== null &&
           [400, 409].includes(e.status)) ||
+        e instanceof GenerationCancelledError ||
         (e instanceof Error && e.message.startsWith("生成失败（"))
       )
         request.current = null;
@@ -127,11 +134,13 @@ export function useStageReviewGeneration(
   };
   const resume = async (id: string, roadmap: boolean) => {
     if (!token || !evidence || pending.current) return;
+    resetCancellation();
     pending.current = true;
     setBusy(true);
     setError(null);
     try {
       const job = await coachApi.generation(token, id);
+      trackGeneration(job);
       const proposalId = await waitForGeneration(
         token,
         job,
@@ -151,6 +160,7 @@ export function useStageReviewGeneration(
     }
   };
   return {
+    cancellation,
     resume,
     startDate: startDate || evidence?.snapshot.localDate || "",
     endDate: endDate || evidence?.snapshot.goalTargetDate || "",

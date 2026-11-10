@@ -1,3 +1,4 @@
+import { useGenerationCancellation } from "../../coach/hooks/useGenerationCancellation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useFocusEffect } from "expo-router";
 import { z } from "zod";
@@ -20,6 +21,8 @@ const message = (cause: unknown) =>
 export function useTrainingNutrition(initialFrom?: string, initialTo?: string) {
   const { session } = useAuth();
   const token = session?.accessToken;
+  const cancellation = useGenerationCancellation(token, true);
+  const { track: trackGeneration } = cancellation;
   const [state, setState] = useState<TrainingNutritionState | null>(null);
   const [profile, setProfile] = useState<NutritionProfileResponse | null>(null);
   const [proposal, setProposal] = useState<NutritionProposalResponse | null>(
@@ -106,6 +109,7 @@ export function useTrainingNutrition(initialFrom?: string, initialTo?: string) {
   const poll = useCallback(
     async (job: NonNullable<TrainingNutritionState["generation"]>) => {
       if (!token) return;
+      trackGeneration(job);
       const attempt = ++operation.current;
       const result = await waitForNutritionProposal(
         token,
@@ -116,7 +120,7 @@ export function useTrainingNutrition(initialFrom?: string, initialTo?: string) {
       if (result && mounted.current && operation.current === attempt)
         setProposal(result);
     },
-    [token],
+    [token, trackGeneration],
   );
 
   const refresh = useCallback(
@@ -190,6 +194,7 @@ export function useTrainingNutrition(initialFrom?: string, initialTo?: string) {
       await read();
     });
   return {
+    cancellation,
     state,
     profile,
     proposal,

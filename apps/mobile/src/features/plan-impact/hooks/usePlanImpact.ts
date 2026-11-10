@@ -1,3 +1,5 @@
+import { GenerationCancelledError } from "../../../lib/generation-cancelled";
+import { useGenerationCancellation } from "../../coach/hooks/useGenerationCancellation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { router, useFocusEffect } from "expo-router";
 import { planImpactReferenceSchema } from "@ridepilot/contracts";
@@ -10,6 +12,8 @@ import { planImpactApi } from "../services/plan-impact.api";
 export function usePlanImpact() {
   const { session } = useAuth();
   const token = session?.accessToken;
+  const cancellation = useGenerationCancellation(token);
+  const { track: trackGeneration, reset: resetCancellation } = cancellation;
   const load = useCallback(async () => {
     if (!token) throw new Error("请先登录");
     return planImpactApi.preview(token);
@@ -63,6 +67,7 @@ export function usePlanImpact() {
     resumeId?: string,
   ) => {
     if (!token || !data || pending.current) return;
+    resetCancellation();
     pending.current = true;
     setBusy(true);
     setGenerating(action === "REPLAN");
@@ -71,6 +76,7 @@ export function usePlanImpact() {
     try {
       if (resumeId) {
         const job = await coachApi.generation(token, resumeId);
+        trackGeneration(job);
         const id = await waitForGeneration(token, job, () => active.current);
         if (id && active.current)
           router.push({
@@ -106,6 +112,7 @@ export function usePlanImpact() {
             ? await coachApi.generation(token, resumeId || attempt.jobId!)
             : await planImpactApi.generate(token, reference.data, attempt.key);
         attempt.jobId = job.generationId;
+        trackGeneration(job);
         const id = await waitForGeneration(token, job, () => active.current);
         if (id && active.current)
           router.push({
@@ -131,7 +138,10 @@ export function usePlanImpact() {
     } catch (e) {
       if (active.current)
         setError(e instanceof Error ? e.message : "处理失败，请重试");
-      if (e instanceof Error && e.message.startsWith("生成失败（"))
+      if (
+        e instanceof GenerationCancelledError ||
+        (e instanceof Error && e.message.startsWith("生成失败（"))
+      )
         generation.current = null;
     } finally {
       pending.current = false;
@@ -143,6 +153,7 @@ export function usePlanImpact() {
     }
   };
   return {
+    cancellation,
     ...resource,
     busy,
     generating,

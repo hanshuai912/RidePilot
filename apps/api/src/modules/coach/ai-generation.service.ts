@@ -1,3 +1,4 @@
+import { watchGeneration } from "../../infra/prisma/watch-generation";
 import { workoutSegments } from "../training/calendar-events";
 import { validateCycleRecovery } from "./cycle-review/cycle-review.evidence";
 import {
@@ -174,9 +175,10 @@ export class AiGenerationService implements OnModuleInit, OnModuleDestroy {
       where: { id: jobId },
     });
     if (!job || job.status !== "RUNNING") return;
+    const execution = watchGeneration(this.prisma, job);
     try {
       if (job.scene === "STAGE_PLAN") {
-        await this.stages.process(job);
+        await this.stages.process(job, execution.signal);
         return;
       }
       const input = weekGenerationInputSchema.parse(job.input);
@@ -200,6 +202,7 @@ export class AiGenerationService implements OnModuleInit, OnModuleDestroy {
                 : "adaptive-adjustment";
       const skill = await this.skillLoader.load(reference);
       const response = await this.ai.generate({
+        signal: execution.signal,
         requestId: job.requestId ?? job.id,
         temperature: 0.2,
         maxTokens: input.mode === "range" ? 32000 : 6000,
@@ -421,6 +424,8 @@ export class AiGenerationService implements OnModuleInit, OnModuleDestroy {
         code,
         retryable,
       });
+    } finally {
+      execution.stop();
     }
   }
 

@@ -1,3 +1,4 @@
+import { GenerationCancelledError } from "../../../lib/generation-cancelled";
 import type { AiProposalResponse } from "@ridepilot/contracts";
 
 import { coachApi } from "./coach.api";
@@ -24,6 +25,7 @@ export async function waitForCoachProposal(
   let job = initial;
   for (let attempt = 0; attempt < 100; attempt += 1) {
     if (!isActive()) return null;
+    if (job.status === "CANCELLED") throw new GenerationCancelledError();
     if (job.status === "READY") {
       if (!job.proposalId) throw new Error("生成完成但未收到计划草稿");
       return coachApi.proposal(token, job.proposalId);
