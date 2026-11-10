@@ -36,6 +36,34 @@ test("generation ranges reject reversed dates and oversized requests", () => {
   expect(() => assertDateRange("2030-01-08", "2030-01-07", 84)).toThrow();
   expect(() => assertDateRange("2030-01-08", "2031-01-08", 84)).toThrow();
 });
+test("range boundaries and retained workouts share the same recovery constraint", () => {
+  const validator = new CoachPlanValidator();
+  const hard = workout("2030-01-08");
+  hard.segments[0].intensity = { kind: "ftp_percent", min: 90, max: 100 };
+  const output = {
+    summary: "训练",
+    stageSummary: "综合",
+    assessmentSuggestion: "复评",
+    workouts: [hard],
+  };
+  const context = {
+    weekStartDate: "2030-01-08",
+    endDate: "2030-01-08",
+    ftpWatts: 250,
+    weekdays: [{ weekday: 2, availableMinutes: 90 }],
+    maxSessionMinutes: 90,
+  };
+  for (const day of ["2030-01-07", "2030-01-08", "2030-01-09"])
+    expect(() =>
+      validator.validate(output, { ...context, retainedHardDates: [day] }),
+    ).toThrow("缺少恢复");
+  expect(
+    validator.validate(output, {
+      ...context,
+      retainedHardDates: ["2030-01-06", "2030-01-10"],
+    }).workouts,
+  ).toHaveLength(1);
+});
 const workout = (date: string) => ({
   scheduledDate: date,
   title: "耐力骑行",

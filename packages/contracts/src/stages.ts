@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { goalSchema } from "./coach";
 import {
   stageReviewEvidenceSchema,
   stageReviewSummarySchema,
@@ -12,6 +13,7 @@ export const stageDraftSchema = z.strictObject({
   assessmentSuggestion: z.string().trim().min(1).max(300),
 });
 export const stagePlanOutputSchema = z.strictObject({
+  goalTradeoffs: z.array(z.string().trim().min(1).max(500)).max(10).optional(),
   summary: z.string().trim().min(1).max(1000),
   stages: z.array(stageDraftSchema).min(1).max(12),
 });
@@ -23,6 +25,8 @@ export const stagePlanGenerationSchema = z.strictObject({
   forceRegenerate: z.boolean().optional(),
 });
 export const stagePlanResponseSchema = stagePlanOutputSchema.extend({
+  planningGoals: z.array(goalSchema).optional(),
+  scope: z.enum(["ALL_GOALS", "LEGACY_GOAL"]).optional(),
   stageReview: stageReviewEvidenceSchema.optional(),
   id: z.uuid(),
   goalId: z.uuid(),

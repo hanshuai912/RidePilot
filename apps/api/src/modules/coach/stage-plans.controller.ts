@@ -8,11 +8,21 @@ import {
   ParseUUIDPipe,
   Post,
 } from "@nestjs/common";
-import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
+import {
+  ApiBearerAuth,
+  ApiTags,
+  ApiBody,
+  ApiOkResponse,
+  ApiCreatedResponse,
+  ApiAcceptedResponse,
+} from "@nestjs/swagger";
 import {
   activateStagePlanSchema,
   rangeGenerationSchema,
   stagePlanGenerationSchema,
+  stagePlanResponseSchema,
+  activeStagePlanResponseSchema,
+  generationResponseSchema,
   type RangeGeneration,
   type StagePlanGeneration,
 } from "@ridepilot/contracts";
@@ -22,6 +32,7 @@ import type { AuthPrincipal } from "../auth/auth.types";
 import { AiGenerationService } from "./ai-generation.service";
 import { StagePlansService } from "./stage-plans.service";
 import { TrainingRangeService } from "./training-range.service";
+import { toOpenApiSchema } from "../../docs/zod-openapi";
 
 @ApiTags("goals-stages")
 @ApiBearerAuth("access-token")
@@ -34,6 +45,7 @@ export class StagePlansController {
   ) {}
 
   @Get("goals/:id/stage-plan")
+  @ApiOkResponse({ schema: toOpenApiSchema(activeStagePlanResponseSchema) })
   async active(
     @CurrentPrincipal() p: AuthPrincipal,
     @Param("id", new ParseUUIDPipe()) id: string,
@@ -41,6 +53,7 @@ export class StagePlansController {
     return { plan: await this.stages.active(p.userId, id) };
   }
   @Get("stage-plans/:id")
+  @ApiOkResponse({ schema: toOpenApiSchema(stagePlanResponseSchema) })
   get(
     @CurrentPrincipal() p: AuthPrincipal,
     @Param("id", new ParseUUIDPipe()) id: string,
@@ -49,6 +62,8 @@ export class StagePlansController {
   }
   @Post("stage-plans/generate-proposal")
   @HttpCode(202)
+  @ApiBody({ schema: toOpenApiSchema(stagePlanGenerationSchema, "input") })
+  @ApiAcceptedResponse({ schema: toOpenApiSchema(generationResponseSchema) })
   generate(
     @CurrentPrincipal() p: AuthPrincipal,
     @Headers("idempotency-key") key: string,
@@ -58,6 +73,8 @@ export class StagePlansController {
     return this.stages.submit(p.userId, input, key);
   }
   @Post("stage-plans/:id/activate")
+  @ApiBody({ schema: toOpenApiSchema(activateStagePlanSchema, "input") })
+  @ApiCreatedResponse({ schema: toOpenApiSchema(stagePlanResponseSchema) })
   activate(
     @CurrentPrincipal() p: AuthPrincipal,
     @Param("id", new ParseUUIDPipe()) id: string,
@@ -68,6 +85,8 @@ export class StagePlansController {
   }
   @Post("plans/generate-range-proposal")
   @HttpCode(202)
+  @ApiBody({ schema: toOpenApiSchema(rangeGenerationSchema, "input") })
+  @ApiAcceptedResponse({ schema: toOpenApiSchema(generationResponseSchema) })
   async range(
     @CurrentPrincipal() p: AuthPrincipal,
     @Headers("idempotency-key") key: string,

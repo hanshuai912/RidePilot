@@ -12,6 +12,11 @@ import { dbToDate } from "../../training/training.validation";
 import { readCycleReviewData } from "../cycle-review/cycle-review.repository";
 import { buildCycleReview } from "../cycle-review/cycle-review.policy";
 import { readGoalContext } from "./goal-lifecycle.repository";
+import {
+  readPlanningGoals,
+  planningGoalsMatch,
+  planningHorizon,
+} from "./planning-goals";
 
 export const stageReviewStaleReason =
   "阶段复评依据或决定已变化，请重新复评后生成";
@@ -41,8 +46,10 @@ export async function readStageSnapshot(
       message: "阶段不存在",
     });
   const ctx = await readGoalContext(db, userId, stage.stagePlan.goalId);
+  const goals = await readPlanningGoals(db, userId);
   const active = ctx.stages[0];
   const stale =
+    !planningGoalsMatch(stage.stagePlan.goalsSnapshot, goals) ||
     stage.stagePlan.status !== "ACTIVE" ||
     stage.stagePlan.goalVersion !== ctx.goal.version ||
     stage.stagePlan.profileVersion !== ctx.user.profileVersion ||
@@ -71,7 +78,9 @@ export async function readStageSnapshot(
     goalId: ctx.goal.id,
     goalVersion: ctx.goal.version,
     goalStatus: ctx.goal.status,
-    goalTargetDate: dbToDate(ctx.goal.targetDate),
+    goalTargetDate: goals.length
+      ? planningHorizon(goals)
+      : dbToDate(ctx.goal.targetDate),
     stageId: id,
     stagePlanId: stage.stagePlanId,
     stagePlanVersion: stage.stagePlan.version,
@@ -141,6 +150,7 @@ export async function readStageSnapshot(
     ...data,
     fingerprint: generationFingerprint({
       data,
+      goals,
       cycleFingerprint: cycle?.fingerprint,
       ftp: ctx.ftp,
       availability: ctx.availability,

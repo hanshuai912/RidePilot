@@ -1,5 +1,7 @@
 import { cycleReviewStaleReason } from "./cycle-review/cycle-review.evidence";
 import { stageReviewStaleReason } from "./goals/stage-review.repository";
+import { planningGoalsMatch } from "./goals/planning-goals";
+import { goalResponse } from "./goals/goal-lifecycle.repository";
 import {
   ConflictException,
   Injectable,
@@ -50,6 +52,7 @@ export class CoachSuggestionsService {
       stageReviewStale,
     } = await this.repository.read(userId);
     const now = new Date();
+    const planningGoals = goals.map(goalResponse);
     const superseded = (value: unknown) =>
       Array.isArray(value) && value.includes(supersededReason);
     const contextReason = (draft: Record<string, unknown>) => {
@@ -118,7 +121,10 @@ export class CoachSuggestionsService {
                 ? cycleReviewStaleReason
                 : stageReviewStale?.[p.id]
                   ? stageReviewStaleReason
-                  : contextReason(draft),
+                  : draft.goalId &&
+                      !planningGoalsMatch(draft.goalsSnapshot, planningGoals)
+                    ? "进行中目标已变化，请按全部目标重新生成"
+                    : contextReason(draft),
       };
     });
     items.push(
@@ -182,6 +188,9 @@ export class CoachSuggestionsService {
         goalId: p.goalId,
         staleReason:
           (stageReviewStale?.[p.id] ? stageReviewStaleReason : null) ??
+          (!planningGoalsMatch(p.goalsSnapshot, planningGoals)
+            ? "进行中目标已变化，请按全部目标重新规划"
+            : null) ??
           contextReason({
             goalId: p.goalId,
             goalVersion: p.goalVersion,
@@ -190,8 +199,8 @@ export class CoachSuggestionsService {
             ftpMeasurementId: p.ftpMeasurementId,
           }) ??
           (p.status === "DRAFT" &&
-          (stages.find((s) => s.goalId === p.goalId && s.status === "ACTIVE")
-            ?.id ?? null) !== p.baseStagePlanId
+          (stages.find((s) => s.status === "ACTIVE")?.id ?? null) !==
+            p.baseStagePlanId
             ? "正式阶段安排已变化，请重新生成"
             : null),
       })),

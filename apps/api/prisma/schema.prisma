@@ -267,6 +267,7 @@ model TrainingGoal {
 }
 
 model TrainingStagePlan {
+  goalsSnapshot Json? @map("goals_snapshot")
   reviewEvidence Json? @map("review_evidence")
   id                  String   @id @default(uuid()) @db.Uuid
   userId              String   @map("user_id") @db.Uuid

@@ -13,6 +13,7 @@ import { dbToDate } from "../training/training.validation";
 import { assertDateRange } from "./stage-plan.validation";
 import { resolveStageReview } from "./goals/stage-review.repository";
 import { assertStageReviewScope } from "./goals/stage-review.scope";
+import { readPlanningGoals, planningGoalsMatch } from "./goals/planning-goals";
 
 @Injectable()
 export class TrainingRangeService {
@@ -42,7 +43,7 @@ export class TrainingRangeService {
       });
     if (input.assessmentId) {
       const assessment = await this.prisma.trainingAssessment.findFirst({
-        where: { id: input.assessmentId, userId, goalId: input.goalId },
+        where: { id: input.assessmentId, userId },
       });
       if (!assessment)
         throw new NotFoundException({
@@ -74,7 +75,7 @@ export class TrainingRangeService {
       const stage = await this.prisma.trainingStage.findFirst({
         where: {
           id: input.stageId,
-          stagePlan: { userId, goalId: input.goalId },
+          stagePlan: { userId },
         },
         include: { stagePlan: { include: { goal: true } } },
       });
@@ -84,6 +85,10 @@ export class TrainingRangeService {
           message: "阶段不存在",
         });
       if (
+        !planningGoalsMatch(
+          stage.stagePlan.goalsSnapshot,
+          await readPlanningGoals(this.prisma, userId),
+        ) ||
         stage.stagePlan.status !== "ACTIVE" ||
         stage.stagePlan.goal.status !== "ACTIVE" ||
         stage.stagePlan.goalVersion !== stage.stagePlan.goal.version

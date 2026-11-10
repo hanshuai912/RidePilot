@@ -17,6 +17,7 @@ import { GoalsScreen } from "../screens/GoalsScreen";
 import { StagePreviewScreen } from "../screens/StagePreviewScreen";
 import { CoursePreviewScreen } from "../screens/CoursePreviewScreen";
 import { goalsApi } from "../services/goals.api";
+import { assessmentsApi } from "../../assessments/services/assessments.api";
 import type {
   AiProposalResponse,
   StagePlanResponse,
@@ -401,7 +402,10 @@ test.each(["missing FTP", "paused goal"])(
   "%s hides the stage planning action",
   async (reason) => {
     if (reason === "missing FTP") coach.ftp.mockResolvedValue(null);
-    else coach.goal.mockResolvedValue({ ...goal, status: "PAUSED" });
+    else {
+      coach.goal.mockResolvedValue({ ...goal, status: "PAUSED" });
+      coach.goals.mockResolvedValue([{ ...goal, status: "PAUSED" }]);
+    }
     await detail();
     await screen.findByText("阶段安排");
     expect(screen.queryByRole("button", { name: "重新规划阶段" })).toBeNull();
@@ -572,7 +576,7 @@ test("detail has independent add and edit entries", async () => {
   expect(screen.getByTestId("path").props.children).toBe("/goals/manage");
 });
 
-test("goal detail shows secondary goals and switching loads their own content without mutations", async () => {
+test("switching goal details retains the shared stages and tests without reloading the planning form", async () => {
   const secondary = {
     ...goal,
     id: proposalId,
@@ -591,9 +595,11 @@ test("goal detail shows secondary goals and switching loads their own content wi
   coach.goal.mockImplementation(async (_token, id) =>
     id === secondary.id ? secondary : id === paused.id ? paused : goal,
   );
-  api.activeStages.mockImplementation(async (_token, id) =>
-    id === goal.id ? stagePlan : null,
-  );
+  api.activeStages.mockResolvedValue({
+    ...stagePlan,
+    scope: "ALL_GOALS",
+    planningGoals: [goal, secondary],
+  });
   await detail();
   const target = await screen.findByRole("button", {
     name: "切换目标：完成百公里路线",
@@ -603,28 +609,49 @@ test("goal detail shows secondary goals and switching loads their own content wi
       .accessibilityState.selected,
   ).toBe(true);
   await fireEvent.press(target);
-  await screen.findByText("尚无阶段安排");
-  expect(screen.getByTestId("path").props.children).toBe(
-    `/goals/${secondary.id}`,
-  );
-  expect(coach.goal).toHaveBeenLastCalledWith("token", secondary.id);
-  expect(api.activeStages).toHaveBeenLastCalledWith("token", secondary.id);
+  await screen.findByText("基础耐力阶段");
+  expect(coach.goal).toHaveBeenCalledTimes(1);
+  expect(api.activeStages).toHaveBeenCalledTimes(1);
   expect(
     screen.getByRole("button", { name: "切换目标：完成百公里路线" }).props
       .accessibilityState.selected,
   ).toBe(true);
-  expect(screen.queryByText("基础耐力阶段")).toBeNull();
+  expect(screen.getByText("基础耐力阶段")).toBeTruthy();
+  expect(jest.mocked(assessmentsApi.list)).toHaveBeenLastCalledWith("token");
   await fireEvent.press(
     screen.getByRole("button", { name: "切换目标：暂停的爬坡目标" }),
   );
-  await screen.findByText("尚无阶段安排");
-  expect(screen.queryByText("生成课程草稿")).toBeNull();
+  expect(
+    screen.getByRole("button", { name: "切换目标：暂停的爬坡目标" }).props
+      .accessibilityState.selected,
+  ).toBe(true);
+  expect(screen.getByText("基础耐力阶段")).toBeTruthy();
+  expect(screen.getByText("生成课程草稿")).toBeTruthy();
   expect(api.generateCourses).not.toHaveBeenCalled();
   expect(api.generateStages).not.toHaveBeenCalled();
   expect(coach.apply).not.toHaveBeenCalled();
 });
 
-test("switching goals confirms discarding planning inputs and starts a clean form", async () => {
+test("a secondary goal entry still generates the unified course draft using the primary anchor", async () => {
+  const secondary = {
+    ...goal,
+    id: proposalId,
+    description: "百公里",
+    priority: "SECONDARY" as const,
+  };
+  coach.goals.mockResolvedValue([goal, secondary]);
+  coach.goal.mockResolvedValue(secondary);
+  await renderRouter(routes, { initialUrl: `/goals/${secondary.id}` });
+  await selectPlanningDate("开始日期", start);
+  await selectPlanningDate("结束日期", end);
+  await fireEvent.press(screen.getByText("生成课程草稿"));
+  await screen.findByText("跨周耐力训练");
+  expect(api.generateCourses.mock.calls[0][1]).toMatchObject({
+    goalId: goal.id,
+  });
+});
+
+test("switching inspected goals preserves the shared planning inputs and editing opens the inspected goal", async () => {
   const secondary = {
     ...goal,
     id: proposalId,
@@ -635,30 +662,22 @@ test("switching goals confirms discarding planning inputs and starts a clean for
   coach.goal.mockImplementation(async (_token, id) =>
     id === secondary.id ? secondary : goal,
   );
-  api.activeStages.mockImplementation(async (_token, id) =>
-    id === goal.id ? stagePlan : null,
-  );
   await detail();
   await fireEvent.changeText(
     await screen.findByLabelText("课程补充要求"),
-    "仅属于当前目标",
+    "综合训练保留休息日",
   );
   await fireEvent.press(
     await screen.findByRole("button", { name: "切换目标：另一目标" }),
   );
-  await screen.findByText("返回将放弃当前生成条件，确认离开？");
-  expect(screen.getByTestId("path").props.children).toBe(`/goals/${goalId}`);
-  await fireEvent.press(screen.getByText("关闭"));
+  expect(screen.queryByText("返回将放弃当前生成条件，确认离开？")).toBeNull();
   expect(screen.getByLabelText("课程补充要求").props.value).toBe(
-    "仅属于当前目标",
+    "综合训练保留休息日",
   );
-  await fireEvent.press(
-    screen.getByRole("button", { name: "切换目标：另一目标" }),
-  );
-  await fireEvent.press(await screen.findByText("确认返回"));
-  await screen.findByText("尚无阶段安排");
-  expect(screen.getByLabelText("课程补充要求").props.value).toBe("");
+  expect(screen.getByText("基础耐力阶段")).toBeTruthy();
   expect(api.generateCourses).not.toHaveBeenCalled();
+  await fireEvent.press(screen.getByText("编辑目标"));
+  await screen.findByText(`编辑当前目标表单 ${secondary.id}`);
 });
 
 test("failure to load other goals can retry without hiding the current goal", async () => {

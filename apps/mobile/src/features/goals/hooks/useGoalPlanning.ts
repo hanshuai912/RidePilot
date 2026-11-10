@@ -22,6 +22,8 @@ export function useGoalPlanning(goalId: string, assessmentId?: string) {
   const { track: trackGeneration, reset: resetCancellation } = cancellation;
   const [data, setData] = useState<{
     goal: Awaited<ReturnType<typeof coachApi.goal>>;
+    goals: Awaited<ReturnType<typeof coachApi.goals>>;
+    goalsError: string | null;
     stages: Awaited<ReturnType<typeof goalsApi.activeStages>>;
     ftp: Awaited<ReturnType<typeof coachApi.ftp>>;
     today: string;
@@ -71,14 +73,25 @@ export function useGoalPlanning(goalId: string, assessmentId?: string) {
         assessmentId
           ? assessmentsApi.get(token, assessmentId)
           : Promise.resolve(null),
+        coachApi
+          .goals(token)
+          .then((goals) => ({ goals, goalsError: null as string | null }))
+          .catch(() => ({ goals: [], goalsError: "其他目标读取失败" })),
       ])
-        .then(([goal, stages, ftp, profile, assessment]) => {
+        .then(([goal, stages, ftp, profile, assessment, portfolio]) => {
           if (!active) return;
           const today = localDateInTimezone(new Date(), profile.timezone);
-          setData({ goal, stages, ftp, today, assessment });
+          setData({ goal, stages, ftp, today, assessment, ...portfolio });
           setStageStartDate((current) => current || today);
           setStageEndDate((current) => {
-            const target = stages?.endDate ?? goal.targetDate;
+            const target =
+              stages?.endDate ??
+              portfolio.goals
+                .filter((g) => g.status === "ACTIVE")
+                .map((g) => g.targetDate)
+                .sort()
+                .at(-1) ??
+              goal.targetDate;
             return (
               current ||
               (target < today
@@ -89,13 +102,19 @@ export function useGoalPlanning(goalId: string, assessmentId?: string) {
             );
           });
           setStartDate((current) => current || today);
+          const horizon =
+            portfolio.goals
+              .filter((g) => g.status === "ACTIVE")
+              .map((g) => g.targetDate)
+              .sort()
+              .at(-1) ?? goal.targetDate;
           setEndDate(
             (current) =>
               current ||
-              (goal.targetDate < today
+              (horizon < today
                 ? today
-                : goal.targetDate < addDays(today, 27)
-                  ? goal.targetDate
+                : horizon < addDays(today, 27)
+                  ? horizon
                   : addDays(today, 27)),
           );
           setError(null);
@@ -123,7 +142,13 @@ export function useGoalPlanning(goalId: string, assessmentId?: string) {
     setBusy(true);
     setError(null);
     try {
-      if (data.goal.status !== "ACTIVE") throw new Error("请选择活跃目标");
+      if (data.goalsError) throw new Error("请先重试读取全部目标");
+      const planningGoal = data.goals.find(
+        (g) => g.status === "ACTIVE" && g.priority === "PRIMARY",
+      );
+      if (!planningGoal)
+        throw new Error("请先在目标管理中确定一个进行中的主目标");
+      const planningGoalId = planningGoal.id;
       const rangeStart = kind === "STAGES" ? stageStartDate : startDate;
       const rangeEnd = kind === "STAGES" ? stageEndDate : endDate;
       if (kind === "STAGES" || scope === "DATES") {
@@ -149,17 +174,22 @@ export function useGoalPlanning(goalId: string, assessmentId?: string) {
         startDate: rangeStart,
         endDate: rangeEnd,
         notes,
+        goals: data.goals,
         assessmentVersion: data.assessment?.version,
       });
       if (request.current?.signature !== signature) {
         const status = await coachApi.planStatus(token);
         const input: StagePlanGeneration | RangeGeneration =
           kind === "STAGES"
-            ? { goalId, startDate: rangeStart, endDate: rangeEnd }
+            ? {
+                goalId: planningGoalId,
+                startDate: rangeStart,
+                endDate: rangeEnd,
+              }
             : scope === "STAGE"
               ? {
                   scope,
-                  goalId,
+                  goalId: planningGoalId,
                   stageId,
                   notes,
                   expectedBaseVersion: status.planVersion,
@@ -172,7 +202,7 @@ export function useGoalPlanning(goalId: string, assessmentId?: string) {
                 }
               : {
                   scope,
-                  goalId,
+                  goalId: planningGoalId,
                   startDate,
                   endDate,
                   notes,

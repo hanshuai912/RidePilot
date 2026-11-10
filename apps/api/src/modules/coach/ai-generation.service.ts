@@ -1,4 +1,5 @@
 import { watchGeneration } from "../../infra/prisma/watch-generation";
+import { planningInstructions } from "./goals/planning-goals";
 import { workoutSegments } from "../training/calendar-events";
 import { validateCycleRecovery } from "./cycle-review/cycle-review.evidence";
 import {
@@ -264,6 +265,8 @@ export class AiGenerationService implements OnModuleInit, OnModuleDestroy {
               ...(input.endDate ? { endDate: input.endDate } : {}),
               ...(input.stageId ? { stageId: input.stageId } : {}),
               goal: context.goal,
+              planningGoals: context.planningGoals,
+              planningInstructions,
               stage: context.stage,
               ftp: {
                 watts: Number(context.ftp.value),
@@ -280,6 +283,7 @@ export class AiGenerationService implements OnModuleInit, OnModuleDestroy {
               bodyMetrics: context.bodyMetrics,
               currentFtpWkg: context.currentFtpWkg,
               existingWorkouts: context.existingWorkouts,
+              retainedHardDates: context.retainedHardDates,
               replaceWorkoutIds: context.replaceWorkoutIds,
             }),
           },
@@ -304,7 +308,13 @@ export class AiGenerationService implements OnModuleInit, OnModuleDestroy {
         maxSessionMinutes: context.availability.maxSessionMinutes,
         forbiddenDates: context.forbiddenDates,
         retainedMinutes: context.retainedMinutes,
+        retainedHardDates: context.retainedHardDates,
       });
+      if (context.planningGoals.length > 1 && !output.goalTradeoffs)
+        throw new BadRequestException({
+          code: "GOAL_TRADEOFFS_REQUIRED",
+          message: "综合规划缺少目标取舍说明，请重新生成",
+        });
       validateCycleRecovery(
         output,
         Number(context.ftp.value),
@@ -347,6 +357,10 @@ export class AiGenerationService implements OnModuleInit, OnModuleDestroy {
             validationBlockers: [],
             draft: {
               ...output,
+              goalsSnapshot: {
+                goals: context.planningGoals,
+                tradeoffs: output.goalTradeoffs ?? [],
+              },
               contextFingerprint: generationFingerprint(context),
               ...(context.planImpact ? { planImpact: context.planImpact } : {}),
               ...(context.stageReview
@@ -496,6 +510,7 @@ export class AiGenerationService implements OnModuleInit, OnModuleDestroy {
       draft.availabilityVersion === context.availability.version &&
       draft.ftpMeasurementId === context.ftp.id &&
       draft.goalVersion === context.goal.version &&
+      !!draft.goalsSnapshot &&
       (!draft.contextFingerprint ||
         draft.contextFingerprint === generationFingerprint(context))
     );

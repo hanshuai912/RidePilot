@@ -44,7 +44,6 @@ export class AssessmentReviewService {
             where: {
               userId,
               id: { not: id },
-              goalId: item.goalId,
               kind: item.kind,
               protocol: item.protocol,
               source: item.source,
@@ -110,7 +109,7 @@ export class AssessmentReviewService {
     const messages = [
       valid
         ? previous
-          ? "已找到同目标、同方法、同来源且条件可比的历史测试，仅展示实测差值。"
+          ? "已找到同方法、同来源且条件可比的历史测试，仅展示实测差值，可用于相关目标的复评。"
           : "暂无可比较的历史结果，本次作为基线；不同方法、来源、条件或测试时长不直接比较。"
         : "当前测试不作为有效能力测量，不据此判断能力提升或目标达成。",
       "测试复评不会自动推进阶段或修改课程。后续课程需选择范围、预览并确认应用。",

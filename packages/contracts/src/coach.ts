@@ -229,6 +229,7 @@ export const aiWorkoutDraftSchema = z.strictObject({
   segments: z.array(workoutSegmentSchema).min(1).max(50),
 });
 export const aiWeekOutputSchema = z.strictObject({
+  goalTradeoffs: z.array(z.string().trim().min(1).max(500)).max(10).optional(),
   summary: z.string().trim().min(1).max(1000),
   workouts: z.array(aiWorkoutDraftSchema).min(1).max(168),
   stageSummary: z.string().trim().min(1).max(1000),
@@ -277,6 +278,8 @@ export const restoreProposalResponseSchema = z.object({
   blockers: z.array(z.string()),
 });
 export const aiProposalResponseSchema = z.object({
+  planningGoals: z.array(goalSchema).optional(),
+  goalTradeoffs: z.array(z.string()).optional(),
   planImpact: z
     .object({
       reference: planImpactReferenceSchema,

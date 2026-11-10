@@ -15,10 +15,7 @@ export function GoalAssessments({
   goalId: string;
   canSchedule: boolean;
 }) {
-  const load = useCallback(
-    (token: string) => assessmentsApi.list(token, { goalId }),
-    [goalId],
-  );
+  const load = useCallback((token: string) => assessmentsApi.list(token), []);
   const resource = useAssessmentResource(load);
   return (
     <View className="gap-3">
@@ -27,7 +24,7 @@ export function GoalAssessments({
         {canSchedule ? (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="安排目标测试"
+            accessibilityLabel="安排综合训练测试"
             className="min-h-11 min-w-11 flex-row items-center justify-center gap-1 rounded-xl px-2 active:bg-surface-2"
             onPress={() =>
               router.push({ pathname: "/assessments/new", params: { goalId } })

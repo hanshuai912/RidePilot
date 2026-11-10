@@ -1,4 +1,10 @@
 import { assertPlanImpact } from "./plan-impact/plan-impact.repository";
+import { retainedHardDates } from "./retained-training";
+import {
+  readPlanningGoals,
+  planningGoalsMatch,
+  planningSnapshotSchema,
+} from "./goals/planning-goals";
 import { trainingInputSnapshot } from "../training/training-input-snapshot";
 import {
   resolveCycleReview,
@@ -46,6 +52,10 @@ import {
 } from "./coach-plan.validator";
 
 interface AiDraft extends AiWeekOutput {
+  goalsSnapshot?: {
+    goals: NonNullable<AiProposalResponse["planningGoals"]>;
+    tradeoffs: string[];
+  };
   planImpact?: AiProposalResponse["planImpact"];
   stageReview?: StageReviewEvidence;
   cycleReview?: CycleReviewEvidence;
@@ -101,6 +111,10 @@ export class CoachProposalService {
         })
       : null;
     return aiProposalResponseSchema.parse({
+      planningGoals: draft.goalsSnapshot
+        ? planningSnapshotSchema.parse(draft.goalsSnapshot).goals
+        : undefined,
+      goalTradeoffs: draft.goalTradeoffs ?? [],
       proposalId: proposal.id,
       status: proposal.status,
       proposalVersion: proposal.proposalVersion,
@@ -406,6 +420,13 @@ export class CoachProposalService {
         }),
       ]);
     const blockers: string[] = [];
+    if (
+      !planningGoalsMatch(
+        draft.goalsSnapshot,
+        await readPlanningGoals(tx, userId),
+      )
+    )
+      blockers.push("进行中目标或主次顺序已变化，请按全部目标重新生成课程");
     if (draft.planImpact) {
       try {
         await assertPlanImpact(tx, userId, draft.planImpact.reference);
@@ -578,6 +599,14 @@ export class CoachProposalService {
           maxSessionMinutes: availability.maxSessionMinutes,
           forbiddenDates,
           retainedMinutes,
+          retainedHardDates: retainedHardDates(
+            plan?.activeVersion?.workouts ?? [],
+            draft.replaceWorkoutIds,
+            Number(ftp.value),
+            draft.weekStartDate,
+            draft.endDate ??
+              dbToDate(new Date(weekStart.getTime() + 6 * 86400000)),
+          ),
         },
       );
     } catch (error) {

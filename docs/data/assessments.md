@@ -1,5 +1,7 @@
 # 阶段测试数据与迁移
 
+2026-11-10：测试在综合训练日程中统一展示，`goal_id` 继续保留来源，`stage_id` 可关联共享综合阶段；不新增重复测试或迁移历史记录。同类测量的可比条件不再要求来源目标相同，但仍要求方法、来源、实际日期和相关测试参数等满足原规则。安排预览指纹纳入全部活跃目标，目标变更后需重新预览。详见 [综合规划](../features/unified-goal-planning.md)。
+
 `20261030200000_stage_assessments` 追加 TrainingAssessment 字段：stage_id（TrainingStage 外键，删除置空）、kind、actual_date、source、rpe、duration_seconds、route_name、distance_km、notes、reason、comparable_conditions、baseline_ftp_watts、ftp_measurement_id（唯一）。原 local_date 始终表示当前计划日期；实际执行日期独立保存。版本每次实际状态写入或确认 FTP 递增。
 
 result_watts 的含义由 kind 决定：FTP 是协议最终结果，POWER_DURATION 是实际时长内的平均功率，FIXED_ROUTE 不使用该列；旧行默认 LEGACY，不推断协议或回填新的实际日期/来源/RPE。功率 W，时长秒，距离 km；数据库 DATE 不随服务器时区偏移。createdAt/updatedAt 与能力 measuredAt 为时间戳。

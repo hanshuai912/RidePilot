@@ -113,6 +113,7 @@ export function buildCycleReview(data: CycleReviewData): CycleReviewSnapshot {
               };
   const stageValid =
     data.roadmap &&
+    data.roadmapGoalsCurrent &&
     data.roadmap.goalVersion === data.goal?.version &&
     data.roadmap.profileVersion === data.user.profileVersion &&
     data.roadmap.availabilityVersion === data.availability?.version &&

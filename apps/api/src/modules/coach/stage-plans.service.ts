@@ -30,6 +30,14 @@ import {
 } from "./goals/stage-review.repository";
 import { assertStageReviewScope } from "./goals/stage-review.scope";
 import { stageReviewEvidenceSchema } from "@ridepilot/contracts";
+import {
+  readPlanningGoals,
+  primaryPlanningGoal,
+  planningGoalsMatch,
+  planningSnapshotSchema,
+  planningHorizon,
+  planningInstructions,
+} from "./goals/planning-goals";
 
 @Injectable()
 export class StagePlansService {
@@ -101,6 +109,7 @@ export class StagePlansService {
         });
         return (
           !!p &&
+          planningGoalsMatch(p.goalsSnapshot, context.goals) &&
           p.goalVersion === context.goal.version &&
           p.ftpMeasurementId === context.ftp.id &&
           p.profileVersion === context.user.profileVersion &&
@@ -164,6 +173,8 @@ export class StagePlansService {
           role: "user",
           content: JSON.stringify({
             task: "生成训练目标的阶段安排草稿",
+            planningGoals: ctx.goals,
+            planningInstructions,
             input,
             stageReview: ctx.stageReview,
             goal: {
@@ -199,6 +210,11 @@ export class StagePlansService {
       });
     }
     const output = validateStages(raw, input.startDate, input.endDate);
+    if (ctx.goals.length > 1 && !output.goalTradeoffs)
+      throw new BadRequestException({
+        code: "GOAL_TRADEOFFS_REQUIRED",
+        message: "综合规划缺少目标取舍说明，请重新生成",
+      });
     await this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT "id" FROM "users" WHERE "id" = ${job.userId}::uuid FOR UPDATE`;
       if (
@@ -217,13 +233,17 @@ export class StagePlansService {
       const draft = await tx.trainingStagePlan.create({
         data: {
           userId: job.userId,
+          goalsSnapshot: {
+            goals: ctx.goals,
+            tradeoffs: output.goalTradeoffs ?? [],
+          } as unknown as Prisma.InputJsonValue,
           ...(ctx.stageReview
             ? {
                 reviewEvidence:
                   ctx.stageReview as unknown as Prisma.InputJsonValue,
               }
             : {}),
-          goalId: input.goalId,
+          goalId: ctx.goal.id,
           goalVersion: ctx.goal.version,
           ftpMeasurementId: ctx.ftp.id,
           availabilityVersion: ctx.availability.version,
@@ -256,6 +276,7 @@ export class StagePlansService {
           });
           return (
             !!p &&
+            planningGoalsMatch(p.goalsSnapshot, ctx.goals) &&
             p.goalVersion === ctx.goal.version &&
             p.ftpMeasurementId === ctx.ftp.id &&
             p.profileVersion === ctx.user.profileVersion &&
@@ -279,7 +300,8 @@ export class StagePlansService {
   async active(userId: string, goalId: string) {
     await this.data.getGoal(userId, goalId);
     const plan = await this.prisma.trainingStagePlan.findFirst({
-      where: { userId, goalId, status: "ACTIVE" },
+      where: { userId, status: "ACTIVE" },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     });
     return plan ? this.get(userId, plan.id) : null;
   }
@@ -305,13 +327,15 @@ export class StagePlansService {
         code: "STAGE_PLAN_NOT_FOUND",
         message: "阶段安排不存在",
       });
-    const [ftp, availability, user, active] = await Promise.all([
+    const [ftp, availability, user, active, goals] = await Promise.all([
       this.data.latestFtp(userId),
       this.prisma.trainingAvailability.findUnique({ where: { userId } }),
       this.prisma.user.findUniqueOrThrow({ where: { id: userId } }),
       this.prisma.trainingStagePlan.findFirst({
-        where: { userId, goalId: plan.goalId, status: "ACTIVE" },
+        where: { userId, status: "ACTIVE" },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       }),
+      readPlanningGoals(this.prisma, userId),
     ]);
     let reviewStale = false;
     if (plan.status === "DRAFT" && plan.reviewEvidence) {
@@ -332,6 +356,13 @@ export class StagePlansService {
     }
     return stagePlanResponseSchema.parse({
       id: plan.id,
+      scope: plan.goalsSnapshot ? "ALL_GOALS" : "LEGACY_GOAL",
+      planningGoals: plan.goalsSnapshot
+        ? planningSnapshotSchema.parse(plan.goalsSnapshot).goals
+        : undefined,
+      goalTradeoffs: plan.goalsSnapshot
+        ? planningSnapshotSchema.parse(plan.goalsSnapshot).tradeoffs
+        : [],
       ...(plan.reviewEvidence
         ? { stageReview: stageReviewEvidenceSchema.parse(plan.reviewEvidence) }
         : {}),
@@ -343,6 +374,7 @@ export class StagePlansService {
       startDate: dbToDate(plan.startDate),
       endDate: dbToDate(plan.endDate),
       stale:
+        !planningGoalsMatch(plan.goalsSnapshot, goals) ||
         reviewStale ||
         (plan.status === "DRAFT" &&
           (active?.id ?? null) !== plan.baseStagePlanId) ||
@@ -382,7 +414,7 @@ export class StagePlansService {
           code: "STAGE_PLAN_VERSION_CONFLICT",
           message: "阶段安排已变化，请刷新",
         });
-      const [goal, ftp, availability, user, active] = await Promise.all([
+      const [goal, ftp, availability, user, active, goals] = await Promise.all([
         tx.trainingGoal.findFirst({
           where: { id: plan.goalId, userId, status: "ACTIVE" },
         }),
@@ -393,8 +425,10 @@ export class StagePlansService {
         tx.trainingAvailability.findUnique({ where: { userId } }),
         tx.user.findUniqueOrThrow({ where: { id: userId } }),
         tx.trainingStagePlan.findFirst({
-          where: { userId, goalId: plan.goalId, status: "ACTIVE" },
+          where: { userId, status: "ACTIVE" },
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         }),
+        readPlanningGoals(tx, userId),
       ]);
       if (!ftp)
         throw new BadRequestException({
@@ -402,6 +436,7 @@ export class StagePlansService {
           message: "请先设置 FTP",
         });
       if (
+        !planningGoalsMatch(plan.goalsSnapshot, goals) ||
         goal?.version !== plan.goalVersion ||
         ftp.id !== plan.ftpMeasurementId ||
         availability?.version !== plan.availabilityVersion ||
@@ -418,8 +453,8 @@ export class StagePlansService {
         assertStageReviewScope(current, { goalId: plan.goalId }, true);
       }
       if (active)
-        await tx.trainingStagePlan.update({
-          where: { id: active.id },
+        await tx.trainingStagePlan.updateMany({
+          where: { userId, status: "ACTIVE" },
           data: { status: "ARCHIVED", version: { increment: 1 } },
         });
       await tx.trainingStagePlan.update({
@@ -436,16 +471,26 @@ export class StagePlansService {
       : undefined;
     if (stageReview) assertStageReviewScope(stageReview, input, true);
     assertDateRange(input.startDate, input.endDate, 365);
-    const [ftp, goal, availability, profile, user, active] = await Promise.all([
-      this.data.latestFtp(userId),
-      this.data.getGoal(userId, input.goalId),
-      this.prisma.trainingAvailability.findUnique({ where: { userId } }),
-      this.prisma.athleteProfile.findUnique({ where: { userId } }),
-      this.prisma.user.findUniqueOrThrow({ where: { id: userId } }),
-      this.prisma.trainingStagePlan.findFirst({
-        where: { userId, goalId: input.goalId, status: "ACTIVE" },
-      }),
-    ]);
+    const [ftp, selectedGoal, availability, profile, user, active, goals] =
+      await Promise.all([
+        this.data.latestFtp(userId),
+        this.data.getGoal(userId, input.goalId),
+        this.prisma.trainingAvailability.findUnique({ where: { userId } }),
+        this.prisma.athleteProfile.findUnique({ where: { userId } }),
+        this.prisma.user.findUniqueOrThrow({ where: { id: userId } }),
+        this.prisma.trainingStagePlan.findFirst({
+          where: { userId, status: "ACTIVE" },
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        }),
+        readPlanningGoals(this.prisma, userId),
+      ]);
+    if (selectedGoal.status !== "ACTIVE")
+      throw new ConflictException({
+        code: "GOAL_NOT_ACTIVE",
+        message: "请选择活跃目标",
+      });
+    const primary = primaryPlanningGoal(goals);
+    const goal = await this.data.getGoal(userId, primary.id);
     if (!ftp || Number(ftp.value) <= 0)
       throw new BadRequestException({
         code: "FTP_REQUIRED",
@@ -456,7 +501,7 @@ export class StagePlansService {
         code: "INSUFFICIENT_TRAINING_INPUT",
         message: "请先在 AI 教练补全骑行经验和训练时间",
       });
-    if (goal.targetWkg && !profile.weightKg)
+    if (goals.some((g) => g.targetWkg) && !profile.weightKg)
       throw new BadRequestException({
         code: "INSUFFICIENT_TRAINING_INPUT",
         message: "功体比目标需要先补充体重",
@@ -472,15 +517,16 @@ export class StagePlansService {
       month: "2-digit",
       day: "2-digit",
     }).format(new Date());
-    if (input.startDate < today || input.endDate > dbToDate(goal.targetDate))
+    if (input.startDate < today || input.endDate > planningHorizon(goals))
       throw new BadRequestException({
         code: "INVALID_DATE_RANGE",
-        message: "阶段应从今天或未来开始，并在目标日期内结束",
+        message: "阶段应从今天或未来开始，并在全部进行中目标的最晚期限内结束",
       });
     return {
       stageReview,
       ftp,
       goal,
+      goals,
       availability,
       profile: {
         experienceLevel: profile.experienceLevel,

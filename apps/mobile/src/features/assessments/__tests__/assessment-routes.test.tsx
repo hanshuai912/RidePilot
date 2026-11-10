@@ -21,7 +21,7 @@ jest.mock("../../profile/services/profile.api", () => ({
 }));
 jest.mock("../../coach/services/coach.api", () => ({
   coachApi: {
-    goals: jest.fn().mockResolvedValue([]),
+    goals: jest.fn(),
     goal: jest.fn(),
     ftp: jest.fn(),
     planStatus: jest.fn(),
@@ -165,6 +165,9 @@ beforeEach(() => {
     measuredAt: "2026-01-01T00:00:00Z",
     source: "MANUAL",
   });
+  coach.goals.mockImplementation(async () => [
+    await coach.goal("token", goalId),
+  ]);
   coach.planStatus.mockResolvedValue({ hasActivePlan: false, planVersion: 0 });
   jest.mocked(goalsApi).activeStages.mockResolvedValue(null);
   jest.mocked(goalsApi).generateCourses.mockResolvedValue({
@@ -202,7 +205,9 @@ test("goal test heading opens scheduling with the goal and preserves inputs on r
     "保留低强度训练",
   );
   await screen.findByText("尚未安排阶段测试");
-  await fireEvent.press(screen.getByRole("button", { name: "安排目标测试" }));
+  await fireEvent.press(
+    screen.getByRole("button", { name: "安排综合训练测试" }),
+  );
   await screen.findByLabelText("测试方法 / 协议");
   expect(screen.getByTestId("pathname").props.children).toBe(
     "/assessments/new",
@@ -244,7 +249,7 @@ test("failed goal test load can retry and missing FTP hides scheduling", async (
   await renderRouter(routes, { initialUrl: `/goals/${goalId}` });
   await screen.findByText("读取测试失败");
   expect(screen.queryByText("尚未安排阶段测试")).toBeNull();
-  expect(screen.queryByRole("button", { name: "安排目标测试" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "安排综合训练测试" })).toBeNull();
   await fireEvent.press(screen.getByText("重试读取测试"));
   await screen.findByText("尚未安排阶段测试");
   expect(screen.queryByText("读取测试失败")).toBeNull();

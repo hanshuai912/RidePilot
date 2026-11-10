@@ -15,6 +15,7 @@ import { GoalSwitcher } from "../components/GoalSwitcher";
 import { GoalCoursePlanner } from "../components/GoalCoursePlanner";
 import { StagePlanHeading } from "../components/StagePlanHeading";
 import { GoalStagePlanner } from "../components/GoalStagePlanner";
+import { GoalInfoButton } from "../components/GoalInfoButton";
 
 export function GoalDetailScreen() {
   const { goalId = "", assessmentId } = useLocalSearchParams<{
@@ -40,14 +41,19 @@ function GoalDetailContent({
   const flow = useGoalPlanning(goalId, assessmentId);
   const focused = useIsFocused();
   const [dirty, setDirty] = useState(false);
+  const [selectedGoalId, setSelectedGoalId] = useState(goalId);
   const guard = useUnsavedTraining(
     dirty && focused,
     "返回将放弃当前生成条件，确认离开？",
     flow.busy,
   );
   const data = flow.data;
-  const active = data?.goal.status === "ACTIVE";
-  const canPlan = active && !!data?.ftp;
+  const selectedGoal =
+    data?.goals.find((g) => g.id === selectedGoalId) ?? data?.goal;
+  const planningGoal = data?.goals.find(
+    (g) => g.status === "ACTIVE" && g.priority === "PRIMARY",
+  );
+  const canPlan = !!data?.ftp && !!planningGoal && !data?.goalsError;
   return (
     <TrainingPage
       title="目标与阶段"
@@ -63,15 +69,37 @@ function GoalDetailContent({
       {guard}
       {data ? (
         <View className="gap-6 py-3">
-          <GoalSwitcher current={data.goal} disabled={flow.busy} />
+          <GoalSwitcher
+            current={selectedGoal!}
+            disabled={flow.busy}
+            goals={data.goals}
+            error={data.goalsError}
+            retry={flow.retry}
+            onSelect={setSelectedGoalId}
+          />
           <GoalSummaryCard
-            goal={data.goal}
+            goal={selectedGoal!}
             currentFtp={data.ftp?.valueWatts}
             busy={flow.busy}
             onManage={() =>
-              router.push({ pathname: "/goals/manage", params: { goalId } })
+              router.push({
+                pathname: "/goals/manage",
+                params: { goalId: selectedGoal!.id },
+              })
             }
           />
+          <View className="flex-row items-center">
+            <AppText variant="section">综合训练规划</AppText>
+            <GoalInfoButton
+              title="综合训练规划说明"
+              description="阶段、测试和课程由全部进行中目标共同规划，以主目标决定训练重点，兼顾次目标。切换上方目标只查看各自信息，不会切换另一套训练安排。目标有变更时，需重新生成并确认草稿。"
+            />
+          </View>
+          {!data.goalsError && !planningGoal ? (
+            <AppText className="text-warning">
+              请先在目标管理中确定一个进行中的主目标。
+            </AppText>
+          ) : null}
           <View className="gap-4">
             {canPlan ? (
               <GoalStagePlanner flow={flow} onEdit={() => setDirty(true)} />
@@ -95,7 +123,11 @@ function GoalDetailContent({
                     ? (stageId, date) =>
                         router.push({
                           pathname: "/assessments/new",
-                          params: { goalId, stageId, date },
+                          params: {
+                            goalId: data.stages!.goalId,
+                            stageId,
+                            date,
+                          },
                         })
                     : undefined
                 }
@@ -112,7 +144,7 @@ function GoalDetailContent({
             )}
           </View>
           <GoalAssessments
-            goalId={goalId}
+            goalId={planningGoal?.id ?? goalId}
             canSchedule={canPlan && !flow.busy}
           />
           {data.assessment ? (

@@ -18,6 +18,7 @@ export class CoachPlanValidator {
       maxSessionMinutes: number;
       forbiddenDates?: string[];
       retainedMinutes?: Record<string, number>;
+      retainedHardDates?: string[];
     },
   ): AiWeekOutput {
     const parsed = aiWeekOutputSchema.safeParse(raw);
@@ -109,6 +110,8 @@ export class CoachPlanValidator {
       }
       if (hard) hardDays.push(workout.scheduledDate);
     }
+    const newHardDays = new Set(hardDays);
+    hardDays.push(...(input.retainedHardDates ?? []));
     hardDays.sort();
     // Each eligible calendar week must be represented; otherwise a model may
     // silently generate only the first week of a multiweek request.
@@ -143,10 +146,13 @@ export class CoachPlanValidator {
     for (let i = 1; i < hardDays.length; i++) {
       const previous = Date.parse(`${hardDays[i - 1]}T00:00:00.000Z`);
       const current = Date.parse(`${hardDays[i]}T00:00:00.000Z`);
-      if (current - previous === 86_400_000)
+      if (
+        current - previous <= 86_400_000 &&
+        (newHardDays.has(hardDays[i]) || newHardDays.has(hardDays[i - 1]))
+      )
         throw new BadRequestException({
           code: "INSUFFICIENT_RECOVERY",
-          message: "连续高强度训练缺少恢复",
+          message: "同日或连续高强度训练缺少恢复，请结合保留课程调整日期",
         });
     }
     return output;

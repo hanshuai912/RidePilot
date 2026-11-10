@@ -39,7 +39,9 @@ export function StageTimeline({
       {plan.stale ? (
         <View className="rounded-xl border border-warning/30 bg-surface-2 p-3">
           <AppText className="text-warning">
-            目标或训练资料已变化，请重新生成阶段安排。
+            {plan.scope === "LEGACY_GOAL"
+              ? "这是旧的单目标阶段安排，请按全部目标重新规划。已有课程和测试保留。"
+              : "目标或训练资料已变化，请按全部目标重新生成阶段安排。"}
           </AppText>
         </View>
       ) : null}

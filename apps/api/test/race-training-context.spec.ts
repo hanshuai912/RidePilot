@@ -38,6 +38,19 @@ function fixture() {
     result: null,
   };
   const db = {
+    trainingGoal: {
+      findMany: jest.fn().mockResolvedValue([
+        {
+          id: input.goalId,
+          version: 1,
+          status: "ACTIVE",
+          type: "RACE",
+          priority: "PRIMARY",
+          targetWkg: null,
+          targetDate: new Date("2030-01-13T00:00:00Z"),
+        },
+      ]),
+    },
     trainingAvailability: {
       findUnique: jest.fn().mockResolvedValue({
         weekdays: [0, 1, 2, 3, 4, 5, 6].map((weekday) => ({

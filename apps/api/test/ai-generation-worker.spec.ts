@@ -44,6 +44,19 @@ test("empty week keeps a past course and allows the remaining dates", async () =
   jest.useFakeTimers().setSystemTime(new Date("2030-01-09T03:00:00.000Z"));
   const workoutId = "00000000-0000-4000-8000-000000000010";
   const prisma = {
+    trainingGoal: {
+      findMany: jest.fn().mockResolvedValue([
+        {
+          id: "00000000-0000-4000-8000-000000000012",
+          status: "ACTIVE",
+          targetWkg: null,
+          version: 1,
+          type: "FTP",
+          priority: "PRIMARY",
+          targetDate: new Date("2030-06-01T00:00:00.000Z"),
+        },
+      ]),
+    },
     trainingAvailability: {
       findUnique: jest.fn().mockResolvedValue({
         timezone: "UTC",

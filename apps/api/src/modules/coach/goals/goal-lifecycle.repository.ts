@@ -64,11 +64,12 @@ export async function readGoalContext(
       },
     }),
     db.trainingAssessment.findMany({
-      where: { userId, goalId, status: { in: ["SCHEDULED", "POSTPONED"] } },
+      where: { userId, status: { in: ["SCHEDULED", "POSTPONED"] } },
       orderBy: { localDate: "asc" },
     }),
     db.trainingStagePlan.findMany({
-      where: { userId, goalId, status: "ACTIVE" },
+      where: { userId, status: "ACTIVE" },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       include: { stages: { orderBy: { position: "asc" } } },
     }),
     db.trainingGoal.findMany({

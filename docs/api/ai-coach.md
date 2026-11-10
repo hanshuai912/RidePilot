@@ -70,7 +70,9 @@ POST 返回 `{id,valueWatts,source,measuredAt}`，`measuredAt` 始终必填；GE
 
 `STAGE_PLAN` 的生成任务 READY 后，`proposalId` 指向 `/stage-plans/:id`；课程任务指向 `/proposals/:id`。调用方按自己提交的任务类型读取，不混用。阶段确认不会创建课程或测试。
 
-版本冲突返回 409；过期阶段返回 `STAGE_PLAN_STALE`；不合法范围返回 `INVALID_DATE_RANGE`。每个目标最多一个 ACTIVE 阶段安排。阶段、课程生成失败不改正式安排；课程确认继续进行服务端重验与正式版本检查。
+版本冲突返回 409；过期阶段返回 `STAGE_PLAN_STALE`；不合法范围返回 `INVALID_DATE_RANGE`。2026-11-10 起每个用户共用一份综合 ACTIVE 阶段安排，生成同时纳入全部进行中目标，以主目标确定重点。`goalId` 保留为归属校验入口和主目标锚点，不再隔离阶段。`GET /goals/:id/stage-plan` 返回同一用户共享安排，新增 `scope: ALL_GOALS | LEGACY_GOAL`、`planningGoals` 和 `goalTradeoffs`；旧单目标安排可读但标记过期，确认新草稿时才统一归档。阶段、课程生成失败不改正式安排；课程确认继续进行服务端重验与正式版本检查。
+
+课程响应同步增加 `planningGoals` 和 `goalTradeoffs`。任一活跃目标内容、版本、主次或成员发生变化时，旧阶段及课程候选需重新生成；旧课程候选没有完整目标快照时不能应用。阶段最长范围由全部活跃目标的最晚期限决定；范围课程同样不能超过该期限。多目标生成必须返回 `goalTradeoffs` 数组，缺失返回 `GOAL_TRADEOFFS_REQUIRED`；没有唯一活跃主目标返回 `PRIMARY_GOAL_REQUIRED`。恢复校验包含保留课程及范围前后一天的高强度安排。测试列表在目标页使用用户范围，同类可比测量支持跨来源目标复评。详见 [综合规划实现与兼容说明](../features/unified-goal-planning.md)。
 
 | 方法               | 路径                                              | 作用                                                                        |
 | ------------------ | ------------------------------------------------- | --------------------------------------------------------------------------- |

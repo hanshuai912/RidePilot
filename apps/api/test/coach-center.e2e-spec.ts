@@ -10,6 +10,7 @@ import { AiGenerationService } from "../src/modules/coach/ai-generation.service"
 import { NutritionGenerationService } from "../src/modules/nutrition/nutrition-generation.service";
 import { CoachOverviewService } from "../src/modules/coach/coach-overview.service";
 import { AiException } from "../src/ai/exceptions/ai.exception";
+import { goalResponse } from "../src/modules/coach/goals/goal-lifecycle.repository";
 
 const describeDb = process.env.TEST_DATABASE_URL ? describe : describe.skip;
 describeDb("AI coach collaboration center", () => {
@@ -161,6 +162,7 @@ describeDb("AI coach collaboration center", () => {
         userId,
         goalId: goal.id,
         goalVersion: goal.version,
+        goalsSnapshot: { goals: [goalResponse(goal)], tradeoffs: [] },
         profileVersion: user.profileVersion,
         ftpMeasurementId: ftp.id,
         availabilityVersion: availability.version,

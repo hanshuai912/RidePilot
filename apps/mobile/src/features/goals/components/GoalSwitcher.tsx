@@ -1,45 +1,24 @@
-import { useCallback, useState } from "react";
 import { Pressable, View } from "react-native";
-import { router, useFocusEffect } from "expo-router";
+import { router } from "expo-router";
 import { AppText, Button } from "../../../components/ui";
-import { useAuth } from "../../auth/hooks/AuthProvider";
-import { coachApi } from "../../coach/services/coach.api";
 import { goalTypeLabels } from "../model/goal-lifecycle";
 import { goalStatusLabel, type GoalRecord } from "../model/goal-presentation";
 
 export function GoalSwitcher({
   current,
   disabled,
+  goals,
+  error,
+  retry,
+  onSelect,
 }: {
   current: GoalRecord;
   disabled: boolean;
+  goals: GoalRecord[];
+  error: string | null;
+  retry: () => void;
+  onSelect: (id: string) => void;
 }) {
-  const { session } = useAuth();
-  const token = session?.accessToken;
-  const [goals, setGoals] = useState<GoalRecord[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [attempt, setAttempt] = useState(0);
-  useFocusEffect(
-    useCallback(() => {
-      void attempt;
-      let active = true;
-      if (token)
-        coachApi
-          .goals(token)
-          .then((value) => {
-            if (active) {
-              setGoals(value);
-              setError(null);
-            }
-          })
-          .catch(() => {
-            if (active) setError("其他目标读取失败");
-          });
-      return () => {
-        active = false;
-      };
-    }, [token, attempt]),
-  );
   const visible = goals.filter(
     (goal) => goal.status !== "CLOSED" && goal.id !== current.id,
   );
@@ -73,11 +52,7 @@ export function GoalSwitcher({
                 accessibilityState={{ selected, disabled }}
                 disabled={disabled}
                 onPress={() => {
-                  if (!selected)
-                    router.replace({
-                      pathname: "/goals/[goalId]",
-                      params: { goalId: goal.id },
-                    });
+                  if (!selected) onSelect(goal.id);
                 }}
                 style={{ flexBasis: "45%", flexGrow: 1 }}
                 className={`min-h-[76px] gap-2 rounded-xl border p-3 ${selected ? "border-brand-subtle bg-brand-subtle" : "border-border bg-surface"} ${disabled ? "opacity-50" : "active:opacity-70"}`}
@@ -102,11 +77,7 @@ export function GoalSwitcher({
           <AppText variant="caption" className="text-negative">
             {error}
           </AppText>
-          <Button
-            variant="secondary"
-            disabled={disabled}
-            onPress={() => setAttempt((value) => value + 1)}
-          >
+          <Button variant="secondary" disabled={disabled} onPress={retry}>
             重试读取其他目标
           </Button>
         </View>

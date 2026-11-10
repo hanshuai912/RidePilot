@@ -18,6 +18,12 @@ import { CoachDataService } from "./coach-data.service";
 import type { WeeklyAvailabilitySlot } from "./coach-plan.validator";
 import { TrainingRangeService } from "./training-range.service";
 import { assertDateRange } from "./stage-plan.validation";
+import { retainedHardDates } from "./retained-training";
+import {
+  readPlanningGoals,
+  primaryPlanningGoal,
+  planningHorizon,
+} from "./goals/planning-goals";
 
 @Injectable()
 export class CoachGenerationContextService {
@@ -183,24 +189,49 @@ export class CoachGenerationContextService {
         missingFields: readiness.missingFields,
         message: "请先补全训练资料",
       });
-    const [ftp, goal, availability, profile, user, plan, races, assessments] =
-      await Promise.all([
-        this.data.latestFtp(userId),
-        this.data.getGoal(userId, input.goalId),
-        this.prisma.trainingAvailability.findUnique({ where: { userId } }),
-        this.prisma.athleteProfile.findUnique({ where: { userId } }),
-        this.prisma.user.findUniqueOrThrow({
-          where: { id: userId },
-          select: { profileVersion: true, timezone: true },
-        }),
-        this.data.activePlan(userId),
-        this.prisma.trainingRace.findMany({
-          where: { userId, status: "CONFIRMED" },
-        }),
-        this.prisma.trainingAssessment.findMany({
-          where: { userId, status: { in: ["SCHEDULED", "POSTPONED"] } },
-        }),
-      ]);
+    const [
+      ftp,
+      selectedGoal,
+      availability,
+      profile,
+      user,
+      plan,
+      races,
+      assessments,
+      planningGoals,
+    ] = await Promise.all([
+      this.data.latestFtp(userId),
+      this.data.getGoal(userId, input.goalId),
+      this.prisma.trainingAvailability.findUnique({ where: { userId } }),
+      this.prisma.athleteProfile.findUnique({ where: { userId } }),
+      this.prisma.user.findUniqueOrThrow({
+        where: { id: userId },
+        select: { profileVersion: true, timezone: true },
+      }),
+      this.data.activePlan(userId),
+      this.prisma.trainingRace.findMany({
+        where: { userId, status: "CONFIRMED" },
+      }),
+      this.prisma.trainingAssessment.findMany({
+        where: { userId, status: { in: ["SCHEDULED", "POSTPONED"] } },
+      }),
+      readPlanningGoals(this.prisma, userId),
+    ]);
+    if (selectedGoal.status !== "ACTIVE")
+      throw new ConflictException({
+        code: "GOAL_NOT_ACTIVE",
+        message: "请选择进行中的目标",
+      });
+    const goal = primaryPlanningGoal(planningGoals);
+    if (
+      scene === "RANGE_PLAN" &&
+      input.endDate &&
+      input.endDate > planningHorizon(planningGoals)
+    )
+      throw new BadRequestException({
+        code: "INVALID_DATE_RANGE",
+        message: "课程日期不能超过全部进行中目标的最晚期限",
+      });
     if (!ftp || !availability || !profile?.experienceLevel)
       throw new BadRequestException({
         code: "INSUFFICIENT_TRAINING_INPUT",
@@ -212,7 +243,7 @@ export class CoachGenerationContextService {
         message: "目标不是活跃状态",
       });
     const weightKg = profile.weightKg ? Number(profile.weightKg) : null;
-    if (goal.targetWkg && !weightKg)
+    if (planningGoals.some((g) => g.targetWkg) && !weightKg)
       throw new BadRequestException({
         code: "INSUFFICIENT_TRAINING_INPUT",
         missingFields: ["weightKg"],
@@ -310,11 +341,6 @@ export class CoachGenerationContextService {
     ) {
       const review = await this.reviews.review(userId, input.relatedId!);
       const assessment = review.assessment;
-      if (assessment.goalId && assessment.goalId !== input.goalId)
-        throw new ConflictException({
-          code: "ASSESSMENT_GOAL_MISMATCH",
-          message: "测试与所选目标不一致",
-        });
       if (input.relatedVersion && input.relatedVersion !== assessment.version)
         throw new ConflictException({
           code: "ASSESSMENT_VERSION_CONFLICT",
@@ -453,7 +479,7 @@ export class CoachGenerationContextService {
       cycleReview &&
       (input.weekStartDate <= cycleReview.snapshot.endDate ||
         input.weekStartDate < localToday ||
-        end > dbToDate(goal.targetDate))
+        end > planningHorizon(planningGoals))
     )
       throw new BadRequestException({
         code: "INVALID_CYCLE_TARGET_RANGE",
@@ -468,7 +494,7 @@ export class CoachGenerationContextService {
       ? await this.prisma.trainingStage.findFirst({
           where: {
             id: input.stageId,
-            stagePlan: { userId, goalId: input.goalId, status: "ACTIVE" },
+            stagePlan: { userId, status: "ACTIVE" },
           },
           select: { title: true, purpose: true, assessmentSuggestion: true },
         })
@@ -520,8 +546,9 @@ export class CoachGenerationContextService {
           (goal.targetWkg && weightKg
             ? Math.round(Number(goal.targetWkg) * weightKg)
             : null),
-        targetDate: goal.targetDate.toISOString().slice(0, 10),
+        targetDate: goal.targetDate,
       },
+      planningGoals,
       availability,
       experienceLevel: profile.experienceLevel,
       profileVersion: user.profileVersion,
@@ -536,6 +563,13 @@ export class CoachGenerationContextService {
       forbiddenDates,
       availableDates,
       replaceWorkoutIds,
+      retainedHardDates: retainedHardDates(
+        plan?.activeVersion?.workouts ?? [],
+        replaceWorkoutIds,
+        Number(ftp.value),
+        input.weekStartDate,
+        end,
+      ),
       retainedMinutes: Object.fromEntries(
         existingWorkouts
           .filter((item) => !replaceWorkoutIds.includes(item.id))

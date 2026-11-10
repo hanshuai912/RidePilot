@@ -12,6 +12,7 @@ import type {
 import type { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infra/prisma/prisma.service";
 import { dateToDb } from "../training/training.validation";
+import { readPlanningGoals, planningGoalsMatch } from "./goals/planning-goals";
 
 export function assessmentToday(timezone: string) {
   return new Intl.DateTimeFormat("en-CA", {
@@ -45,7 +46,7 @@ export class AssessmentScheduleService {
         ? db.trainingStage.findFirst({
             where: {
               id: input.stageId,
-              stagePlan: { userId, goalId: input.goalId },
+              stagePlan: { userId },
             },
             include: { stagePlan: true },
           })
@@ -56,12 +57,14 @@ export class AssessmentScheduleService {
         code: "ASSESSMENT_CONTEXT_NOT_FOUND",
         message: "目标或阶段不存在",
       });
+    const goals = await readPlanningGoals(db, userId);
     if (
       !input.excludeId &&
       (goal.status !== "ACTIVE" ||
         (stage &&
           (stage.stagePlan.status !== "ACTIVE" ||
-            stage.stagePlan.goalVersion !== goal.version ||
+            !planningGoalsMatch(stage.stagePlan.goalsSnapshot, goals) ||
+            stage.stagePlan.profileVersion !== user.profileVersion ||
             stage.stagePlan.ftpMeasurementId !== ftp?.id)))
     )
       throw new ConflictException({
@@ -139,6 +142,7 @@ export class AssessmentScheduleService {
       token: assessmentHash({
         userId,
         goalVersion: goal.version,
+        goals,
         stageVersion: stage?.stagePlan.version,
         ftpId: ftp.id,
         date: input.localDate,

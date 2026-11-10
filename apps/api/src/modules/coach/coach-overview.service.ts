@@ -4,6 +4,7 @@ import { PrismaService } from "../../infra/prisma/prisma.service";
 import { workoutActivities } from "../training/workout-activity";
 import { dbToDate } from "../training/training.validation";
 import { coachStatus, localCoachDate } from "./coach-status";
+import { readPlanningGoals, planningGoalsMatch } from "./goals/planning-goals";
 
 @Injectable()
 export class CoachOverviewService {
@@ -73,13 +74,18 @@ export class CoachOverviewService {
         ]);
         const roadmap = goal
           ? await tx.trainingStagePlan.findFirst({
-              where: { userId, goalId: goal.id, status: "ACTIVE" },
+              where: { userId, status: "ACTIVE" },
+              orderBy: [{ createdAt: "desc" }, { id: "desc" }],
               include: { stages: { orderBy: { startDate: "asc" } } },
             })
           : null;
         const stale =
           !!roadmap &&
-          (roadmap.goalVersion !== goal?.version ||
+          (!planningGoalsMatch(
+            roadmap.goalsSnapshot,
+            await readPlanningGoals(tx, userId),
+          ) ||
+            roadmap.goalVersion !== goal?.version ||
             roadmap.profileVersion !== user.profileVersion ||
             roadmap.availabilityVersion !== availability?.version ||
             roadmap.ftpMeasurementId !== ftp?.id);

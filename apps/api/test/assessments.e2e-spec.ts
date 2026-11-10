@@ -447,7 +447,17 @@ describeDb("stage assessments", () => {
   });
 
   test("review compares matching evidence only and counts stable workout records through copied versions", async () => {
-    const prior = await create();
+    const secondary = (
+      await post("goals")
+        .send({
+          type: "CUSTOM",
+          description: "共享测试的次目标",
+          priority: "SECONDARY",
+          targetDate: day(today, 120),
+        })
+        .expect(201)
+    ).body;
+    const prior = await create({ goalId: secondary.id });
     await complete(prior, {
       actualDate: day(today, -2),
       resultWatts: 255,
@@ -463,6 +473,10 @@ describeDb("stage assessments", () => {
       data: {
         userId,
         goalId,
+        goalsSnapshot: {
+          goals: (await get("goals").expect(200)).body,
+          tradeoffs: [],
+        },
         goalVersion: 1,
         ftpMeasurementId: latestFtp.id,
         availabilityVersion: 1,

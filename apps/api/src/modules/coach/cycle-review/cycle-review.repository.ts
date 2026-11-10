@@ -3,6 +3,8 @@ import { dateToDb, dbToDate } from "../../training/training.validation";
 import { activityWorkoutId } from "../../training/workout-activity";
 import { localCoachDate } from "../coach-status";
 import { BadRequestException } from "@nestjs/common";
+import { planningGoalsMatch } from "../goals/planning-goals";
+import { goalResponse } from "../goals/goal-lifecycle.repository";
 
 export async function readCycleReviewData(
   db: Prisma.TransactionClient,
@@ -94,7 +96,8 @@ export async function readCycleReviewData(
   const goal = goals.find((g) => g.priority === "PRIMARY") ?? goals[0] ?? null;
   const roadmap = goal
     ? await db.trainingStagePlan.findFirst({
-        where: { userId, goalId: goal.id, status: "ACTIVE" },
+        where: { userId, status: "ACTIVE" },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         include: { stages: { orderBy: { startDate: "asc" } } },
       })
     : null;
@@ -129,6 +132,9 @@ export async function readCycleReviewData(
     ftp,
     tests,
     roadmap,
+    roadmapGoalsCurrent:
+      !!roadmap &&
+      planningGoalsMatch(roadmap.goalsSnapshot, goals.map(goalResponse)),
     active,
     originals,
   };

@@ -7,6 +7,7 @@ import { useTrainingResource } from "../../training/hooks/useTrainingResource";
 import { useWorkoutActionExit } from "../../training/hooks/useWorkoutActionExit";
 import { StageReviewEvidenceCard } from "../components/StageReviewEvidenceCard";
 import { StageTimeline } from "../components/StageTimeline";
+import { PlanningGoalsCard } from "../components/PlanningGoalsCard";
 import { goalsApi } from "../services/goals.api";
 
 export function StagePreviewScreen() {
@@ -74,9 +75,13 @@ export function StagePreviewScreen() {
           {resource.data.stageReview ? (
             <StageReviewEvidenceCard evidence={resource.data.stageReview} />
           ) : null}
+          <PlanningGoalsCard
+            goals={resource.data.planningGoals}
+            tradeoffs={resource.data.goalTradeoffs}
+          />
           <StageTimeline plan={resource.data} />
           <AppText muted>
-            确认后保存这份阶段安排。具体课程需要另行生成与确认，已有课程不会因此改变。
+            确认后统一更新全部目标的阶段安排。具体课程另行生成与确认，已有课程和测试保留。
           </AppText>
           {error ? <AppText className="text-negative">{error}</AppText> : null}
           {resource.data.status === "DRAFT" ? (

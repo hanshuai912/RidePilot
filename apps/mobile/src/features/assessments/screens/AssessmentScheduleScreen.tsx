@@ -41,7 +41,7 @@ export function AssessmentScheduleScreen() {
         goalsApi.activeStages(token, goalId),
         coachApi.ftp(token),
         getProfile(token),
-        assessmentsApi.list(token, { goalId }),
+        assessmentsApi.list(token),
       ]);
       return {
         goal,
@@ -137,11 +137,9 @@ export function AssessmentScheduleScreen() {
       {data ? (
         <>
           <Card>
-            <AppText variant="card">
-              {data.goal.description || "训练目标"}
-            </AppText>
+            <AppText variant="card">综合训练测试</AppText>
             <AppText muted className="mt-2">
-              {data.stage?.title ?? "关联整个目标"}
+              {data.stage?.title ?? "全部进行中目标"}
             </AppText>
             <AppText muted className="mt-2">
               当前 FTP {data.ftp?.valueWatts ?? "未设置"} W

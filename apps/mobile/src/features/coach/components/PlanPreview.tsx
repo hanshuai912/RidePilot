@@ -3,6 +3,7 @@ import { router } from "expo-router";
 import { WorkoutDiff } from "../../training/components/WorkoutDiff";
 import { ImpactWorkoutCard } from "../../plan-impact/components/ImpactWorkoutCard";
 import { StageReviewEvidenceCard } from "../../goals/components/StageReviewEvidenceCard";
+import { PlanningGoalsCard } from "../../goals/components/PlanningGoalsCard";
 import { CycleReviewEvidenceCard } from "../cycle-review/CycleReviewEvidenceCard";
 import { View } from "react-native";
 import type { AiProposalResponse } from "@ridepilot/contracts";
@@ -52,6 +53,10 @@ export function PlanPreview({
 
   return (
     <>
+      <PlanningGoalsCard
+        goals={proposal.planningGoals}
+        tradeoffs={proposal.goalTradeoffs}
+      />
       {proposal.planImpact ? (
         <>
           <AppText variant="section">资料变更前的课程</AppText>
