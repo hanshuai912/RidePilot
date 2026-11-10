@@ -271,9 +271,8 @@ test("schedule requires method, previews conflicts and preserves input/key after
   expect(api.create).not.toHaveBeenCalled();
   await fireEvent.press(screen.getByText("保留原安排并确认测试"));
   await screen.findByText("响应中断，请重试");
-  expect(screen.getByLabelText("测试方法 / 协议").props.value).toBe(
-    "我的固定测试方案",
-  );
+  expect(screen.getByText("我的固定测试方案")).toBeTruthy();
+  expect(screen.queryByText("预览测试安排")).toBeNull();
   await fireEvent.press(screen.getByText("保留原安排并确认测试"));
   await screen.findByText("测试记录已保存");
   expect(api.create.mock.calls[0]).toEqual(api.create.mock.calls[1]);
@@ -296,7 +295,10 @@ test("settings roundtrip resumes schedule without losing selected kind/date", as
       "同设备持续输出",
     ),
   );
-  expect(screen.getByLabelText("计划日期").props.value).toBe("2099-01-01");
+  expect(
+    screen.getByRole("button", { name: "计划日期" }).props.accessibilityValue
+      .text,
+  ).toBe("2099年1月1日");
   await fireEvent.press(screen.getByText("预览测试安排"));
   await waitFor(() =>
     expect(api.preview).toHaveBeenCalledWith(
@@ -304,6 +306,106 @@ test("settings roundtrip resumes schedule without losing selected kind/date", as
       expect.objectContaining({ kind: "POWER_DURATION" }),
     ),
   );
+});
+
+test("schedule date picker cancels safely, limits past dates and confirms before preview", async () => {
+  await renderRouter(routes, {
+    initialUrl: `/assessments/new?goalId=${goalId}&date=2099-01-01`,
+  });
+  await fireEvent.press(
+    await screen.findByRole("button", { name: "计划日期" }),
+  );
+  expect(
+    screen.queryByRole("radio", {
+      name: `${new Date().getUTCFullYear() - 1}年`,
+    }),
+  ).toBeNull();
+  await fireEvent.press(screen.getByRole("radio", { name: "2日" }));
+  await fireEvent.press(screen.getByRole("button", { name: "取消" }));
+  expect(
+    screen.getByRole("button", { name: "计划日期" }).props.accessibilityValue
+      .text,
+  ).toBe("2099年1月1日");
+  await selectPlanningDate("计划日期", "2099-01-02");
+  await fireEvent.changeText(
+    screen.getByLabelText("测试方法 / 协议"),
+    "固定测试方案",
+  );
+  expect(api.preview).not.toHaveBeenCalled();
+  expect(api.create).not.toHaveBeenCalled();
+  await fireEvent.press(screen.getByText("预览测试安排"));
+  await screen.findByText("确认测试安排");
+  expect(api.preview).toHaveBeenCalledWith(
+    "token",
+    expect.objectContaining({ localDate: "2099-01-02" }),
+  );
+  expect(api.create).not.toHaveBeenCalled();
+});
+
+test("schedule explains methods on demand and edits a preview without losing input", async () => {
+  api.preview.mockResolvedValue({ token: "no-conflicts", conflicts: [] });
+  await renderRouter(routes, {
+    initialUrl: `/assessments/new?goalId=${goalId}&date=2099-01-01`,
+  });
+  const explanation = "选择你熟悉且适合当前状态的测试方法。";
+  await screen.findByRole("button", { name: "查看测试说明" });
+  expect(screen.queryByText(explanation, { exact: false })).toBeNull();
+  await fireEvent.press(screen.getByRole("button", { name: "查看测试说明" }));
+  await screen.findByText(explanation, { exact: false });
+  await fireEvent.press(screen.getByText("知道了"));
+  await fireEvent.press(screen.getByRole("radio", { name: "固定路线" }));
+  await fireEvent.changeText(
+    screen.getByLabelText("测试方法 / 协议"),
+    "湖畔环线",
+  );
+  await fireEvent.press(screen.getByText("预览测试安排"));
+  await screen.findByText("同日暂无冲突");
+  expect(screen.queryByText("预览测试安排")).toBeNull();
+  await fireEvent.press(screen.getByText("修改安排"));
+  expect(
+    screen.getByRole("radio", { name: "固定路线" }).props.accessibilityState
+      .checked,
+  ).toBe(true);
+  expect(screen.getByLabelText("测试方法 / 协议").props.value).toBe("湖畔环线");
+  expect(
+    screen.getByRole("button", { name: "计划日期" }).props.accessibilityValue
+      .text,
+  ).toBe("2099年1月1日");
+  expect(screen.queryByText("确认安排测试")).toBeNull();
+  await selectPlanningDate("计划日期", "2099-01-03");
+  await fireEvent.press(screen.getByText("预览测试安排"));
+  await screen.findByText("确认安排测试");
+  expect(api.preview).toHaveBeenLastCalledWith(
+    "token",
+    expect.objectContaining({
+      kind: "FIXED_ROUTE",
+      protocol: "湖畔环线",
+      localDate: "2099-01-03",
+    }),
+  );
+  expect(api.create).not.toHaveBeenCalled();
+  await fireEvent.press(screen.getByText("确认安排测试"));
+  await screen.findByText("测试记录已保存");
+  expect(api.create).toHaveBeenCalledWith(
+    "token",
+    expect.objectContaining({
+      previewToken: "no-conflicts",
+      localDate: "2099-01-03",
+    }),
+    expect.any(String),
+  );
+});
+
+test("schedule loading failure retries without creating a test", async () => {
+  api.list.mockRejectedValueOnce(new Error("测试条件读取失败"));
+  await renderRouter(routes, {
+    initialUrl: `/assessments/new?goalId=${goalId}`,
+  });
+  await screen.findByText("测试条件读取失败");
+  expect(screen.queryByText("预览测试安排")).toBeNull();
+  await fireEvent.press(screen.getByText("重试"));
+  await screen.findByText("预览测试安排");
+  expect(api.create).not.toHaveBeenCalled();
 });
 
 test("missing FTP points to settings and does not arrange a test", async () => {

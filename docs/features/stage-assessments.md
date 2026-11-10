@@ -60,3 +60,22 @@
 既有测试在阶段归档或目标暂停后仍可改期，保留原关联，不据此创建新阶段；新测试需选择活跃目标和阶段。计划版本恢复也检查改期后的测试日期，不能借恢复覆盖测试日。
 
 2026-11-10 操作布局调整：阶段卡片将安排入口移到测试建议标题旁，目标测试列表将新增入口移到分区标题旁并改用整卡查看，避免连续大按钮；原关联、状态限制和预览确认流程保持。移动端最终 8 组、106 项回归通过，并检查 320/390/430 宽度。完整命令与本轮日期选择器验证见 [目标阶段与按范围生成课程](goal-stage-course-planning.md#阶段测试操作与后续训练规划)，未执行真机验证。
+
+## 2026-11-10 安排测试页面 UI 与日期选择
+
+- 页面按综合测试范围与当前 FTP、测试类型、日期与方法分组，使用现有黑金 Token。分区标题 20、卡片标题 17、正文 16、辅助文字 13；类型选择为整行单选，最小高度 76，主操作高 52，说明入口为 44×44。
+- 计划日期复用 `DatePickerField` 年／月／日滚动选择器，默认用户时区今天或路由带入日期，以用户当地今天为选择下界；确认才更新，取消保留原值。没有新增依赖或手填日期入口。
+- 每种类型仅保留一句有助于选择的说明，详细协议及状态注意事项通过「测试类型」旁叹号查看。移除没有同方法结果时的基线提示，有历史时仅显示最近同方法日期与真实结果，不宣称已满足所有可比条件。
+- 点击「预览测试安排」后在当前页面显示确认视图，展示日期、类型、方法和同日冲突，主操作变为确认；不会同时显示预览和确认两个主按钮。无冲突时仅显示检查状态；有冲突时保留醒目文字、事件类别及名称，明确确认会保留已有安排。
+- 「修改安排」或确认视图顶部返回恢复表单，保留类型、日期与方法，重新预览后才可确认。提交中禁用返回及表单；创建失败保留预览和幂等重试行为。缺少 FTP 继续引导设置，设置返回保留输入；读取失败提供重试。
+- 表单与预览分别拆分为 `AssessmentScheduleForm.tsx`、`AssessmentSchedulePreview.tsx`，原屏幕保留数据读取、表单和提交编排。API、数据库及预览令牌校验不变，本次无需迁移。
+
+本轮实际执行：
+
+- `pnpm --filter @ridepilot/mobile test --runTestsByPath src/features/assessments/__tests__/assessment-routes.test.tsx src/features/goals/__tests__/goal-planning.test.tsx`：2 组、41 项通过。新增日期取消／确认与过去日期限制、按需说明、修改预览保留输入、无冲突明确确认和读取失败重试；保留冲突确认、缺少 FTP、失败幂等重试及后续训练回归。
+- `pnpm --filter @ridepilot/mobile typecheck`、`pnpm --filter @ridepilot/mobile lint`：通过。
+- `pnpm --filter @ridepilot/mobile exec expo export --platform web --output-dir /tmp/ridepilot-assessment-schedule-web --max-workers 2`：通过。
+- `node /tmp/ridepilot-assessment-schedule-browser.cjs`：Chrome 320／390／430 宽度通过类型选择、日期取消与确认、按需说明、冲突与无冲突预览、返回修改保留输入、明确创建失败保留预览、读取重试和缺少 FTP 引导；无横向溢出及运行时错误。使用拦截 API 的合成数据，提交 6 次预览和 1 次明确点击后的模拟失败创建请求，没有真实用户数据写入。截图保存在 `/tmp/ridepilot-assessment-schedule-{320,390,430}.png`、`/tmp/ridepilot-assessment-preview-{320,390,430}.png` 和 `/tmp/ridepilot-assessment-date-picker.png`。
+- 修改文件 Prettier 检查与 `git diff --check`：通过。
+
+pnpm 在沙箱内无法打开自身元数据库，以上命令经授权在沙箱外运行，未修改依赖。未执行真机或原生安装包验证。

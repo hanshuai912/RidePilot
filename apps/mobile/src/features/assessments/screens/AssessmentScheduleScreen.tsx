@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import { View } from "react-native";
 import { router, useIsFocused, useLocalSearchParams } from "expo-router";
 import { useWatch, useForm, type FieldPathValue } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -18,11 +19,8 @@ import { goalsApi } from "../../goals/services/goals.api";
 import { assessmentsApi } from "../services/assessments.api";
 import { useAssessmentResource } from "../hooks/useAssessmentResource";
 import { useAssessmentMutation } from "../hooks/useAssessmentMutation";
-import {
-  AssessmentChoices,
-  AssessmentField,
-} from "../components/AssessmentFields";
-import { assessmentResult } from "../model/assessment";
+import { AssessmentScheduleForm } from "../components/AssessmentScheduleForm";
+import { AssessmentSchedulePreview } from "../components/AssessmentSchedulePreview";
 
 export function AssessmentScheduleScreen() {
   const {
@@ -127,7 +125,11 @@ export function AssessmentScheduleScreen() {
       title="安排测试"
       busy={mutation.busy}
       onBack={() =>
-        router.canGoBack() ? router.back() : router.replace("/goals")
+        preview
+          ? setPreview(null)
+          : router.canGoBack()
+            ? router.back()
+            : router.replace("/goals")
       }
       loading={!data && resource.loading}
       error={!data ? resource.error : null}
@@ -135,109 +137,86 @@ export function AssessmentScheduleScreen() {
     >
       {exit.guard}
       {data ? (
-        <>
-          <Card>
-            <AppText variant="card">综合训练测试</AppText>
-            <AppText muted className="mt-2">
-              {data.stage?.title ?? "全部进行中目标"}
-            </AppText>
-            <AppText muted className="mt-2">
-              当前 FTP {data.ftp?.valueWatts ?? "未设置"} W
-            </AppText>
+        <View className="gap-6 py-3">
+          <Card className="flex-row items-center gap-4 p-5">
+            <View className="min-w-0 flex-1 gap-2">
+              <AppText variant="caption" className="text-secondary">
+                综合训练测试
+              </AppText>
+              <AppText variant="card">
+                {data.stage?.title ?? "全部进行中目标"}
+              </AppText>
+            </View>
+            {data.ftp ? (
+              <View className="items-end gap-1 border-l border-divider pl-4">
+                <AppText variant="caption" className="text-secondary">
+                  当前 FTP
+                </AppText>
+                <AppText variant="title" className="tabular-nums">
+                  {data.ftp.valueWatts}
+                  <AppText variant="caption" className="text-secondary">
+                    {" "}
+                    W
+                  </AppText>
+                </AppText>
+              </View>
+            ) : null}
           </Card>
+          {resource.error ? (
+            <View className="gap-2">
+              <AppText accessibilityRole="alert" className="text-negative">
+                {resource.error}
+              </AppText>
+              <Button
+                variant="ghost"
+                disabled={mutation.busy}
+                onPress={resource.retry}
+              >
+                重试读取测试条件
+              </Button>
+            </View>
+          ) : null}
           {!data.ftp ? (
             <FtpRequiredState />
           ) : (
             <>
-              <AssessmentChoices
-                label="测试类型"
-                options={{
-                  FTP: "FTP 测试",
-                  POWER_DURATION: "持续输出",
-                  FIXED_ROUTE: "固定路线",
-                }}
-                value={values.kind}
-                onChange={(value) => update("kind", value)}
-                disabled={mutation.busy}
-              />
-              <AssessmentField
-                label="计划日期"
-                value={input.localDate}
-                placeholder="YYYY-MM-DD"
-                onChange={(value) => update("localDate", value)}
-                disabled={mutation.busy}
-              />
-              <AssessmentField
-                label="测试方法 / 协议"
-                value={values.protocol}
-                placeholder="填写设备测试方案或固定测试方法"
-                maxLength={64}
-                onChange={(value) => update("protocol", value)}
-                disabled={mutation.busy}
-              />
-              <AppText muted>
-                状态不适合时可改期、跳过或记录未完成，不需要强行完成测试。使用你熟悉且适合当前状态的测试方案。FTP
-                测试填写方案给出的最终 FTP；仅有平均功率时选择持续输出。
-              </AppText>
-              {prior ? (
-                <AppText muted>
-                  最近同类记录：{prior.actualDate} · {assessmentResult(prior)}
-                  。复评时还会检查来源及条件是否可比。
-                </AppText>
-              ) : (
-                <AppText muted>
-                  暂无同方法的有效历史结果，本次可建立基线。
-                </AppText>
-              )}
-              {Object.entries(form.formState.errors).map(([key, error]) => (
-                <AppText key={key} className="text-negative">
-                  请检查
-                  {key === "protocol"
-                    ? "测试方法"
-                    : key === "localDate"
-                      ? "日期格式"
-                      : "测试条件"}
-                  ：{error.message}
-                </AppText>
-              ))}
-              <Button
-                disabled={mutation.busy}
-                onPress={() => void submitPreview()}
-              >
-                预览测试安排
-              </Button>
               {preview ? (
-                <Card>
-                  <AppText variant="card">
-                    {preview.conflicts.length ? "同日已有安排" : "同日暂无冲突"}
-                  </AppText>
-                  {preview.conflicts.map((item) => (
-                    <AppText key={item.id} className="mt-2">
-                      {item.title}
-                    </AppText>
-                  ))}
-                  <AppText muted className="mt-3">
-                    确认仅添加测试日程，已有课程与赛事会保留。如不适合同时进行，请修改日期后重新预览。
-                  </AppText>
-                  <Button
-                    className="mt-3"
-                    disabled={mutation.busy}
-                    onPress={() => void confirm()}
-                  >
-                    {preview.conflicts.length
-                      ? "保留原安排并确认测试"
-                      : "确认安排测试"}
-                  </Button>
-                </Card>
+                <AssessmentSchedulePreview
+                  values={input}
+                  preview={preview}
+                  disabled={mutation.busy}
+                  onEdit={() => setPreview(null)}
+                />
+              ) : (
+                <AssessmentScheduleForm
+                  values={input}
+                  today={data.today}
+                  disabled={mutation.busy}
+                  prior={prior}
+                  errors={form.formState.errors}
+                  onChange={update}
+                />
+              )}
+              {mutation.error ? (
+                <AppText accessibilityRole="alert" className="text-negative">
+                  {mutation.error}
+                </AppText>
               ) : null}
+              <Button
+                size="lg"
+                loading={mutation.busy}
+                disabled={mutation.busy}
+                onPress={() => void (preview ? confirm() : submitPreview())}
+              >
+                {preview
+                  ? preview.conflicts.length
+                    ? "保留原安排并确认测试"
+                    : "确认安排测试"
+                  : "预览测试安排"}
+              </Button>
             </>
           )}
-          {mutation.error || resource.error ? (
-            <AppText className="text-negative">
-              {mutation.error || resource.error}
-            </AppText>
-          ) : null}
-        </>
+        </View>
       ) : null}
     </TrainingPage>
   );
