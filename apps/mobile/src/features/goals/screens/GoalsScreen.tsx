@@ -1,6 +1,8 @@
 import { useCallback, useState } from "react";
 import { router, useFocusEffect } from "expo-router";
-import { AppText, Button, Card, Spinner } from "../../../components/ui";
+import { View } from "react-native";
+import { AppText, Button, Card } from "../../../components/ui";
+import { GoalListCard } from "../components/GoalListCard";
 import { useAuth } from "../../auth/hooks/AuthProvider";
 import { coachApi } from "../../coach/services/coach.api";
 import {
@@ -8,13 +10,6 @@ import {
   backToTraining,
 } from "../../training/components/TrainingPage";
 
-export const goalLabels = {
-  FTP: "提升 FTP",
-  ENDURANCE: "提升耐力",
-  CLIMBING: "提升爬坡",
-  RACE: "准备比赛",
-  CUSTOM: "自定义目标",
-};
 export function GoalsScreen() {
   const { session } = useAuth();
   const token = session?.accessToken;
@@ -27,7 +22,10 @@ export function GoalsScreen() {
     useCallback(() => {
       void attempt;
       let active = true;
-      if (!token) return;
+      if (!token) {
+        setError("请先登录");
+        return;
+      }
       coachApi
         .goals(token)
         .then((data) => {
@@ -45,56 +43,84 @@ export function GoalsScreen() {
       };
     }, [token, attempt]),
   );
+  const primary = goals?.find(
+    (goal) => goal.status === "ACTIVE" && goal.priority === "PRIMARY",
+  );
+  const others =
+    goals?.filter(
+      (goal) => goal.status !== "CLOSED" && goal.id !== primary?.id,
+    ) ?? [];
+  const history = goals?.filter((goal) => goal.status === "CLOSED") ?? [];
+  const renderGoal = (goal: NonNullable<typeof goals>[number]) => (
+    <GoalListCard
+      key={goal.id}
+      goal={goal}
+      onOpen={() =>
+        router.push({
+          pathname: "/goals/[goalId]",
+          params: { goalId: goal.id },
+        })
+      }
+    />
+  );
   return (
     <TrainingPage
-      title="训练目标"
+      title="目标与阶段"
       onBack={backToTraining}
       error={error}
       retry={() => setAttempt((value) => value + 1)}
+      loading={!goals && !error}
     >
-      {!goals ? (
-        <Spinner accessibilityLabel="读取训练目标" />
-      ) : goals.length ? (
-        goals.map((goal) => (
-          <Card key={goal.id}>
-            <AppText variant="card">{goalLabels[goal.type]}</AppText>
-            <AppText className="mt-2" muted>
-              {goal.description || "围绕目标持续训练"}
+      <View className="gap-6 py-3">
+        <View className="flex-row flex-wrap items-center justify-between gap-2">
+          <AppText variant="section">我的目标</AppText>
+          <Button
+            variant={goals?.length ? "ghost" : "primary"}
+            size="sm"
+            onPress={() => router.push("/goals/new")}
+          >
+            建立新目标
+          </Button>
+        </View>
+        {primary ? (
+          <View className="gap-3">
+            <AppText variant="caption" className="text-secondary">
+              当前主目标
             </AppText>
-            <AppText variant="caption" muted className="mt-2">
-              目标日期 {goal.targetDate} ·{" "}
-              {goal.status === "ACTIVE"
-                ? "进行中"
-                : goal.status === "PAUSED"
-                  ? "已暂停"
-                  : "已结束"}
+            {renderGoal(primary)}
+          </View>
+        ) : null}
+        {others.length ? (
+          <View className="gap-3">
+            <AppText variant="section">
+              {primary ? "其他目标" : "进行中与已暂停"}
             </AppText>
-            <Button
-              className="mt-3"
-              variant="secondary"
-              onPress={() =>
-                router.push({
-                  pathname: "/goals/[goalId]",
-                  params: { goalId: goal.id },
-                })
-              }
-            >
-              查看目标与阶段
-            </Button>
+            {others.map(renderGoal)}
+          </View>
+        ) : null}
+        {history.length ? (
+          <View className="gap-3">
+            <AppText variant="section">历史目标</AppText>
+            {history.map(renderGoal)}
+          </View>
+        ) : null}
+        {goals && !goals.length ? (
+          <Card className="gap-2 p-5">
+            <AppText variant="card">还没有训练目标</AppText>
+            <AppText className="text-secondary">
+              建立目标后，规划训练阶段与课程。
+            </AppText>
           </Card>
-        ))
-      ) : (
-        <Card>
-          <AppText>还没有训练目标，先到 AI 教练设置目标与训练时间。</AppText>
-        </Card>
-      )}
-      <Button onPress={() => router.push("/goals/new")}>建立新目标</Button>
-      <Button
-        variant="secondary"
-        onPress={() => router.push("/(tabs)/coach/goal")}
-      >
-        首次训练建档向导
-      </Button>
+        ) : null}
+        <View className="border-t border-divider pt-3">
+          <Button
+            variant="ghost"
+            onPress={() => router.push("/(tabs)/coach/goal")}
+          >
+            首次训练建档向导
+          </Button>
+        </View>
+      </View>
     </TrainingPage>
   );
 }

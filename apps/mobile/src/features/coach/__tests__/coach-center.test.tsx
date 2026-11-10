@@ -199,7 +199,10 @@ it("shows a concise status and published workout, with detailed evidence on a se
   expect(screen.getByText("恢复状态待评估")).toBeTruthy();
   expect(screen.queryByText(/2030-01-08 · 训练反馈/)).toBeNull();
   expect(screen.queryByText("完成 · RPE 8/10 · 未填疲劳")).toBeNull();
-  await screen.findByText("公路骑行 · 40–50 %FTP");
+  await screen.findByText("40–50 %FTP");
+  expect(screen.getByText("计划时长")).toBeTruthy();
+  expect(screen.getByText("工作段强度")).toBeTruthy();
+  expect(screen.getByText("60")).toBeTruthy();
   await fireEvent.press(screen.getByRole("button", { name: "查看训练详情" }));
   expect(mockPush).toHaveBeenCalledWith({
     pathname: "/workouts/[workoutId]",
@@ -368,7 +371,7 @@ it("does not treat missing training or stale stages as a new valid plan", async 
   const screen = await render(<CoachOverviewPanel />);
   await screen.findByText("阶段待规划");
   expect(
-    screen.getByText("阶段待核对；课程仍为已发布的正式安排。"),
+    screen.getByText("目标、FTP 或训练资料已变化，请检查阶段安排"),
   ).toBeTruthy();
   expect(screen.getByText("正式计划 v2 · 已生效")).toBeTruthy();
   await screen.unmount();
@@ -402,8 +405,38 @@ it("keeps the published summary if workout enrichment fails and avoids mixing pl
   await fireEvent.press(screen.getByText("重试详情"));
   await screen.findByText("训练版本已变化，请查看最新训练日历。");
   expect(screen.queryByText("90")).toBeNull();
+  expect(screen.queryByText("正式计划 v2 · 已生效")).toBeNull();
+  expect(screen.getByText("计划版本待刷新")).toBeTruthy();
   await fireEvent.press(screen.getByText("查看训练日历"));
   expect(mockPush).toHaveBeenCalledWith("/(tabs)/training");
+});
+it("shows a distance target without inventing duration or intensity", async () => {
+  api.overview.mockResolvedValue({
+    ...overview,
+    localDate: "2030-01-10",
+    nextWorkout: { ...overview.nextWorkout!, minutes: null },
+  });
+  const workout = await trainingApi.getWorkout("token", id);
+  jest.mocked(trainingApi.getWorkout).mockResolvedValue({
+    ...workout,
+    timeTargetMinutes: null,
+    distanceTargetKm: 45,
+    segments: [],
+  });
+  const screen = await render(<CoachOverviewPanel />);
+  await screen.findByText("45");
+  expect(screen.getByText("今日训练")).toBeTruthy();
+  expect(screen.getByText("1 月 10 日")).toBeTruthy();
+  expect(screen.getByText("目标距离")).toBeTruthy();
+  expect(screen.getByText("公里")).toBeTruthy();
+  expect(screen.queryByText("分钟")).toBeNull();
+  expect(screen.queryByText("40–50 %FTP")).toBeNull();
+  expect(screen.getByText("待查看")).toBeTruthy();
+  await fireEvent.press(screen.getByRole("button", { name: "查看训练详情" }));
+  expect(mockPush).toHaveBeenCalledWith({
+    pathname: "/workouts/[workoutId]",
+    params: { workoutId: id },
+  });
 });
 it("resumes an existing draft by ID and requires confirmation before dismissing", async () => {
   const screen = await render(<CoachSuggestionsPanel />);

@@ -36,16 +36,19 @@ export function CoachMoreActions({
     },
   ];
   return (
-    <View className="border-t border-divider" testID="coach-more-actions">
+    <View
+      className="rounded-card border border-border bg-surface px-4"
+      testID="coach-more-actions"
+    >
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="更多操作"
         accessibilityState={{ expanded, disabled: busy }}
         disabled={busy}
         onPress={() => setExpanded((value) => !value)}
-        className="min-h-11 flex-row items-center justify-between py-2 active:opacity-70"
+        className="min-h-[52px] flex-row items-center justify-between py-3 active:opacity-70"
       >
-        <AppText variant="caption" className="text-secondary">
+        <AppText variant="body" className="text-secondary">
           更多操作
         </AppText>
         {expanded ? (
@@ -55,7 +58,7 @@ export function CoachMoreActions({
         )}
       </Pressable>
       {expanded ? (
-        <View className="rounded-xl bg-surface">
+        <View className="mb-4 rounded-xl bg-surface-2">
           {actions.map((action) => (
             <Pressable
               key={action.title}
@@ -65,7 +68,7 @@ export function CoachMoreActions({
               onPress={action.run}
               className="min-h-12 flex-row items-center gap-3 px-3 py-2 active:bg-surface-2"
             >
-              <AppText variant="caption" className="flex-1">
+              <AppText variant="body" className="flex-1">
                 {action.title}
               </AppText>
               <ChevronRight color={colors.textSecondary} size={16} />

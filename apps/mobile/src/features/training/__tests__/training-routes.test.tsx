@@ -1240,7 +1240,9 @@ test("calendar displays test events with courses and opens the test route", asyn
     screen.getByLabelText(new RegExp(`${today}.*有阶段测试`)),
   ).toBeTruthy();
   expect(screen.getByText("耐力骑行")).toBeTruthy();
-  await fireEvent.press(screen.getByText("查看测试"));
+  await fireEvent.press(
+    screen.getByRole("button", { name: /查看测试：.*日历 FTP 方案/ }),
+  );
   await screen.findByText("已打开日历测试");
 });
 

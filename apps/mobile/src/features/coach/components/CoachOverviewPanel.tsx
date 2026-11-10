@@ -48,7 +48,7 @@ export function CoachOverviewContent({
       ) : error || !data ? (
         <Card className="gap-3">
           <AppText variant="card">暂时无法读取训练概览</AppText>
-          <AppText variant="caption" className="text-negative">
+          <AppText variant="body" className="text-negative">
             {error || "暂无概览"}
           </AppText>
           <Button variant="secondary" onPress={retry}>

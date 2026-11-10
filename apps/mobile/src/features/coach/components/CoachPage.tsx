@@ -25,7 +25,7 @@ export function CoachPage({
   compactHeader = false,
   actionsInScroll = false,
   contentClassName = "mt-6 gap-3",
-  footer,
+  headerAction,
 }: {
   eyebrow: string;
   title: string;
@@ -44,7 +44,7 @@ export function CoachPage({
   compactHeader?: boolean;
   actionsInScroll?: boolean;
   contentClassName?: string;
-  footer?: ReactNode;
+  headerAction?: ReactNode;
 }) {
   const progressWidth = progressStep
     ? (`${Math.min(progressStep / progressTotal, 1) * 100}%` as `${number}%`)
@@ -54,7 +54,7 @@ export function CoachPage({
     primary || secondary || error ? (
       <>
         {error ? (
-          <AppText variant="caption" className="mb-2 text-negative">
+          <AppText variant="body" className="mb-2 text-negative">
             {error}
           </AppText>
         ) : null}
@@ -101,6 +101,7 @@ export function CoachPage({
             title={title}
             compact={compactHeader}
             className="mt-2"
+            right={headerAction}
           />
         ) : null}
         {progressStep ? (
@@ -133,9 +134,6 @@ export function CoachPage({
       </ScrollView>
       {!actionsInScroll && actions ? (
         <BottomActionBar>{actions}</BottomActionBar>
-      ) : null}
-      {footer ? (
-        <View className="bg-background px-5 pb-3 pt-2">{footer}</View>
       ) : null}
     </Screen>
   );
@@ -199,7 +197,7 @@ export function StepItem({
           {number}
         </AppText>
       </View>
-      <AppText variant="caption" className="flex-1 text-primary">
+      <AppText variant="body" className="flex-1 text-primary">
         {children}
       </AppText>
     </View>

@@ -8,6 +8,7 @@ import {
   act,
 } from "expo-router/testing-library";
 import { Button } from "../../../components/ui";
+import { selectPlanningDate } from "../../../../test/select-planning-date";
 import { useAuth } from "../../auth/hooks/AuthProvider";
 import { coachApi } from "../../coach/services/coach.api";
 import { getProfile } from "../../profile/services/profile.api";
@@ -227,8 +228,8 @@ test("missing FTP links directly to settings and resumes the selected goal", asy
 test("date generation preserves input and idempotency key after uncertain submission failure", async () => {
   api.generateCourses.mockRejectedValueOnce(new Error("网络连接中断"));
   await detail();
-  await fireEvent.changeText(await screen.findByLabelText("开始日期"), start);
-  await fireEvent.changeText(screen.getByLabelText("结束日期"), end);
+  await selectPlanningDate("开始日期", start);
+  await selectPlanningDate("结束日期", end);
   await fireEvent.changeText(
     screen.getByLabelText("课程补充要求"),
     "减少长距离训练",
@@ -257,9 +258,37 @@ test("date generation preserves input and idempotency key after uncertain submis
   await screen.findByText("训练日历已刷新");
 });
 
+test("a long date range blocks course generation while allowing stage planning", async () => {
+  await detail();
+  await selectPlanningDate("开始日期", start);
+  await selectPlanningDate("结束日期", "2099-05-01");
+  expect(screen.getByText("共 121 天")).toBeTruthy();
+  expect(screen.getByRole("button", { name: "生成课程草稿" })).toBeDisabled();
+  await fireEvent.press(screen.getByRole("button", { name: "重新规划阶段" }));
+  expect(screen.getByRole("button", { name: "生成阶段草稿" })).toBeEnabled();
+  await fireEvent.press(screen.getByRole("button", { name: "收起阶段规划" }));
+  expect(api.generateCourses).not.toHaveBeenCalled();
+  expect(api.generateStages).not.toHaveBeenCalled();
+  await selectPlanningDate("结束日期", end);
+  expect(screen.getByRole("button", { name: "生成课程草稿" })).toBeEnabled();
+});
+
 test("selected-stage generation sends the stage ID and does not send editable date overrides", async () => {
   await detail();
-  await fireEvent.press(await screen.findByText("选择此阶段生成课程"));
+  await fireEvent.press(await screen.findByRole("radio", { name: "所选阶段" }));
+  expect(
+    screen.getByRole("button", { name: "生成课程草稿" }).props
+      .accessibilityState.disabled,
+  ).toBe(true);
+  await fireEvent.press(
+    screen.getByRole("radio", { name: "选择阶段：基础耐力阶段" }),
+  );
+  expect(
+    screen.getByRole("button", { name: "选择训练阶段" }).props
+      .accessibilityState.expanded,
+  ).toBe(false);
+  expect(screen.queryByText("选择此阶段生成课程")).toBeNull();
+  expect(api.generateCourses).not.toHaveBeenCalled();
   await fireEvent.press(screen.getByText("生成课程草稿"));
   await screen.findByText("跨周耐力训练");
   expect(api.generateCourses.mock.calls[0][1]).toMatchObject({
@@ -274,10 +303,19 @@ test("selected-stage generation sends the stage ID and does not send editable da
 test("stage generation previews a saved draft and retries failed activation without changing its version", async () => {
   api.activateStages.mockRejectedValueOnce(new Error("确认失败，输入保留"));
   await detail();
-  await fireEvent.changeText(await screen.findByLabelText("开始日期"), start);
-  await fireEvent.changeText(screen.getByLabelText("结束日期"), end);
-  await fireEvent.press(screen.getByText("重新生成阶段草稿"));
+  await selectPlanningDate("开始日期", start);
+  await selectPlanningDate("结束日期", end);
+  await fireEvent.press(screen.getByRole("button", { name: "重新规划阶段" }));
+  await selectPlanningDate("阶段开始日期", start);
+  await selectPlanningDate("阶段结束日期", end);
+  await fireEvent.press(screen.getByText("生成阶段草稿"));
   await screen.findByText("阶段草稿 · 尚未确认");
+  expect(api.generateStages).toHaveBeenCalledWith(
+    "token",
+    { goalId, startDate: start, endDate: end, forceRegenerate: true },
+    expect.any(String),
+  );
+  expect(screen.getByText(stagePlan.summary)).toBeTruthy();
   expect(api.activateStages).not.toHaveBeenCalled();
   await fireEvent.press(screen.getByText("确认阶段安排"));
   await screen.findByText("确认失败，输入保留");
@@ -289,6 +327,111 @@ test("stage generation previews a saved draft and retries failed activation with
     ["token", planId, 1],
     ["token", planId, 1],
   ]);
+});
+
+test("stage planning preserves independent dates, course notes and the same request after an uncertain failure", async () => {
+  api.generateStages.mockRejectedValueOnce(new Error("阶段生成连接中断"));
+  await detail();
+  await selectPlanningDate("开始日期", start);
+  await selectPlanningDate("结束日期", end);
+  await fireEvent.changeText(
+    screen.getByLabelText("课程补充要求"),
+    "保留课程要求",
+  );
+  await fireEvent.press(screen.getByRole("button", { name: "重新规划阶段" }));
+  await selectPlanningDate("阶段开始日期", "2099-02-01");
+  await selectPlanningDate("阶段结束日期", "2099-03-01");
+  await fireEvent.press(screen.getByRole("button", { name: "收起阶段规划" }));
+  expect(screen.queryByLabelText("阶段开始日期")).toBeNull();
+  expect(screen.getByLabelText("开始日期").props.accessibilityValue.text).toBe(
+    "2099年1月1日",
+  );
+  expect(screen.getByLabelText("结束日期").props.accessibilityValue.text).toBe(
+    "2099年1月14日",
+  );
+  expect(screen.getByLabelText("课程补充要求").props.value).toBe(
+    "保留课程要求",
+  );
+  expect(api.generateStages).not.toHaveBeenCalled();
+  await fireEvent.press(screen.getByRole("button", { name: "重新规划阶段" }));
+  expect(
+    screen.getByLabelText("阶段开始日期").props.accessibilityValue.text,
+  ).toBe("2099年2月1日");
+  await fireEvent.press(screen.getByText("生成阶段草稿"));
+  await screen.findByText("阶段生成连接中断");
+  await fireEvent.press(screen.getByText("生成阶段草稿"));
+  await screen.findByText("阶段草稿 · 尚未确认");
+  expect(api.generateStages.mock.calls[0]).toEqual(
+    api.generateStages.mock.calls[1],
+  );
+  expect(api.generateStages.mock.calls[0][1]).toMatchObject({
+    startDate: "2099-02-01",
+    endDate: "2099-03-01",
+    forceRegenerate: true,
+  });
+  expect(api.activateStages).not.toHaveBeenCalled();
+  expect(api.generateCourses).not.toHaveBeenCalled();
+});
+
+test("a missing stage plan can be created from its heading without forcing regeneration", async () => {
+  api.activeStages.mockResolvedValue(null);
+  await detail();
+  await fireEvent.press(
+    await screen.findByRole("button", { name: "规划阶段" }),
+  );
+  await selectPlanningDate("阶段开始日期", start);
+  await selectPlanningDate("阶段结束日期", end);
+  await fireEvent.press(screen.getByText("生成阶段草稿"));
+  await screen.findByText("阶段草稿 · 尚未确认");
+  expect(api.generateStages.mock.calls[0][1]).toEqual({
+    goalId,
+    startDate: start,
+    endDate: end,
+  });
+  expect(api.activateStages).not.toHaveBeenCalled();
+});
+
+test.each(["missing FTP", "paused goal"])(
+  "%s hides the stage planning action",
+  async (reason) => {
+    if (reason === "missing FTP") coach.ftp.mockResolvedValue(null);
+    else coach.goal.mockResolvedValue({ ...goal, status: "PAUSED" });
+    await detail();
+    await screen.findByText("阶段安排");
+    expect(screen.queryByRole("button", { name: "重新规划阶段" })).toBeNull();
+    expect(screen.queryByTestId("goal-stage-planner")).toBeNull();
+  },
+);
+
+test("stage planning explanation opens only from its icon and closes without changing inputs or generating", async () => {
+  await detail();
+  const info = await screen.findByRole("button", { name: "查看阶段安排说明" });
+  expect(screen.queryByText(stagePlan.summary)).toBeNull();
+  expect(screen.getByText("基础耐力阶段")).toBeTruthy();
+  await fireEvent.changeText(
+    screen.getByLabelText("课程补充要求"),
+    "保留休息日",
+  );
+  await fireEvent.press(info);
+  expect(screen.getByText(stagePlan.summary)).toBeTruthy();
+  expect(screen.getByText("阶段安排说明")).toBeTruthy();
+  await fireEvent.press(screen.getByRole("button", { name: "知道了" }));
+  expect(screen.queryByText(stagePlan.summary)).toBeNull();
+  expect(screen.getByLabelText("课程补充要求").props.value).toBe("保留休息日");
+  await fireEvent.press(
+    screen.getByRole("button", { name: "查看阶段安排说明" }),
+  );
+  expect(screen.getByText(stagePlan.summary)).toBeTruthy();
+  expect(api.generateStages).not.toHaveBeenCalled();
+  expect(api.generateCourses).not.toHaveBeenCalled();
+});
+
+test("missing stage plans do not show an empty explanation entry", async () => {
+  api.activeStages.mockResolvedValue(null);
+  await detail();
+  await screen.findByText("尚无阶段安排");
+  expect(screen.queryByRole("button", { name: "查看阶段安排说明" })).toBeNull();
+  expect(screen.getByText("规划后续训练")).toBeTruthy();
 });
 
 test("course application requires validation and confirmation, retains the proposal after failure and retries apply with the same key", async () => {
@@ -311,8 +454,8 @@ test("course application requires validation and confirmation, retains the propo
 
 test("returning from FTP settings keeps date choices and notes", async () => {
   await detail();
-  await fireEvent.changeText(await screen.findByLabelText("开始日期"), start);
-  await fireEvent.changeText(screen.getByLabelText("结束日期"), end);
+  await selectPlanningDate("开始日期", start);
+  await selectPlanningDate("结束日期", end);
   await fireEvent.changeText(
     screen.getByLabelText("课程补充要求"),
     "保留此输入",
@@ -324,22 +467,205 @@ test("returning from FTP settings keeps date choices and notes", async () => {
       "保留此输入",
     ),
   );
-  expect(screen.getByLabelText("开始日期").props.value).toBe(start);
-  expect(screen.getByLabelText("结束日期").props.value).toBe(end);
+  expect(screen.getByLabelText("开始日期").props.accessibilityValue.text).toBe(
+    "2099年1月1日",
+  );
+  expect(screen.getByLabelText("结束日期").props.accessibilityValue.text).toBe(
+    "2099年1月14日",
+  );
 });
 
-test("explicit course regeneration sends forceRegenerate only after clicking", async () => {
+test("course planning has one generation action and no duplicate regeneration entry", async () => {
   await detail();
-  await fireEvent.changeText(await screen.findByLabelText("开始日期"), start);
-  await fireEvent.changeText(screen.getByLabelText("结束日期"), end);
+  await selectPlanningDate("开始日期", start);
+  await selectPlanningDate("结束日期", end);
   expect(api.generateCourses).not.toHaveBeenCalled();
-  await fireEvent.press(screen.getByText("重新生成课程草稿"));
+  expect(screen.queryByRole("button", { name: "更多生成选项" })).toBeNull();
+  expect(screen.queryByText("阶段规划与重新生成")).toBeNull();
+  expect(screen.queryByText("重新生成课程草稿")).toBeNull();
+  expect(screen.getAllByRole("button", { name: "生成课程草稿" })).toHaveLength(
+    1,
+  );
+  await fireEvent.press(screen.getByText("生成课程草稿"));
   await screen.findByText("跨周耐力训练");
   expect(api.generateCourses.mock.calls[0][1]).toMatchObject({
     goalId,
     startDate: start,
     endDate: end,
-    forceRegenerate: true,
   });
+  expect(api.generateCourses.mock.calls[0][1]).not.toHaveProperty(
+    "forceRegenerate",
+  );
   expect(coach.apply).not.toHaveBeenCalled();
+});
+
+test("goals are grouped by current primary, other and historical goals and cards open the selected goal", async () => {
+  coach.goals.mockResolvedValue([
+    {
+      ...goal,
+      id: proposalId,
+      type: "CUSTOM",
+      status: "CLOSED",
+      priority: "SECONDARY",
+      closureReason: "COMPLETED",
+    },
+    {
+      ...goal,
+      id: stageId,
+      type: "CLIMBING",
+      status: "PAUSED",
+      priority: "SECONDARY",
+    },
+    goal,
+  ]);
+  await renderRouter(routes, { initialUrl: "/goals" });
+  await screen.findByText("当前主目标");
+  expect(screen.getByText("其他目标")).toBeTruthy();
+  expect(screen.getByText("历史目标")).toBeTruthy();
+  expect(screen.getByText("已完成 · 次目标")).toBeTruthy();
+  expect(
+    screen
+      .getAllByRole("button", { name: /^查看目标：/ })
+      .map((item) => item.props.accessibilityLabel),
+  ).toEqual([
+    "查看目标：提升耐力",
+    "查看目标：提升爬坡",
+    "查看目标：自定义目标",
+  ]);
+  await fireEvent.press(
+    screen.getByRole("button", { name: "查看目标：提升耐力" }),
+  );
+  await screen.findByText("当前 FTP 250 W");
+  expect(screen.getByTestId("path").props.children).toBe(`/goals/${goalId}`);
+  expect(api.generateCourses).not.toHaveBeenCalled();
+});
+
+test("browsing the timeline does not change course scope and inline selection preserves inputs", async () => {
+  api.activeStages.mockResolvedValue({
+    ...stagePlan,
+    endDate: "2099-01-28",
+    stages: [
+      ...stagePlan.stages,
+      {
+        ...stagePlan.stages[0],
+        id: planId,
+        position: 1,
+        title: "强化耐力阶段",
+        purpose: "强化持续输出",
+        startDate: "2099-01-15",
+        endDate: "2099-01-28",
+      },
+    ],
+  });
+  await detail();
+  await selectPlanningDate("开始日期", start);
+  await selectPlanningDate("结束日期", end);
+  await fireEvent.changeText(
+    screen.getByLabelText("课程补充要求"),
+    "保留休息日",
+  );
+  expect(screen.queryByText("强化持续输出")).toBeNull();
+  await fireEvent.press(
+    screen.getByRole("button", { name: "展开阶段：强化耐力阶段" }),
+  );
+  expect(screen.getByText("强化持续输出")).toBeTruthy();
+  expect(screen.queryByText("选择此阶段生成课程")).toBeNull();
+  expect(
+    screen.getByRole("radio", { name: "日期范围" }).props.accessibilityState
+      .selected,
+  ).toBe(true);
+  await fireEvent.press(screen.getByRole("radio", { name: "所选阶段" }));
+  await fireEvent.press(
+    screen.getByRole("radio", { name: "选择阶段：强化耐力阶段" }),
+  );
+  expect(
+    screen.getByRole("radio", { name: "所选阶段" }).props.accessibilityState
+      .selected,
+  ).toBe(true);
+  expect(screen.queryByLabelText("开始日期")).toBeNull();
+  expect(screen.getByLabelText("课程补充要求").props.value).toBe("保留休息日");
+  await fireEvent.press(screen.getByRole("radio", { name: "日期范围" }));
+  expect(screen.getByLabelText("开始日期").props.accessibilityValue.text).toBe(
+    "2099年1月1日",
+  );
+  expect(screen.getByLabelText("结束日期").props.accessibilityValue.text).toBe(
+    "2099年1月14日",
+  );
+  expect(api.generateCourses).not.toHaveBeenCalled();
+  expect(api.generateStages).not.toHaveBeenCalled();
+});
+
+test.each(["stale", "ended"])(
+  "%s stages remain visible but cannot be selected to generate courses",
+  async (reason) => {
+    api.activeStages.mockResolvedValue({
+      ...stagePlan,
+      stale: reason === "stale",
+      stages:
+        reason === "ended"
+          ? [
+              {
+                ...stagePlan.stages[0],
+                startDate: "2020-01-01",
+                endDate: "2020-01-14",
+              },
+            ]
+          : stagePlan.stages,
+    });
+    await detail();
+    await screen.findByText("基础耐力阶段");
+    expect(screen.queryByText("选择此阶段生成课程")).toBeNull();
+    await fireEvent.press(screen.getByRole("radio", { name: "所选阶段" }));
+    expect(
+      screen.getByRole("radio", { name: "选择阶段：基础耐力阶段" }).props
+        .accessibilityState.disabled,
+    ).toBe(true);
+    expect(
+      screen.getByRole("button", { name: "生成课程草稿" }).props
+        .accessibilityState.disabled,
+    ).toBe(true);
+  },
+);
+
+test("the inline stage picker changes stages independently of timeline expansion and preserves notes", async () => {
+  api.activeStages.mockResolvedValue({
+    ...stagePlan,
+    endDate: "2099-01-28",
+    stages: [
+      ...stagePlan.stages,
+      {
+        ...stagePlan.stages[0],
+        id: planId,
+        position: 1,
+        title: "强化阶段",
+        startDate: "2099-01-15",
+        endDate: "2099-01-28",
+      },
+    ],
+  });
+  await detail();
+  await fireEvent.changeText(
+    await screen.findByLabelText("课程补充要求"),
+    "保留休息日",
+  );
+  await fireEvent.press(screen.getByRole("radio", { name: "所选阶段" }));
+  await fireEvent.press(
+    screen.getByRole("radio", { name: "选择阶段：强化阶段" }),
+  );
+  expect(
+    screen.getByRole("button", { name: "展开阶段：强化阶段" }),
+  ).toBeTruthy();
+  expect(
+    screen.getByRole("button", { name: "选择训练阶段" }).props
+      .accessibilityState.expanded,
+  ).toBe(false);
+  await fireEvent.press(screen.getByRole("button", { name: "选择训练阶段" }));
+  await fireEvent.press(
+    screen.getByRole("radio", { name: "选择阶段：基础耐力阶段" }),
+  );
+  expect(
+    screen.getByRole("button", { name: "收起阶段：基础耐力阶段" }),
+  ).toBeTruthy();
+  expect(screen.getByLabelText("课程补充要求").props.value).toBe("保留休息日");
+  expect(api.generateCourses).not.toHaveBeenCalled();
 });

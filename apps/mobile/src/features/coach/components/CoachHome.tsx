@@ -29,12 +29,12 @@ function QuickAction({
       accessibilityHint={description}
       accessibilityState={{ disabled }}
       disabled={disabled}
-      className={`min-h-[76px] min-w-0 flex-1 rounded-xl bg-surface px-3 py-3 active:bg-surface-2 ${disabled ? "opacity-50" : ""}`}
+      className={`min-h-[76px] min-w-0 flex-1 rounded-card border border-border bg-surface p-4 active:bg-surface-2 ${disabled ? "opacity-50" : ""}`}
       onPress={onPress}
     >
       <View className="flex-row items-center gap-2">
         {icon}
-        <AppText variant="body" className="min-w-0 flex-1 font-semibold">
+        <AppText variant="card" className="min-w-0 flex-1">
           {label}
         </AppText>
       </View>
@@ -63,10 +63,12 @@ export function CoachHome({
 }) {
   return (
     <View className="gap-3" testID="coach-quick-tasks">
-      <AppText variant="section">AI 快捷调整</AppText>
+      <AppText variant="section" className="mb-1">
+        AI 快捷调整
+      </AppText>
       {!ready ? (
         <View className="rounded-xl bg-surface-2 px-3 py-2">
-          <AppText variant="caption" className="text-warning">
+          <AppText variant="body" className="text-warning">
             待补充：{missingData}
           </AppText>
           <Button variant="ghost" disabled={busy} onPress={onCompleteProfile}>
@@ -106,9 +108,6 @@ export function CoachHome({
           disabled={busy}
         />
       </View>
-      <AppText variant="label" className="text-secondary">
-        计划调整先生成草稿，预览并确认后生效
-      </AppText>
     </View>
   );
 }

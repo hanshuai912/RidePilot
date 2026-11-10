@@ -16,27 +16,7 @@ export function CoachContextCard({ data }: { data: CoachOverview }) {
         ? colors.textSecondary
         : colors.warning;
   return (
-    <View className="rounded-card bg-surface p-4" testID="coach-context">
-      <View className="flex-row items-center justify-between gap-2">
-        <AppText variant="caption" className="text-secondary">
-          {data.stage?.upcoming ? "下一阶段" : "当前阶段"}
-        </AppText>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="查看状态依据"
-          onPress={() => router.push("/(tabs)/coach/status")}
-          className="min-h-11 min-w-0 shrink flex-row items-center gap-1.5 active:opacity-70"
-        >
-          <Activity color={statusColor} size={15} />
-          <AppText
-            variant="caption"
-            className="shrink"
-            style={{ color: statusColor }}
-          >
-            {coachStatusSummary[data.status.code]}
-          </AppText>
-        </Pressable>
-      </View>
+    <View className="border-b border-divider pb-3" testID="coach-context">
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="查看目标与阶段"
@@ -51,20 +31,33 @@ export function CoachContextCard({ data }: { data: CoachOverview }) {
         className="min-h-11 flex-row items-center justify-between gap-3 active:opacity-70"
       >
         <View className="min-w-0 flex-1">
-          <AppText variant="section">
-            {data.stage?.title ?? "阶段待规划"}
+          <AppText variant="caption" className="mb-1 text-secondary">
+            {data.stage?.upcoming ? "下一阶段" : "当前阶段"}
           </AppText>
-          <AppText
-            variant="caption"
-            className="mt-1 text-secondary"
-            numberOfLines={2}
-          >
+          <AppText variant="card">{data.stage?.title ?? "阶段待规划"}</AppText>
+          <AppText variant="body" className="mt-1 text-secondary">
             {data.goal
               ? `目标：${goalTitle(data.goal.title)}`
               : (data.stage?.purpose ?? "先设置目标，再规划训练阶段")}
           </AppText>
         </View>
         <ChevronRight color={colors.textSecondary} size={19} />
+      </Pressable>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="查看状态依据"
+        onPress={() => router.push("/(tabs)/coach/status")}
+        className="mt-1 min-h-11 flex-row items-center gap-2 active:opacity-70"
+      >
+        <Activity color={statusColor} size={16} />
+        <AppText
+          variant="caption"
+          className="min-w-0 flex-1"
+          style={{ color: statusColor }}
+        >
+          {coachStatusSummary[data.status.code]}
+        </AppText>
+        <ChevronRight color={statusColor} size={16} />
       </Pressable>
       {data.stageNotice ? (
         <View className="mt-3 flex-row items-start gap-2">

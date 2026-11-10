@@ -1,96 +1,188 @@
-import { outcomeLabels, decisionLabels } from "../model/goal-lifecycle";
+import { useState } from "react";
+import { Pressable, View } from "react-native";
+import { ChevronDown, ChevronUp } from "lucide-react-native";
 import type { StagePlanResponse } from "@ridepilot/contracts";
-import { View } from "react-native";
-import { AppText, Button, Card } from "../../../components/ui";
+import { AppText, Badge, Button, Card } from "../../../components/ui";
+import { colors } from "../../../theme/colors";
+import { outcomeLabels, decisionLabels } from "../model/goal-lifecycle";
+import { goalDateLabel } from "../model/goal-presentation";
 
 export function StageTimeline({
   plan,
-  selectedId,
-  onSelect,
   today,
   onAssessment,
   onReview,
+  disabled = false,
+  showSummary = true,
 }: {
   plan: StagePlanResponse;
-  selectedId?: string;
-  onSelect?: (id: string) => void;
   today?: string;
   onAssessment?: (stageId: string, date: string) => void;
   onReview?: (stageId: string) => void;
+  disabled?: boolean;
+  showSummary?: boolean;
 }) {
+  const [expandedId, setExpandedId] = useState<string>();
+  const interactive = !!(onAssessment || onReview);
+  const defaultStage =
+    plan.stages.find(
+      (stage) => today && stage.startDate <= today && stage.endDate >= today,
+    ) ??
+    plan.stages.find((stage) => !today || stage.startDate > today) ??
+    plan.stages[0];
+  const openId = expandedId ?? defaultStage?.id;
   return (
-    <>
-      <AppText variant="body">{plan.summary}</AppText>
-      {plan.stale ? (
-        <AppText className="text-warning">
-          目标或训练资料已变化，请重新生成阶段安排。
-        </AppText>
+    <View className="gap-4" testID="goal-stage-timeline">
+      {showSummary && plan.summary ? (
+        <AppText className="text-secondary">{plan.summary}</AppText>
       ) : null}
-      {plan.stages.map((stage) => (
-        <Card key={stage.id}>
-          <View className="flex-row justify-between gap-2">
-            <AppText variant="label" className="text-brand">
-              阶段 {stage.position + 1}
-            </AppText>
-            <AppText variant="caption" muted>
-              {today && stage.endDate < today
-                ? "已结束"
-                : today && stage.startDate <= today
-                  ? "当前阶段"
-                  : "后续阶段"}
-            </AppText>
-          </View>
-          <AppText variant="card" className="mt-2">
-            {stage.title}
+      {plan.stale ? (
+        <View className="rounded-xl border border-warning/30 bg-surface-2 p-3">
+          <AppText className="text-warning">
+            目标或训练资料已变化，请重新生成阶段安排。
           </AppText>
-          <AppText variant="caption" muted className="mt-2">
-            {stage.startDate} 至 {stage.endDate}
-          </AppText>
-          <AppText className="mt-2">{stage.purpose}</AppText>
-          <AppText variant="caption" muted className="mt-3">
-            复评建议：{stage.assessmentSuggestion}
-          </AppText>
-          {onAssessment ? (
-            <Button
-              className="mt-3"
-              variant="secondary"
-              disabled={plan.stale}
-              onPress={() =>
-                onAssessment(
-                  stage.id,
-                  today && stage.endDate < today ? today : stage.endDate,
-                )
-              }
-            >
-              安排阶段测试
-            </Button>
-          ) : null}
-          {stage.latestReview ? (
-            <AppText muted className="mt-3">
-              最近复评：{outcomeLabels[stage.latestReview.outcome]} ·{" "}
-              {decisionLabels[stage.latestReview.decision]}
-            </AppText>
-          ) : null}
-          {onReview ? (
-            <Button variant="secondary" onPress={() => onReview(stage.id)}>
-              复评并选择下一步
-            </Button>
-          ) : null}
-          {onSelect ? (
-            <Button
-              className="mt-3"
-              variant={selectedId === stage.id ? "primary" : "secondary"}
-              disabled={plan.stale || !!(today && stage.endDate < today)}
-              onPress={() => onSelect(stage.id)}
-            >
-              {selectedId === stage.id ? "已选择此阶段" : "选择此阶段生成课程"}
-            </Button>
-          ) : null}
-        </Card>
-      ))}
-      <AppText variant="caption" muted>
-        阶段复评建议需另行安排为测试日程；具体课程也需生成草稿并确认。
-      </AppText>
-    </>
+        </View>
+      ) : null}
+      <View>
+        {plan.stages.map((stage, index) => {
+          const current =
+            !!today && stage.startDate <= today && stage.endDate >= today;
+          const ended = !!today && stage.endDate < today;
+          const expanded = !interactive || openId === stage.id;
+          const status =
+            plan.status === "DRAFT"
+              ? "待确认"
+              : !today
+                ? null
+                : ended
+                  ? "日期已结束"
+                  : current
+                    ? "当前阶段"
+                    : "后续阶段";
+          const content = (
+            <>
+              <View className="flex-row flex-wrap items-center justify-between gap-2">
+                {status ? (
+                  <Badge
+                    variant={
+                      current && !plan.stale && plan.status === "ACTIVE"
+                        ? "brand"
+                        : "neutral"
+                    }
+                  >
+                    {status}
+                  </Badge>
+                ) : null}
+                {interactive ? (
+                  expanded ? (
+                    <ChevronUp color={colors.textSecondary} size={18} />
+                  ) : (
+                    <ChevronDown color={colors.textSecondary} size={18} />
+                  )
+                ) : null}
+              </View>
+              <AppText variant="card" className="mt-3">
+                {stage.title}
+              </AppText>
+              <AppText
+                variant="caption"
+                className="mt-2 tabular-nums text-secondary"
+              >
+                {goalDateLabel(stage.startDate)} —{" "}
+                {goalDateLabel(stage.endDate)}
+              </AppText>
+            </>
+          );
+          return (
+            <View key={stage.id} className="flex-row gap-3">
+              <View className="w-7 items-center">
+                <View
+                  className={`h-7 w-7 items-center justify-center rounded-full border ${current && !plan.stale ? "border-brand bg-brand-subtle" : "border-border bg-surface"}`}
+                >
+                  <AppText
+                    variant="label"
+                    className={
+                      current && !plan.stale ? "text-brand" : "text-secondary"
+                    }
+                  >
+                    {stage.position + 1}
+                  </AppText>
+                </View>
+                {index < plan.stages.length - 1 ? (
+                  <View className="my-1 w-px flex-1 bg-divider" />
+                ) : null}
+              </View>
+              <Card className="mb-4 min-w-0 flex-1">
+                {interactive ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`${expanded ? "收起" : "展开"}阶段：${stage.title}`}
+                    accessibilityState={{ expanded }}
+                    onPress={() => setExpandedId(expanded ? "" : stage.id)}
+                    className="min-h-11 active:opacity-70"
+                  >
+                    {content}
+                  </Pressable>
+                ) : (
+                  content
+                )}
+                {expanded ? (
+                  <View className="mt-3 gap-3">
+                    <AppText>{stage.purpose}</AppText>
+                    {stage.assessmentSuggestion || onAssessment ? (
+                      <View className="gap-1 border-t border-divider pt-3">
+                        <View className="flex-row flex-wrap items-center justify-between gap-x-2">
+                          <AppText variant="label" className="text-secondary">
+                            {stage.assessmentSuggestion
+                              ? "测试建议"
+                              : "阶段测试"}
+                          </AppText>
+                          {onAssessment ? (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              accessibilityLabel="安排阶段测试"
+                              disabled={disabled || plan.stale}
+                              onPress={() =>
+                                onAssessment(
+                                  stage.id,
+                                  ended && today ? today : stage.endDate,
+                                )
+                              }
+                            >
+                              安排测试
+                            </Button>
+                          ) : null}
+                        </View>
+                        {stage.assessmentSuggestion ? (
+                          <AppText className="text-secondary">
+                            {stage.assessmentSuggestion}
+                          </AppText>
+                        ) : null}
+                      </View>
+                    ) : null}
+                    {stage.latestReview ? (
+                      <AppText variant="caption" className="text-secondary">
+                        最近复评 · {outcomeLabels[stage.latestReview.outcome]} ·{" "}
+                        {decisionLabels[stage.latestReview.decision]}
+                      </AppText>
+                    ) : null}
+                    {onReview ? (
+                      <Button
+                        variant="secondary"
+                        disabled={disabled}
+                        onPress={() => onReview(stage.id)}
+                      >
+                        复评并选择下一步
+                      </Button>
+                    ) : null}
+                  </View>
+                ) : null}
+              </Card>
+            </View>
+          );
+        })}
+      </View>
+    </View>
   );
 }

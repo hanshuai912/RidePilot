@@ -244,7 +244,7 @@ export function CoachSuggestionSummary({
   if (resource.error)
     return (
       <View className="flex-row flex-wrap items-center justify-between gap-2">
-        <AppText variant="caption" className="text-negative">
+        <AppText variant="body" className="text-negative">
           建议暂不可用：{resource.error}
         </AppText>
         <Button variant="ghost" size="sm" onPress={resource.retry}>

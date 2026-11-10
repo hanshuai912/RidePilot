@@ -22,8 +22,8 @@ import {
   localDateToBirthDate,
   type BirthDateParts,
 } from "../model/birth-date";
-import { BirthDateColumn } from "./BirthDateColumn";
-import { datePickerStyles as styles } from "./birth-date-picker.styles";
+import { DateWheelColumn } from "../../../components/ui/DateWheelColumn";
+import { datePickerStyles as styles } from "../../../components/ui/date-picker.styles";
 
 export function BirthDateSheet({
   value,
@@ -138,7 +138,8 @@ export function BirthDateSheet({
                 {birthDateLabel(birthDateFromParts(selection))}
               </AppText>
               <View style={styles.columns}>
-                <BirthDateColumn
+                <DateWheelColumn
+                  testID="birth-date-column-年"
                   label="年"
                   options={options.years}
                   value={selection.year}
@@ -154,7 +155,8 @@ export function BirthDateSheet({
                     )
                   }
                 />
-                <BirthDateColumn
+                <DateWheelColumn
+                  testID="birth-date-column-月"
                   label="月"
                   options={options.months}
                   value={selection.month}
@@ -170,7 +172,8 @@ export function BirthDateSheet({
                     )
                   }
                 />
-                <BirthDateColumn
+                <DateWheelColumn
+                  testID="birth-date-column-日"
                   label="日"
                   options={options.days}
                   value={selection.day}

@@ -236,11 +236,11 @@ export function CoachScreen() {
   if (hasActivePlan && stage === "entry")
     return (
       <CoachPage
-        eyebrow="你的专属骑行伙伴"
+        eyebrow=""
         title="AI 教练"
-        contentClassName="gap-5"
+        contentClassName="gap-6"
         description=""
-        footer={<CoachChatEntry />}
+        headerAction={<CoachChatEntry />}
         actionsInScroll
         busy={busy}
         error={error}
@@ -275,25 +275,20 @@ export function CoachScreen() {
   if (stage === "entry")
     return (
       <CoachPage
-        eyebrow="从你的第一份计划开始"
+        eyebrow=""
         title="AI 教练"
+        headerAction={<CoachChatEntry />}
         contentClassName="gap-4"
         actionsInScroll
         error={error}
       >
         <View className="overflow-hidden rounded-[18px] border border-border bg-surface p-4">
           <AiMark />
-          <AppText variant="label" className="mt-4 text-muted">
-            需要先建立计划
-          </AppText>
-          <AppText
-            variant="display"
-            className="mt-2 text-[27px] leading-[32px]"
-          >
+          <AppText variant="card" className="mt-2">
             先建立你的训练基础
           </AppText>
           <AppText variant="body" className="mt-2 text-secondary">
-            告诉我你的目标、时间和骑行基础，我会先生成一份可检查、可调整的计划草稿。
+            确认目标、时间和骑行基础，生成可预览的训练计划草稿。
           </AppText>
           <Button
             size="lg"
@@ -312,14 +307,9 @@ export function CoachScreen() {
           >
             创建训练
           </Button>
-          <View className="mt-4">
-            <InfoStrip>
-              已有资料会自动复用；饮食与禁忌会先保存在本次引导，不会提交后端。
-            </InfoStrip>
-          </View>
         </View>
         <View className="mt-1 gap-2">
-          <AppText variant="card" className="mb-1">
+          <AppText variant="section" className="mb-1">
             这次会完成
           </AppText>
           <StepItem number={1}>确认骑行基础和 FTP</StepItem>
@@ -327,9 +317,6 @@ export function CoachScreen() {
           <StepItem number={3}>安排每周训练日与单次时长</StepItem>
           <StepItem number={4}>记录饮食限制，预览后确认应用</StepItem>
         </View>
-        <AppText variant="caption" muted className="mt-1">
-          预计用时 3–5 分钟，之后可以根据每天状态调整课程。
-        </AppText>
         <CoachSuggestionSummary resource={dashboard.suggestions} />
       </CoachPage>
     );

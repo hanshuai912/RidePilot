@@ -1,5 +1,5 @@
-import { act, fireEvent, screen, waitFor } from "@testing-library/react-native";
-import { renderRouter } from "expo-router/testing-library";
+import { act, fireEvent, waitFor } from "@testing-library/react-native";
+import { renderRouter, screen } from "expo-router/testing-library";
 import { router, Stack, usePathname } from "expo-router";
 import { Text } from "react-native";
 import type { Assessment, AssessmentReview } from "@ridepilot/contracts";
@@ -12,6 +12,7 @@ import { assessmentsApi } from "../services/assessments.api";
 import { AssessmentScheduleScreen } from "../screens/AssessmentScheduleScreen";
 import { AssessmentResultScreen } from "../screens/AssessmentResultScreen";
 import { AssessmentDetailScreen } from "../screens/AssessmentDetailScreen";
+import { selectPlanningDate } from "../../../../test/select-planning-date";
 import { GoalDetailScreen } from "../../goals/screens/GoalDetailScreen";
 
 jest.mock("../../auth/hooks/AuthProvider", () => ({ useAuth: jest.fn() }));
@@ -193,6 +194,61 @@ beforeEach(() => {
   });
 });
 
+test("goal test heading opens scheduling with the goal and preserves inputs on return", async () => {
+  await renderRouter(routes, { initialUrl: `/goals/${goalId}` });
+  await fireEvent.changeText(
+    await screen.findByLabelText("课程补充要求"),
+    "保留低强度训练",
+  );
+  await screen.findByText("尚未安排阶段测试");
+  await fireEvent.press(screen.getByRole("button", { name: "安排目标测试" }));
+  await screen.findByLabelText("测试方法 / 协议");
+  expect(screen.getByTestId("pathname").props.children).toBe(
+    "/assessments/new",
+  );
+  expect(coach.goal).toHaveBeenCalledWith("token", goalId);
+  expect(api.create).not.toHaveBeenCalled();
+  await act(async () => router.back());
+  await waitFor(() =>
+    expect(screen.getByLabelText("课程补充要求").props.value).toBe(
+      "保留低强度训练",
+    ),
+  );
+});
+
+test("whole test card opens its record without a separate view button", async () => {
+  api.list.mockResolvedValue([item]);
+  await renderRouter(routes, { initialUrl: `/goals/${goalId}` });
+  await fireEvent.press(
+    await screen.findByRole("button", { name: /查看测试：FTP 测试/ }),
+  );
+  await screen.findByText("阶段复评");
+  expect(screen.getByTestId("pathname").props.children).toBe(
+    `/assessments/${id}`,
+  );
+  expect(api.review).toHaveBeenCalledWith("token", id);
+  expect(api.create).not.toHaveBeenCalled();
+});
+
+test("pending goal tests show loading without a misleading empty state", async () => {
+  api.list.mockImplementationOnce(() => new Promise(() => {}));
+  await renderRouter(routes, { initialUrl: `/goals/${goalId}` });
+  await screen.findByLabelText("正在读取阶段测试");
+  expect(screen.queryByText("尚未安排阶段测试")).toBeNull();
+});
+
+test("failed goal test load can retry and missing FTP hides scheduling", async () => {
+  coach.ftp.mockResolvedValue(null);
+  api.list.mockRejectedValueOnce(new Error("读取测试失败"));
+  await renderRouter(routes, { initialUrl: `/goals/${goalId}` });
+  await screen.findByText("读取测试失败");
+  expect(screen.queryByText("尚未安排阶段测试")).toBeNull();
+  expect(screen.queryByRole("button", { name: "安排目标测试" })).toBeNull();
+  await fireEvent.press(screen.getByText("重试读取测试"));
+  await screen.findByText("尚未安排阶段测试");
+  expect(screen.queryByText("读取测试失败")).toBeNull();
+});
+
 test("schedule requires method, previews conflicts and preserves input/key after failed creation", async () => {
   api.create.mockRejectedValueOnce(new Error("响应中断，请重试"));
   await renderRouter(routes, {
@@ -324,11 +380,8 @@ test("review passes stable assessment/version into subsequent course draft witho
   api.get.mockResolvedValue(completed);
   await renderRouter(routes, { initialUrl: `/assessments/${id}` });
   await fireEvent.press(await screen.findByText("选择后续阶段 / 课程范围"));
-  await fireEvent.changeText(
-    await screen.findByLabelText("开始日期"),
-    "2099-01-01",
-  );
-  await fireEvent.changeText(screen.getByLabelText("结束日期"), "2099-01-14");
+  await selectPlanningDate("开始日期", "2099-01-01");
+  await selectPlanningDate("结束日期", "2099-01-14");
   await fireEvent.press(screen.getByText("生成课程草稿"));
   await screen.findByText("课程草稿预览");
   expect(goalsApi.generateCourses).toHaveBeenCalledWith(

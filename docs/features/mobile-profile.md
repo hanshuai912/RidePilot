@@ -59,7 +59,7 @@
 
 ### 出生日期选择组件
 
-- 实现按职责拆为入口 `BirthDateField.tsx`、抽屉 `BirthDateSheet.tsx`、滚轮列 `BirthDateColumn.tsx`、样式 `birth-date-picker.styles.ts`；日期转换、选项和有效性校验位于 `model/birth-date.ts`。
+- 实现按职责拆为入口 `BirthDateField.tsx`、抽屉 `BirthDateSheet.tsx`；滚轮列与黑金样式提取为 `components/ui/DateWheelColumn.tsx`、`components/ui/date-picker.styles.ts`，供训练规划日期复用。出生日期的转换、选项和有效性校验仍位于 `model/birth-date.ts`，范围和保存行为不变。
 - 复用 App 的石墨灰面板、香槟金中间选中带和确认按钮、主题 token 与安全区。行高不小于 44 pt，随字体缩放增长；小屏减少可见行数，首尾补足空间，让第一项和最后一项也能居中。
 - 年份列表自 1900 年起，范围有限，使用固定行高的 `ScrollView` 保持行位置稳定。快速滑动中只记录偏移，不逐帧更新日期或重新定位；惯性停止后再取中间值，仅在静止后补齐非整行偏移。拖动未产生惯性以及 Web 滚动使用停止后的延时兜底。任一列滚动期间暂时禁用确认，防止提交旧值。
 - 日期抽屉不再调用系统日期控件，不增加原生依赖；现有 `@react-native-community/datetimepicker` 依赖暂保留。已有开发包连接 Metro 后刷新即可加载本轮 JS 改动，无需重新打包。

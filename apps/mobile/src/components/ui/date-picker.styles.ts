@@ -1,10 +1,10 @@
 import { StyleSheet } from "react-native";
 
-import { colors } from "../../../theme/colors";
-import { layout } from "../../../theme/layout";
-import { radii } from "../../../theme/radius";
-import { spacing } from "../../../theme/spacing";
-import { typography } from "../../../theme/typography";
+import { colors } from "../../theme/colors";
+import { layout } from "../../theme/layout";
+import { radii } from "../../theme/radius";
+import { spacing } from "../../theme/spacing";
+import { typography } from "../../theme/typography";
 
 export const datePickerStyles = StyleSheet.create({
   field: { marginTop: spacing.sm },

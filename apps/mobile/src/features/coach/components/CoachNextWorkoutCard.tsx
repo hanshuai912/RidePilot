@@ -1,12 +1,13 @@
 import { useCallback } from "react";
 import { View } from "react-native";
-import { Bike } from "lucide-react-native";
+import { Bike, CircleCheck } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import type { CoachOverview, ProposalResponse } from "@ridepilot/contracts";
 import { AppText, Button, Card } from "../../../components/ui";
 import { colors } from "../../../theme/colors";
 import { useAuth } from "../../auth/hooks/AuthProvider";
 import { trainingApi } from "../../training/services/training.api";
+import { dateLabel } from "../../training/model/training";
 import {
   useCoachResource,
   type CoachResource,
@@ -51,10 +52,10 @@ export function CoachNextWorkoutContent({
         <AppText variant="caption" className="text-secondary">
           训练安排
         </AppText>
-        <AppText variant="section">
+        <AppText variant="card">
           {data.planVersion ? "暂无待执行训练" : "尚无正式训练计划"}
         </AppText>
-        <AppText variant="caption" className="text-secondary">
+        <AppText variant="body" className="text-secondary">
           {data.planVersion
             ? "可以重新规划，或到日历手动添加课程。"
             : "先建立计划，预览并确认后开始训练。"}
@@ -69,48 +70,69 @@ export function CoachNextWorkoutContent({
     );
   const minutes = workout?.timeTargetMinutes ?? next.minutes;
   return (
-    <Card testID="coach-next-workout" className="border-brand-subtle p-5">
-      <View className="flex-row items-center justify-between gap-3">
-        <AppText variant="caption" className="text-brand">
-          {today ? "今日训练" : "下一次训练"} · {next.date}
+    <Card testID="coach-next-workout" className="p-5">
+      <View className="flex-row flex-wrap items-center justify-between gap-2">
+        <View className="flex-row items-center gap-2">
+          <View className="h-8 w-8 items-center justify-center rounded-lg bg-brand-subtle">
+            <Bike color={colors.brand} size={18} strokeWidth={1.8} />
+          </View>
+          <AppText variant="caption" className="font-medium text-brand">
+            {today ? "今日训练" : "下一次训练"}
+          </AppText>
+        </View>
+        <AppText variant="caption" className="tabular-nums text-secondary">
+          {dateLabel(next.date)}
         </AppText>
-        <Bike color={colors.brand} size={22} strokeWidth={1.8} />
       </View>
-      <AppText variant="title" className="mt-3">
+      <AppText variant="card" className="mt-4">
         {next.title}
       </AppText>
-      <View className="mt-3 flex-row flex-wrap items-baseline gap-x-3 gap-y-1">
-        {minutes !== null ? (
-          <AppText variant="title" className="text-brand">
-            {minutes}
-            <AppText variant="caption" className="text-secondary">
-              {" "}
-              分钟
-            </AppText>
+      <View className="mt-4 flex-row flex-wrap gap-y-4 rounded-xl bg-surface-2 p-3">
+        <View className="min-w-[96px] flex-1 pr-3">
+          <AppText variant="label" className="text-secondary">
+            {minutes !== null
+              ? "计划时长"
+              : workout?.distanceTargetKm
+                ? "目标距离"
+                : "训练目标"}
           </AppText>
-        ) : workout?.distanceTargetKm ? (
-          <AppText variant="title" className="text-brand">
-            {workout.distanceTargetKm}
-            <AppText variant="caption" className="text-secondary">
-              {" "}
-              公里
+          <View className="mt-1 flex-row flex-wrap items-baseline gap-x-1">
+            <AppText
+              variant={
+                minutes !== null || workout?.distanceTargetKm
+                  ? "display"
+                  : "body"
+              }
+              className="tabular-nums text-brand"
+            >
+              {minutes ?? workout?.distanceTargetKm ?? "待补充"}
             </AppText>
+            {minutes !== null || workout?.distanceTargetKm ? (
+              <AppText variant="caption" className="text-secondary">
+                {minutes !== null ? "分钟" : "公里"}
+              </AppText>
+            ) : null}
+          </View>
+        </View>
+        <View className="min-w-[96px] flex-1 border-l border-border pl-3">
+          <AppText variant="label" className="text-secondary">
+            工作段强度
           </AppText>
+          <AppText variant="card" className="mt-2 tabular-nums">
+            {intensity ?? (detail.loading ? "读取中" : "待查看")}
+          </AppText>
+        </View>
+      </View>
+      <View className="mt-4 flex-row items-start gap-1.5">
+        {!changed ? (
+          <CircleCheck color={colors.positive} size={15} strokeWidth={1.8} />
         ) : null}
-        <AppText variant="caption" className="text-secondary">
-          公路骑行{intensity ? ` · ${intensity}` : ""}
+        <AppText variant="label" className="min-w-0 flex-1 text-secondary">
+          {changed
+            ? "计划版本待刷新"
+            : `正式计划 v${data.planVersion} · 已生效`}
         </AppText>
       </View>
-      {!today ? (
-        <AppText variant="caption" className="mt-2 text-secondary">
-          今日暂无待执行训练
-        </AppText>
-      ) : null}
-      {data.stageNotice ? (
-        <AppText variant="caption" className="mt-2 text-secondary">
-          阶段待核对；课程仍为已发布的正式安排。
-        </AppText>
-      ) : null}
       {changed ? (
         <AppText variant="caption" className="mt-2 text-warning">
           训练版本已变化，请查看最新训练日历。
@@ -127,6 +149,7 @@ export function CoachNextWorkoutContent({
         </View>
       ) : null}
       <Button
+        variant="secondary"
         size="lg"
         className="mt-4"
         onPress={() =>
@@ -140,9 +163,6 @@ export function CoachNextWorkoutContent({
       >
         {changed ? "查看训练日历" : "查看训练详情"}
       </Button>
-      <AppText variant="label" className="mt-2 text-center text-secondary">
-        正式计划 v{data.planVersion} · 已生效
-      </AppText>
     </Card>
   );
 }

@@ -57,3 +57,75 @@
 ## 目标生命周期与阶段复评接入
 
 目标详情增加目标管理与阶段复评入口，测试详情和周期复盘可就地继续。复评记录达成条件、真实训练/测试快照及用户决定，后续阶段/课程生成可绑定 stageReviewId，并在草稿预览展示该来源。新决定或证据变化使旧草稿无法继续确认。目标延期、暂停、完成及建立下一目标不会自动改写课程；延长阶段先确认新阶段安排，再规划课程。完整 API、迁移与验证说明见 [目标生命周期与阶段复评](goal-lifecycle-stage-review.md)。
+
+## 2026-11-10：目标与阶段页面优化
+
+按 `RidePilot_UI/AGENTS.md` 校准移动端黑金暗色排版：分区标题 20、卡片标题 17、正文 16、辅助标签 12–13，目标 FTP/功体比数字 32 并使用等宽数字；区块间距 24、卡片内边距 16–20。未修改全局 Token、API、契约或数据库。
+
+- 目标列表按当前活跃主目标、其他未关闭目标、历史目标分组，整卡进入详情。区分用户确认完成与主动结束，保留建立目标与首次建档入口，移除无数据来源的兜底口号。初次加载失败显示错误和重试，不再同时显示无限加载图标。
+- 详情将目标状态、管理入口、实际目标指标、日期、当前 FTP 与达成条件集中在目标摘要中；缺失条件明确标为待补充，不添加虚构进度。
+- 阶段时间线默认展开当前或最近未来阶段，其他阶段按需展开。阶段测试和复评操作留在展开内容中；“日期已结束”不代表能力达成。阶段草稿预览完整展示，不按日期伪装成正式阶段。失效阶段和已结束阶段不能被选择用于课程生成。
+- 阶段测试、后续课程规划分区展示。日期范围与所选阶段使用同一生成表单；首次切换所选阶段时，就地展开阶段选择器，展示名称、日期与当前/后续/已结束状态。选中后收起，可在原位置重新选择，无需返回上方时间线。阶段选择统一在此表单完成，上方时间线移除“选择此阶段生成课程”按钮，只保留浏览、测试与复评。只切换或选择不会触发生成，日期和补充要求保留。
+- 没有有效阶段时禁用阶段课程生成；保留按日期生成和重新规划阶段。后续入口去重后，阶段规划统一从「阶段安排」标题旁打开，课程只保留单个生成入口。原草稿预览、校验、用户确认、幂等与冲突检查继续执行。
+- 提取 `GoalSummaryCard`、`GoalListCard`、`GoalCoursePlanner`、`GoalStagePicker` 与日期/状态展示函数，详情容器只组合流程；阶段测试组件仅增加分组间距。
+
+相关自动化覆盖目标分组/导航、阶段展开与表单选择相互独立、表单就地选阶段、日期与补充要求保留、失效/结束阶段禁用、按阶段提交 ID、失败重试以及草稿预览和确认。
+
+本次最终执行：
+
+- `pnpm --filter @ridepilot/mobile typecheck`、`pnpm --filter @ridepilot/mobile lint`：通过。
+- `pnpm --filter @ridepilot/mobile test -- --runTestsByPath src/features/goals/__tests__/goal-planning.test.tsx src/features/goals/__tests__/goal-lifecycle.test.tsx src/features/assessments/__tests__/assessment-routes.test.tsx`：3 组、29 项通过。
+- `pnpm --filter @ridepilot/mobile exec expo export --platform web --output-dir /tmp/ridepilot-goals-layout-web --max-workers 2`：导出成功，3837 个模块。
+- `node /tmp/ridepilot-goals-layout-browser.cjs`：使用合成 API 数据验证 320/390/430 宽度、目标分组与导航、实际字号、阶段展开、表单内选择及切换阶段、输入保留、失效阶段禁用、缺少 FTP、关闭目标历史、空列表与错误重试；没有生成/应用请求和页面脚本异常。截图位于 `/tmp/ridepilot-goals-*.png`。
+- 对本次修改执行 Prettier 格式检查及 `git diff --check`。
+
+未执行 iOS/Android 真机、系统大字体或真实模型端到端验证。目标管理、复评与确认页面沿用原流程，本次重点优化列表和目标与阶段详情。
+
+### 阶段安排说明按需查看
+
+目标详情的「阶段安排」标题后增加圆形叹号图标，触控区为 44×44，点击后使用既有暗色 `Dialog` 展示阶段规划摘要，点击「知道了」、遮罩或系统返回可关闭。长文案可在弹窗内滚动。
+
+详情时间线默认隐藏这段摘要，阶段卡片、测试、复评和失效警告继续展示。无阶段安排或摘要为空时不显示提示入口；阶段草稿预览仍完整展示摘要，确认流程不变。查看说明不修改输入、不调用生成 API。
+
+实现为独立 `StagePlanHeading`，`StageTimeline` 的 `showSummary` 默认为 true，仅详情页设为 false。补充交互测试覆盖默认隐藏、打开/关闭/再次打开、输入保留、无阶段入口隐藏及预览摘要保留。
+
+本次执行 `pnpm --filter @ridepilot/mobile typecheck`、`pnpm --filter @ridepilot/mobile lint` 均通过；`pnpm --filter @ridepilot/mobile test -- --runTestsByPath src/features/goals/__tests__/goal-planning.test.tsx src/features/goals/__tests__/goal-lifecycle.test.tsx`：2 组、23 项通过。修改文件的 Prettier 检查和 `git diff --check` 通过。本次未重新导出 Web 或执行真机验证；无 API、契约或数据库变更。
+
+### 阶段测试操作与后续训练规划
+
+- 阶段卡片将「安排测试」放在测试建议标题右侧，底部保留「复评并选择下一步」，避免连续堆叠两个按钮。目标详情「阶段测试」标题右侧为轻量「+ 安排测试」入口；已有测试整卡点击进入详情，右侧箭头提示导航，取消卡片内独立的「查看测试」按钮。测试列表同时供训练日历复用，原测试 ID、目标/阶段关联、默认日期和禁用条件保持。
+- 「规划后续训练」采用分段切换、日期/阶段、补充要求、生成课程草稿的层级。后续入口去重后移除卡片下方「阶段规划与重新生成」折叠区，阶段规划移到「阶段安排」标题旁；上方时间线不提供课程生成选择。
+- 开始和结束日期均为点击打开的黑金底部年月日滚轮，确认才更新表单；取消、遮罩和系统返回放弃临时选择，滚轮尚在滚动或生成中不能确认。日期以 `YYYY-MM-DD` 传给既有 API，不引入时刻或 UTC 日期偏移。
+- 开始日期不能早于用户时区今天，结束日期不能早于开始日期；跨月自动限制月底与闰年日期。开始日期越过原结束日期时按原范围天数顺延结束日期，避免倒置。结束选择最多覆盖从开始起 365 天；课程范围超过 84 天时显示就地提示并禁用课程生成，仍允许阶段规划。
+- 显示所选范围的总天数；按用户要求不提供 7／14／28 天快捷范围。切换所选阶段、返回日期范围或进入设置后返回仍保留日期与补充要求；不会因选择日期自动调用生成或应用接口。
+- 提取 `GoalPlanningDates` 和公共 `DatePickerField` / `DatePickerSheet` / 日期模型；复用个人档案抽出的 `DateWheelColumn` 与日期样式，保留出生日期限制和原交互。
+
+新增/调整测试覆盖整卡查看、标题安排测试、读取中与失败重试、日期确认与取消、闰年、范围顺延、365 天上限、84 天课程拦截、无快捷范围、阶段测试参数及禁用状态；回归课程草稿预览/校验/确认、设置返回保留、训练日历及出生日期滚轮。
+
+本次最终验证：
+
+- `pnpm --filter @ridepilot/mobile typecheck`、`pnpm --filter @ridepilot/mobile lint`：通过。
+- `pnpm --filter @ridepilot/mobile test -- --runTestsByPath src/features/assessments/__tests__/assessment-routes.test.tsx src/features/goals/__tests__/goal-planning.test.tsx src/features/goals/__tests__/goal-planning-dates.test.tsx src/features/goals/__tests__/stage-timeline-actions.test.tsx src/features/goals/__tests__/goal-lifecycle.test.tsx src/features/profile/__tests__/birth-date-field.test.tsx src/features/profile/__tests__/birth-date.test.ts src/features/training/__tests__/training-routes.test.tsx`：8 组、106 项全部通过。
+- `pnpm --filter @ridepilot/mobile exec expo export --platform web --output-dir /tmp/ridepilot-tests-layout-web --max-workers 2`：成功，3842 个模块。
+- `node /tmp/ridepilot-planning-ui-browser.cjs`：合成 API 数据下通过 320/390/430 宽度、44pt 测试安排入口、无快捷范围、无日期文本输入、日期确认/取消、跨年滚轮对齐、切换阶段保留日期与备注、缺少 FTP 状态检查，无生成/应用请求或页面脚本异常。截图 `/tmp/ridepilot-tests-*.png`、`/tmp/ridepilot-planning-*.png`。
+- 修改文件 Prettier 检查与 `git diff --check` 通过。
+
+无 API、契约、依赖或数据库变更；未执行 iOS/Android 真机、系统大字体或真实模型端到端验证。
+
+### 阶段规划入口去重
+
+按用户确认移除下方「阶段规划与重新生成」折叠区及独立的「重新生成课程草稿」按钮，课程规划统一使用「生成课程草稿」，继续支持按日期或所选阶段生成、预览、校验和确认。
+
+「阶段安排」标题右侧增加「重新规划阶段」，无阶段时显示「规划阶段」。点击只展开就地日期表单，不提交请求；可以收起并保留日期。说明叹号仍只展示已有规划摘要。缺少 FTP 或目标非活跃时隐藏阶段规划入口。
+
+新增 `GoalStagePlanner` 负责阶段表单，复用日期滚轮。阶段和课程分别维护日期，调整阶段不会改变课程日期、阶段选择或备注。阶段默认从用户时区今天到已有阶段结束日或目标日期，最长 365 天。用户点击「生成阶段草稿」后才调用现有接口；已有安排时带 `forceRegenerate`，首次规划不强制重新生成。阶段替换仍须草稿预览和确认，现有课程不会随阶段生成自动修改。失败保留日期，不确定响应重试继续使用同一请求和幂等键。
+
+本轮无 API、契约、依赖或数据库变更。
+
+本轮实际验证：
+
+- `pnpm --filter @ridepilot/mobile typecheck`、`pnpm --filter @ridepilot/mobile lint`：通过。
+- `pnpm --filter @ridepilot/mobile test -- --runTestsByPath src/features/goals/__tests__/goal-planning.test.tsx src/features/goals/__tests__/goal-planning-dates.test.tsx src/features/goals/__tests__/goal-lifecycle.test.tsx src/features/assessments/__tests__/assessment-routes.test.tsx`：4 组、46 项通过。覆盖单个课程入口、阶段首次规划/重新规划、独立日期保留、不确定失败幂等重试、缺少 FTP/暂停目标、预览确认与原课程流程。
+- `pnpm --filter @ridepilot/mobile exec expo export --platform web --output-dir /tmp/ridepilot-stage-entry-web --max-workers 2`：成功，3843 个模块。
+- `node /tmp/ridepilot-stage-entry-browser.cjs`：合成 API 数据下通过 320/390/430 宽度的标题入口、44pt 触控区、展开布局、课程入口去重、独立日期、收起保留、说明弹窗、无 FTP/已关闭目标及首次阶段规划入口验证，无写请求或脚本异常。截图 `/tmp/ridepilot-stage-heading-*.png`、`/tmp/ridepilot-stage-form-*.png`、`/tmp/ridepilot-course-entry-*.png`。
+- 修改文件 Prettier 检查与 `git diff --check` 通过；未执行真机或真实模型端到端验证。

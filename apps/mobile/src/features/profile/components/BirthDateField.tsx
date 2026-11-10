@@ -6,7 +6,7 @@ import { AppText, Button } from "../../../components/ui";
 import { colors } from "../../../theme/colors";
 import { birthDateLabel, type BirthDateFieldProps } from "../model/birth-date";
 import { BirthDateSheet } from "./BirthDateSheet";
-import { datePickerStyles as styles } from "./birth-date-picker.styles";
+import { datePickerStyles as styles } from "../../../components/ui/date-picker.styles";
 
 export function BirthDateField({
   value,

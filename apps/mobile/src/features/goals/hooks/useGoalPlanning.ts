@@ -34,6 +34,8 @@ export function useGoalPlanning(goalId: string, assessmentId?: string) {
   const [stageId, setStageId] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [stageStartDate, setStageStartDate] = useState("");
+  const [stageEndDate, setStageEndDate] = useState("");
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
   const pending = useRef(false);
@@ -74,6 +76,18 @@ export function useGoalPlanning(goalId: string, assessmentId?: string) {
           if (!active) return;
           const today = localDateInTimezone(new Date(), profile.timezone);
           setData({ goal, stages, ftp, today, assessment });
+          setStageStartDate((current) => current || today);
+          setStageEndDate((current) => {
+            const target = stages?.endDate ?? goal.targetDate;
+            return (
+              current ||
+              (target < today
+                ? today
+                : target > addDays(today, 364)
+                  ? addDays(today, 364)
+                  : target)
+            );
+          });
           setStartDate((current) => current || today);
           setEndDate(
             (current) =>
@@ -110,17 +124,19 @@ export function useGoalPlanning(goalId: string, assessmentId?: string) {
     setError(null);
     try {
       if (data.goal.status !== "ACTIVE") throw new Error("请选择活跃目标");
+      const rangeStart = kind === "STAGES" ? stageStartDate : startDate;
+      const rangeEnd = kind === "STAGES" ? stageEndDate : endDate;
       if (kind === "STAGES" || scope === "DATES") {
         const days =
-          (Date.parse(endDate) - Date.parse(startDate)) / 86400000 + 1;
+          (Date.parse(rangeEnd) - Date.parse(rangeStart)) / 86400000 + 1;
         const limit = kind === "STAGES" ? 365 : 84;
         if (
-          !/^\d{4}-\d{2}-\d{2}$/.test(startDate) ||
-          !/^\d{4}-\d{2}-\d{2}$/.test(endDate) ||
+          !/^\d{4}-\d{2}-\d{2}$/.test(rangeStart) ||
+          !/^\d{4}-\d{2}-\d{2}$/.test(rangeEnd) ||
           !Number.isInteger(days) ||
           days < 1 ||
           days > limit ||
-          startDate < data.today
+          rangeStart < data.today
         )
           throw new Error(`请选择今天或未来的连续 1–${limit} 天`);
       } else if (!stageId || data.stages?.stale)
@@ -130,8 +146,8 @@ export function useGoalPlanning(goalId: string, assessmentId?: string) {
         kind,
         scope,
         stageId,
-        startDate,
-        endDate,
+        startDate: rangeStart,
+        endDate: rangeEnd,
         notes,
         assessmentVersion: data.assessment?.version,
       });
@@ -139,7 +155,7 @@ export function useGoalPlanning(goalId: string, assessmentId?: string) {
         const status = await coachApi.planStatus(token);
         const input: StagePlanGeneration | RangeGeneration =
           kind === "STAGES"
-            ? { goalId, startDate, endDate }
+            ? { goalId, startDate: rangeStart, endDate: rangeEnd }
             : scope === "STAGE"
               ? {
                   scope,
@@ -237,6 +253,10 @@ export function useGoalPlanning(goalId: string, assessmentId?: string) {
     setStartDate,
     endDate,
     setEndDate,
+    stageStartDate,
+    setStageStartDate,
+    stageEndDate,
+    setStageEndDate,
     notes,
     setNotes,
     generate,

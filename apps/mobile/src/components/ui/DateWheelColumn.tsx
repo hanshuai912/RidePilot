@@ -8,10 +8,11 @@ import {
   type NativeSyntheticEvent,
 } from "react-native";
 
-import { AppText } from "../../../components/ui";
-import { datePickerStyles as styles } from "./birth-date-picker.styles";
+import { AppText } from "./AppText";
+import { datePickerStyles as styles } from "./date-picker.styles";
 
-export function BirthDateColumn({
+export function DateWheelColumn({
+  testID,
   label,
   options,
   value,
@@ -21,6 +22,7 @@ export function BirthDateColumn({
   onChange,
   onBusyChange,
 }: {
+  testID?: string;
   label: string;
   options: number[];
   value: number;
@@ -32,6 +34,7 @@ export function BirthDateColumn({
 }) {
   const list = useRef<ScrollView>(null);
   const lastReported = useRef(value);
+  const firstOption = useRef(options[0]);
   const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dragging = useRef(false);
   const momentum = useRef(false);
@@ -42,12 +45,13 @@ export function BirthDateColumn({
   const padding = rowHeight * Math.floor(visibleRows / 2);
 
   useEffect(() => {
-    if (lastReported.current !== value) {
+    if (lastReported.current !== value || firstOption.current !== options[0]) {
       if (settleTimer.current) clearTimeout(settleTimer.current);
       lastReported.current = value;
+      firstOption.current = options[0];
       list.current?.scrollTo({ y: selectedIndex * rowHeight, animated: false });
     }
-  }, [value, selectedIndex, rowHeight]);
+  }, [value, selectedIndex, rowHeight, options]);
 
   useEffect(
     () => () => {
@@ -103,7 +107,7 @@ export function BirthDateColumn({
         />
         <ScrollView
           ref={list}
-          testID={`birth-date-column-${label}`}
+          testID={testID ?? `date-column-${label}`}
           accessibilityLabel={`滚动选择${label}`}
           contentOffset={{ x: 0, y: initialIndex * rowHeight }}
           contentContainerStyle={{ paddingVertical: padding }}

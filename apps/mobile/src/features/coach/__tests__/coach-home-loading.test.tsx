@@ -111,6 +111,11 @@ it("uses one loader across profile, overview, suggestions and workout detail, th
   expect(ui.getByText("今日耐力训练")).toBeTruthy();
   expect(ui.getByText("强度详情暂不可用")).toBeTruthy();
   expect(ui.getByText("重新规划")).toBeTruthy();
+  expect(ui.getAllByRole("button", { name: "问 AI 教练" })).toHaveLength(1);
+  expect(ui.queryByText("问 AI 教练")).toBeNull();
+  expect(ui.queryByText("训练日历")).toBeNull();
+  await fireEvent.press(ui.getByRole("button", { name: "问 AI 教练" }));
+  expect(mockPush).toHaveBeenCalledWith("/(tabs)/coach/chat");
   expect(api.overview).toHaveBeenCalledTimes(1);
   expect(api.suggestions).toHaveBeenCalledTimes(1);
 });
@@ -193,6 +198,7 @@ it("loads only suggestions for users without a plan, then shows onboarding", asy
   await settle(() => suggestions.resolve(emptySuggestions));
   expect(ui.queryAllByLabelText(/读取/)).toHaveLength(0);
   expect(ui.getByText("开始建立计划")).toBeTruthy();
+  expect(ui.getAllByRole("button", { name: "问 AI 教练" })).toHaveLength(1);
   expect(api.overview).not.toHaveBeenCalled();
   expect(workoutApi.getWorkout).not.toHaveBeenCalled();
 });

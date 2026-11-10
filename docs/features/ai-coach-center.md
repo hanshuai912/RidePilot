@@ -148,3 +148,26 @@ Provider 检测到 `finish_reason=length` 返回可重试的 `AI_PROVIDER_OUTPUT
 - 已对本次代码和文档执行 Prettier 格式化，`git diff --check` 通过。
 
 本次未执行真机验证或重新导出 Web。
+
+## 2026-11-10：首页排版、训练卡片与提示文案优化
+
+本节取代前述首页底部固定提问栏的布局说明。按 `RidePilot_UI/AGENTS.md` 的 2.2、2.3 节校准字号与密度，继续使用既有黑金暗色 Token。
+
+- 页面标题 32，分区标题 20，课程、阶段和快捷卡片标题 17，目标说明、建议摘要与操作文字 16，日期、指标标签和状态等辅助信息 12–13；训练关键数字 32，并使用等宽数字。复用 `AppText` 变体，未修改全局字号。
+- 首页顺序为当前阶段、今日/下一次训练、单条待处理建议、四格快捷调整及折叠的更多操作。区块间距 24，卡片圆角 18、内边距 16–20；阶段摘要改为轻量分隔区域，减少整页卡片的同等视觉权重。建议摘要和目标文本自然换行。
+- 训练卡片将日期、课程名称、计划时长/目标距离、工作段强度、正式计划状态和查看操作分组。无时长但有距离时只显示距离，不折算时长；无强度信息不生成假数值。查看课程使用次级按钮。详情失败仍可重试，版本变化时不再显示“已生效”图标及状态，而是提示刷新并进入日历。
+- 「问 AI 教练」迁至页面右上角的消息图标，触控区域 44×44，保留无障碍名称与提示；有计划和首次建计划首页均显示唯一入口。点击仅跳转现有对话页。右上角没有训练日历按钮，底部不再显示提问栏。
+- 删除顶部口号、快捷区重复的预览确认说明、训练卡片静态“公路骑行”、未来课程下方重复的今日无训练提示，以及与阶段区域重复的核对提示。状态依据入口用状态文字与箭头表达。首次引导去掉重复的未建计划标签、无依据的预计用时和底层存储说明。草稿未应用、资料缺失、阶段失效、版本变化和读取失败等影响判断的提示仍保留。
+
+没有 API、契约、数据库或迁移变更；原有加载、轮询、预览、校验、确认应用及权限校验流程沿用。
+
+验证覆盖：`coach-center.test.tsx` 的训练指标、距离目标、缺失强度、版本冲突及导航；`coach-home-loading.test.tsx` 的唯一图标入口、跳转、无计划入口和原有加载/错误恢复；首次建计划流程回归。
+
+本次实际执行：
+
+- `pnpm --filter @ridepilot/mobile typecheck`、`pnpm --filter @ridepilot/mobile lint`：通过。
+- `pnpm --filter @ridepilot/mobile test -- --runTestsByPath src/features/coach/__tests__/coach-center.test.tsx src/features/coach/__tests__/coach-home-loading.test.tsx src/features/coach/__tests__/initial-plan-flow.test.tsx`：3 组、48 项通过。
+- `pnpm --filter @ridepilot/mobile exec expo export --platform web --output-dir /tmp/ridepilot-coach-layout-web --max-workers 2`：导出成功，3832 个模块。
+- `node /tmp/ridepilot-coach-layout-browser.cjs`：用合成 API 数据检查 320/390/430 宽度、实际计算字号、首页区块顺序、唯一右上角聊天图标及 44×44 触控区、快捷任务/聊天/状态路由、空建议隐藏、概览失败和无计划引导；未触发生成/应用请求，无页面脚本错误。截图保存在 `/tmp/ridepilot-coach-layout-*.png`。
+
+本任务不涉及后端变更；未执行 iOS/Android 真机、系统大字体或真实模型端到端验证。
