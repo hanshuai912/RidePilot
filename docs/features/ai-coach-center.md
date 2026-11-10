@@ -92,3 +92,59 @@ Provider 检测到 `finish_reason=length` 返回可重试的 `AI_PROVIDER_OUTPUT
 ## 周期复盘入口（2026-11-05）
 
 教练概览增加「训练执行与周期复盘」，统一查看执行记录、补录反馈、选择保留计划/生成后续训练/恢复/调整/安排测试，生成后经过预览、校验、确认应用并可进入下一周期训练。周期依据和应用版本可在复盘历史追溯；所有生成均由点击触发。详细统计口径、接口和边界见 [训练执行与周期复盘](training-cycle-review.md)。
+
+## 2026-11-10：首页训练决策布局
+
+本次仅重构移动端信息架构，继续使用既有鉴权、数据请求、草稿与正式计划流程；无 API、数据库或依赖变更。页面顺序调整为：
+
+1. **当前阶段**：阶段名称、核心目标、简短身体状态及必要提醒。状态根据服务端 `status.code` 映射；缺少依据显示“恢复状态待评估”。阶段不存在时显示“阶段待规划”，不补造名称。点击状态进入新增的 `coach/status` 二级页查看完整解释、近七天证据、阶段起止日期。
+2. **今日 / 下一次训练**：沿用概览返回的下一节未记录完成的正式课程 ID，与账号当地日期比较决定标题。使用已有课程详情接口补充时长与工作区段强度，不把测试混进训练卡。只合并相同课程和计划版本的数据；版本不一致时提示前往最新日历。详情失败保留概览摘要、详情重试及原有课程入口。暂无课程提供日历引导；无正式计划继续走首次建计划流程。
+3. **AI 建议**：首页最多展示一条，复用 `pending` 数组。没有优先级字段，采用需调整的 `BLOCKED` 草稿优先，其次可预览草稿，最后生成任务；同类按创建时间倒序。原因来自既有摘要/失效说明，明确草稿未应用。生成中只读轮询保持不变。无建议隐藏整个模块，读取失败提供轻量重试，完整待处理与历史留在建议页。
+4. **AI 快捷调整**：统一 2×2 紧凑宫格；重新规划 → 原 `REPLAN` 范围表单；调整本周 → 原本周生成及草稿预览；训练反馈 → 训练日历选择课程后进入既有反馈；比赛安排 → 原 `RACE` 备赛表单。缺资料时保留补全入口，操作中禁用重复点击。
+5. **更多操作**：默认折叠，收纳赛后恢复、规划下周、训练执行与周期复盘、目标阶段/按范围生成课程、赛事管理/新增比赛、状态依据/阶段测试、计划版本、全部建议与历史。所有原能力均保留，测试安排/结果与版本列表迁至 `coach/status`。
+6. **问 AI 教练**：唯一入口固定在页面内容下方、原 Tab Bar 上方，使用普通可点击入口而非真正的文本输入。点击才进入既有聊天页，由聊天页处理输入与键盘；首页不会弹出键盘或触发模型请求。页脚占用正常布局空间，不覆盖滚动内容和导航安全区。
+
+阶段信息需要核对时，课程卡明确提示“阶段待核对；课程仍为已发布的正式安排”，不将阶段失效等同于课程作废。所有调整继续经过草稿、预览、校验、确认和原有版本检查；首页读取不生成/应用计划。
+
+### 组件与路由
+
+- `CoachScreen`：装配首页、任务和原有首次计划流程。
+- `CoachOverviewPanel`：沿用概览读取与错误重试，组合 `CoachContextCard`、`CoachNextWorkoutCard`。
+- `CoachSuggestionSpotlight`、`CoachSuggestionsPanel`：首页精选与完整建议列表共用已有资源轮询和导航。
+- `CoachHome`、`CoachMoreActions`、`CoachChatEntry`：核心任务、低频操作与唯一聊天入口。
+- `CoachStatusScreen` / `app/(tabs)/coach/status.tsx`：完整依据、测试安排/结果、近期版本。
+- `model/coach-home.ts`：建议排序、状态摘要和工作区段强度映射。混合 W 与 %FTP 不合并成一个数值。
+
+### 本次验证
+
+- `pnpm --filter @ridepilot/mobile test`：36 组、325 项全部通过。包括原有建计划、预览/确认、冲突处理、建议轮询与放弃流程，以及新增首页排序、单条建议、无建议隐藏、快捷操作、更多入口、状态二级页、课程详情降级与版本变化测试。
+- `pnpm typecheck`、`pnpm lint`、`pnpm build`：全部通过。
+- `pnpm test`：API 常规测试 29 组、164 项通过；15 组、125 项因数据库/外部服务条件未启用而跳过，本任务未声称完成这些集成测试。
+- `pnpm exec prettier --check apps/mobile/src/features/coach 'apps/mobile/app/(tabs)/coach/status.tsx' docs/features/ai-coach-center.md`、`git diff --check`：通过。
+- `pnpm --filter @ridepilot/mobile exec expo export --platform web --output-dir /tmp/ridepilot-coach-web --max-workers 2`：实际移动端 Web 导出成功（3828 模块）。开发服务曾遇到本机 `EMFILE` 文件监听上限，改用不依赖监听的导出进行验证。
+- `node /tmp/ridepilot-coach-browser.cjs`：通过导出后的真实 React Native Web 页面验证；浏览器拦截 API 返回合成数据，不连接真实账号。检查 320/390/430 宽度、单条建议、唯一提问入口在 Tab Bar 上方、状态依据路由、无建议隐藏、概览失败仍可操作、无正式计划引导、浏览首页不生成/应用，以及无页面脚本异常。临时验证脚本和截图位于 `/tmp`。
+- `node /tmp/ridepilot-coach-design-check.cjs`：独立设计稿 320/390/430 宽度、四格操作、单条建议、更多展开和聊天/Tab 间隔检查通过。
+
+已同步 `RidePilot_UI/design/screens/A01-ai-coach.html`、交接 Markdown、设计决策及五栏联动原型。设计预览与浏览器截图不等同于 iOS/Android 真机安全区、动态字体和键盘验证；本任务未执行真机或真实模型端到端联调。
+
+### 快捷卡片底部留白修正
+
+快捷卡片最小高度由 104 调整为 76，保留上下 12 内边距和标题/说明间距 8，消除短文案下方的额外留白。同一行卡片仍等高；小屏或大字体换行时按内容增高，不截断说明。业务操作与禁用状态沿用原逻辑。
+
+本次执行 `pnpm --filter @ridepilot/mobile test -- --runTestsByPath src/features/coach/__tests__/coach-center.test.tsx`，19 项通过；移动端 `typecheck`、`lint` 和两个仓库的 `git diff --check` 通过。设计预览同步最小高度；未重复执行真机或完整 Web 导出验证。
+
+### 首页统一加载状态
+
+`CoachScreen` 通过 `useCoachDashboard` 协调资料、概览、下一节课程详情和待处理建议的初次读取。首次进入、返回首页重新读取以及失败后的手动重试，只显示同一个页面级 Loading；所有请求完成或失败后再展示模块，避免多个卡片各自显示 Loading。无正式计划时只读取建议，不请求训练概览或详情。
+
+首页使用 `CoachOverviewContent`、`CoachNextWorkoutContent` 和 `CoachSuggestionSummary` 展示已读取的数据，避免子组件重复请求。独立面板及二级页面继续沿用自己的加载状态。概览和建议失败保留各自重试；课程详情失败保留正式课程摘要与重试入口。建议生成任务的后台轮询不会隐藏已显示内容或触发整页 Loading。API、草稿预览、确认应用和路由逻辑保持不变。
+
+新增 `coach-home-loading.test.tsx` 覆盖串联请求期间的单一 Loading、部分失败与独立重试、概览错误恢复、后台轮询和无计划引导。
+
+本次实际执行：
+
+- `pnpm --filter @ridepilot/mobile test -- --runTestsByPath src/features/coach/__tests__/coach-home-loading.test.tsx src/features/coach/__tests__/initial-plan-flow.test.tsx src/features/coach/__tests__/coach-center.test.tsx`：3 组、47 项通过（新增 5 项）。
+- `pnpm --filter @ridepilot/mobile typecheck`、`pnpm --filter @ridepilot/mobile lint`：通过。
+- 已对本次代码和文档执行 Prettier 格式化，`git diff --check` 通过。
+
+本次未执行真机验证或重新导出 Web。

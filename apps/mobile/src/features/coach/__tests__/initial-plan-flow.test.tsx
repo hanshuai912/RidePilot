@@ -20,10 +20,19 @@ let mockPathname = "/coach";
 // The collaboration center has separate interaction tests; keep onboarding
 // tests focused on its existing generation/application flow.
 jest.mock("../components/CoachOverviewPanel", () => ({
-  CoachOverviewPanel: () => null,
+  CoachOverviewContent: ({ children }: { children?: React.ReactNode }) =>
+    children,
 }));
 jest.mock("../components/CoachSuggestionsPanel", () => ({
-  CoachSuggestionsPanel: () => null,
+  CoachSuggestionSummary: () => null,
+}));
+jest.mock("../hooks/useCoachDashboard", () => ({
+  useCoachDashboard: () => ({
+    loading: false,
+    overview: {},
+    detail: {},
+    suggestions: {},
+  }),
 }));
 const mockNavigate = jest.fn((href: unknown) => {
   const rawPath =
@@ -626,7 +635,7 @@ test("existing plan screen opens the missing goal form instead of trapping the u
     </CoachFlowProvider>,
   );
   await waitFor(() =>
-    expect(view.getByText("训练目标、每周可训练时间")).toBeTruthy(),
+    expect(view.getByText("待补充：训练目标、每周可训练时间")).toBeTruthy(),
   );
   await fireEvent.press(view.getByText("补全训练资料"));
   expect(view.getByRole("header", { name: "训练目标" })).toBeTruthy();

@@ -24,6 +24,8 @@ export function CoachPage({
   onBack,
   compactHeader = false,
   actionsInScroll = false,
+  contentClassName = "mt-6 gap-3",
+  footer,
 }: {
   eyebrow: string;
   title: string;
@@ -41,6 +43,8 @@ export function CoachPage({
   onBack?: () => void;
   compactHeader?: boolean;
   actionsInScroll?: boolean;
+  contentClassName?: string;
+  footer?: ReactNode;
 }) {
   const progressWidth = progressStep
     ? (`${Math.min(progressStep / progressTotal, 1) * 100}%` as `${number}%`)
@@ -122,11 +126,16 @@ export function CoachPage({
             {description}
           </AppText>
         ) : null}
-        <View className="mt-6 gap-3">{children}</View>
-        {actionsInScroll ? <View className="mt-5 pb-8">{actions}</View> : null}
+        <View className={contentClassName}>{children}</View>
+        {actionsInScroll && actions ? (
+          <View className="mt-5 pb-8">{actions}</View>
+        ) : null}
       </ScrollView>
       {!actionsInScroll && actions ? (
         <BottomActionBar>{actions}</BottomActionBar>
+      ) : null}
+      {footer ? (
+        <View className="bg-background px-5 pb-3 pt-2">{footer}</View>
       ) : null}
     </Screen>
   );

@@ -6,6 +6,11 @@ import type {
   NutritionProposalResponse,
 } from "@ridepilot/contracts";
 import { CoachOverviewPanel } from "../components/CoachOverviewPanel";
+import { CoachStatusScreen } from "../screens/CoachStatusScreen";
+import { CoachMoreActions } from "../components/CoachMoreActions";
+import { CoachChatEntry } from "../components/CoachChatEntry";
+import { trainingApi } from "../../training/services/training.api";
+import { CoachHome } from "../components/CoachHome";
 import { CoachSuggestionsPanel } from "../components/CoachSuggestionsPanel";
 import { CoachChatScreen } from "../screens/CoachChatScreen";
 import { CoachSuggestionScreen } from "../screens/CoachSuggestionScreen";
@@ -43,6 +48,9 @@ jest.mock("../services/coach.api", () => ({
     apply: jest.fn(),
     generate: jest.fn(),
   },
+}));
+jest.mock("../../training/services/training.api", () => ({
+  trainingApi: { getWorkout: jest.fn() },
 }));
 jest.mock("../../nutrition/services/nutrition.api", () => ({
   nutritionApi: {
@@ -153,6 +161,19 @@ const nutrition: NutritionProposalResponse = {
 beforeEach(() => {
   jest.resetAllMocks();
   mockParams = { id, kind: "TRAINING" };
+  jest.mocked(trainingApi.getWorkout).mockResolvedValue({
+    id,
+    planVersion: 2,
+    sportType: "cycling",
+    source: "ai",
+    title: "耐力训练",
+    purpose: "基础耐力",
+    scheduledDate: "2030-01-10",
+    dayOrder: 1,
+    timeTargetMinutes: 60,
+    distanceTargetKm: null,
+    segments: proposal.workouts[0].segments,
+  });
   api.overview.mockResolvedValue(overview);
   api.suggestions.mockResolvedValue({ pending: [suggestion], recent: [] });
   api.dismiss.mockResolvedValue({ dismissed: true });
@@ -172,23 +193,32 @@ beforeEach(() => {
   });
 });
 
-it("shows dated factual evidence, real next actions and version history without generating", async () => {
+it("shows a concise status and published workout, with detailed evidence on a secondary page", async () => {
   const screen = await render(<CoachOverviewPanel />);
   await screen.findByText("基础阶段");
-  expect(screen.getByText("暂无充分状态依据")).toBeTruthy();
-  expect(screen.getByText(/2030-01-08 · 训练反馈/)).toBeTruthy();
-  await fireEvent.press(screen.getByText("查看下一训练"));
+  expect(screen.getByText("恢复状态待评估")).toBeTruthy();
+  expect(screen.queryByText(/2030-01-08 · 训练反馈/)).toBeNull();
+  expect(screen.queryByText("完成 · RPE 8/10 · 未填疲劳")).toBeNull();
+  await screen.findByText("公路骑行 · 40–50 %FTP");
+  await fireEvent.press(screen.getByRole("button", { name: "查看训练详情" }));
   expect(mockPush).toHaveBeenCalledWith({
     pathname: "/workouts/[workoutId]",
     params: { workoutId: id },
   });
-  await fireEvent.press(screen.getByText("查看测试 / 录入结果"));
+  await fireEvent.press(screen.getByRole("button", { name: "查看状态依据" }));
+  expect(mockPush).toHaveBeenCalledWith("/(tabs)/coach/status");
+  await screen.unmount();
+  const details = await render(<CoachStatusScreen />);
+  await details.findByText("完成 · RPE 8/10 · 未填疲劳");
+  expect(
+    details.getByText("缺少疲劳反馈，不能仅根据 RPE 判断恢复"),
+  ).toBeTruthy();
+  await fireEvent.press(details.getByText("查看测试 / 录入结果"));
   expect(mockPush).toHaveBeenCalledWith({
     pathname: "/assessments/[assessmentId]",
     params: { assessmentId: id },
   });
-  await fireEvent.press(screen.getByText("最近计划版本"));
-  expect(screen.getByText(/赛后恢复调整/)).toBeTruthy();
+  expect(details.getByText(/赛后恢复调整/)).toBeTruthy();
   expect(training.generate).not.toHaveBeenCalled();
   expect(training.apply).not.toHaveBeenCalled();
 });
@@ -203,6 +233,177 @@ it("offers retry on overview failure and keeps empty-stage guidance honest", asy
   await fireEvent.press(screen.getByText("重新读取概览"));
   await screen.findByText("阶段待规划");
   expect(screen.getByText("尚未确认阶段安排")).toBeTruthy();
+});
+
+it("keeps tasks and existing suggestions available when the overview fails", async () => {
+  api.overview.mockRejectedValue(new Error("概览网络错误"));
+  const onTask = jest.fn();
+  const screen = await render(
+    <CoachOverviewPanel>
+      <CoachHome
+        ready
+        missingData=""
+        onTask={onTask}
+        onFeedback={jest.fn()}
+        onCurrentWeek={jest.fn()}
+        onCompleteProfile={jest.fn()}
+      />
+      <CoachSuggestionsPanel compact />
+    </CoachOverviewPanel>,
+  );
+  await screen.findByText("概览网络错误");
+  await screen.findByText("恢复训练安排");
+  await fireEvent.press(screen.getByRole("button", { name: "重新规划" }));
+  expect(onTask).toHaveBeenCalledWith("REPLAN");
+  expect(training.generate).not.toHaveBeenCalled();
+  expect(training.apply).not.toHaveBeenCalled();
+});
+
+it("uses four core tasks and keeps lower frequency actions in the collapsed menu", async () => {
+  const actions = {
+    onTask: jest.fn(),
+    onFeedback: jest.fn(),
+    onCurrentWeek: jest.fn(),
+    onCompleteProfile: jest.fn(),
+  };
+  const screen = await render(
+    <CoachHome ready={false} missingData="训练目标" {...actions} />,
+  );
+  for (const name of [
+    "重新规划",
+    "比赛安排",
+    "训练反馈",
+    "调整本周",
+    "补全训练资料",
+  ])
+    await fireEvent.press(screen.getByRole("button", { name }));
+  expect(actions.onTask.mock.calls).toEqual([["REPLAN"], ["RACE"]]);
+  expect(actions.onFeedback).toHaveBeenCalledTimes(1);
+  expect(actions.onCurrentWeek).toHaveBeenCalledTimes(1);
+  expect(actions.onCompleteProfile).toHaveBeenCalledTimes(1);
+  expect(screen.queryByText("赛后恢复")).toBeNull();
+  await screen.rerender(
+    <CoachHome ready={false} missingData="训练目标" busy {...actions} />,
+  );
+  for (const button of screen.getAllByRole("button"))
+    expect(button.props.accessibilityState.disabled).toBe(true);
+  await fireEvent.press(screen.getByRole("button", { name: "重新规划" }));
+  expect(actions.onTask).toHaveBeenCalledTimes(2);
+  await screen.unmount();
+  const recovery = jest.fn();
+  const next = jest.fn();
+  const menu = await render(
+    <CoachMoreActions busy={false} onRecovery={recovery} onNextWeek={next} />,
+  );
+  expect(menu.queryByText("赛后恢复")).toBeNull();
+  await fireEvent.press(menu.getByRole("button", { name: "更多操作" }));
+  await fireEvent.press(menu.getByText("赛后恢复"));
+  await fireEvent.press(menu.getByText("规划下周"));
+  expect(recovery).toHaveBeenCalledTimes(1);
+  expect(next).toHaveBeenCalledTimes(1);
+  for (const [name, route] of [
+    ["训练执行与周期复盘", "/(tabs)/coach/cycle-review"],
+    ["目标阶段与按范围生成课程", "/goals"],
+    ["赛事管理与新增比赛", "/races"],
+    ["阶段测试与状态依据", "/(tabs)/coach/status"],
+    ["最近计划版本", "/(tabs)/coach/status"],
+    ["全部建议与历史", "/(tabs)/coach/suggestions"],
+  ]) {
+    await fireEvent.press(menu.getByText(name));
+    expect(mockPush).toHaveBeenLastCalledWith(route);
+  }
+});
+
+it("shows only the most actionable suggestion and hides the module when none exist", async () => {
+  api.suggestions.mockResolvedValue({
+    pending: [
+      {
+        ...suggestion,
+        id: "recent",
+        title: "最新普通草稿",
+        createdAt: "2030-01-09T00:00:00Z",
+      },
+      { ...suggestion, status: "BLOCKED", title: "需处理的草稿" },
+    ],
+    recent: [],
+  });
+  const screen = await render(<CoachSuggestionsPanel compact />);
+  await screen.findByText("需处理的草稿");
+  expect(screen.queryByText("最新普通草稿")).toBeNull();
+  expect(screen.getAllByText(/草稿未应用/)).toHaveLength(1);
+  await fireEvent.press(screen.getByRole("button", { name: "继续预览建议" }));
+  expect(mockPush).toHaveBeenCalledWith({
+    pathname: "/(tabs)/coach/suggestion",
+    params: { id, kind: "TRAINING" },
+  });
+  await fireEvent.press(
+    screen.getByRole("button", { name: "查看全部建议与历史" }),
+  );
+  expect(mockPush).toHaveBeenCalledWith("/(tabs)/coach/suggestions");
+  await screen.unmount();
+  api.suggestions.mockResolvedValue({ pending: [], recent: [suggestion] });
+  const empty = await render(<CoachSuggestionsPanel compact />);
+  await waitFor(() => expect(api.suggestions).toHaveBeenCalledTimes(2));
+  await waitFor(() =>
+    expect(empty.queryByLabelText("正在读取待处理建议")).toBeNull(),
+  );
+  expect(empty.queryByTestId("coach-pending-suggestions")).toBeNull();
+  expect(empty.queryByText("暂无待处理建议")).toBeNull();
+  expect(training.generate).not.toHaveBeenCalled();
+});
+
+it("keeps a single chat entry that only navigates to the existing chat", async () => {
+  const screen = await render(<CoachChatEntry />);
+  await fireEvent.press(screen.getByRole("button", { name: "问 AI 教练" }));
+  expect(mockPush).toHaveBeenCalledWith("/(tabs)/coach/chat");
+  expect(api.chat).not.toHaveBeenCalled();
+});
+
+it("does not treat missing training or stale stages as a new valid plan", async () => {
+  api.overview.mockResolvedValue({
+    ...overview,
+    stage: null,
+    stageNotice: "目标、FTP 或训练资料已变化，请检查阶段安排",
+  });
+  const screen = await render(<CoachOverviewPanel />);
+  await screen.findByText("阶段待规划");
+  expect(
+    screen.getByText("阶段待核对；课程仍为已发布的正式安排。"),
+  ).toBeTruthy();
+  expect(screen.getByText("正式计划 v2 · 已生效")).toBeTruthy();
+  await screen.unmount();
+  api.overview.mockResolvedValue({ ...overview, nextWorkout: null });
+  const empty = await render(<CoachOverviewPanel />);
+  await empty.findByText("暂无待执行训练");
+  expect(empty.queryByText("查看训练详情")).toBeNull();
+});
+
+it("keeps the published summary if workout enrichment fails and avoids mixing plan versions", async () => {
+  jest
+    .mocked(trainingApi.getWorkout)
+    .mockRejectedValueOnce(new Error("详情网络错误"));
+  const screen = await render(<CoachOverviewPanel />);
+  await screen.findByText("强度详情暂不可用");
+  expect(screen.getByText("耐力训练")).toBeTruthy();
+  const oldWorkout = {
+    id,
+    planVersion: 3,
+    sportType: "cycling" as const,
+    source: "ai" as const,
+    title: "新版课程",
+    purpose: null,
+    scheduledDate: "2030-01-10",
+    dayOrder: 1,
+    timeTargetMinutes: 90,
+    distanceTargetKm: null,
+    segments: [],
+  };
+  jest.mocked(trainingApi.getWorkout).mockResolvedValue(oldWorkout);
+  await fireEvent.press(screen.getByText("重试详情"));
+  await screen.findByText("训练版本已变化，请查看最新训练日历。");
+  expect(screen.queryByText("90")).toBeNull();
+  await fireEvent.press(screen.getByText("查看训练日历"));
+  expect(mockPush).toHaveBeenCalledWith("/(tabs)/training");
 });
 it("resumes an existing draft by ID and requires confirmation before dismissing", async () => {
   const screen = await render(<CoachSuggestionsPanel />);

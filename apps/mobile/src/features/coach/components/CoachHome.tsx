@@ -1,147 +1,114 @@
 import { Pressable, View } from "react-native";
 import {
+  CalendarDays,
   ClipboardCheck,
   Flag,
   RefreshCw,
-  RotateCcw,
 } from "lucide-react-native";
-
-import { AppText, Button, Card } from "../../../components/ui";
+import { AppText, Button } from "../../../components/ui";
 import { colors } from "../../../theme/colors";
 import type { CoachTask } from "../hooks/useInitialPlan";
-import { InfoStrip } from "./CoachPage";
 
 function QuickAction({
   icon,
   label,
   description,
   onPress,
+  disabled,
 }: {
   icon: React.ReactNode;
   label: string;
   description: string;
   onPress: () => void;
+  disabled: boolean;
 }) {
   return (
     <Pressable
       accessibilityRole="button"
-      className="min-h-[112px] flex-1 rounded-[16px] border border-border bg-surface-2 p-3"
+      accessibilityLabel={label}
+      accessibilityHint={description}
+      accessibilityState={{ disabled }}
+      disabled={disabled}
+      className={`min-h-[76px] min-w-0 flex-1 rounded-xl bg-surface px-3 py-3 active:bg-surface-2 ${disabled ? "opacity-50" : ""}`}
       onPress={onPress}
     >
-      <View className="h-8 w-8 items-center justify-center rounded-[10px] bg-brand-subtle">
+      <View className="flex-row items-center gap-2">
         {icon}
+        <AppText variant="body" className="min-w-0 flex-1 font-semibold">
+          {label}
+        </AppText>
       </View>
-      <AppText variant="card" className="mt-3 text-[15px]">
-        {label}
-      </AppText>
-      <AppText variant="caption" muted className="mt-1">
+      <AppText variant="caption" className="mt-2 text-secondary">
         {description}
       </AppText>
     </Pressable>
   );
 }
-
 export function CoachHome({
-  planVersion,
   ready,
   missingData,
+  busy = false,
   onTask,
   onFeedback,
   onCurrentWeek,
-  onNextWeek,
+  onCompleteProfile,
 }: {
-  planVersion: number;
   ready: boolean;
   missingData: string;
+  busy?: boolean;
   onTask: (task: CoachTask) => void;
   onFeedback: () => void;
   onCurrentWeek: () => void;
-  onNextWeek: () => void;
+  onCompleteProfile: () => void;
 }) {
   return (
-    <>
-      <Card>
-        <AppText variant="label" className="text-brand">
-          正式计划 v{planVersion} · 快捷任务
-        </AppText>
-        <AppText muted className="mt-2">
-          选择需要改变的安排，预览并确认后才会应用。
-        </AppText>
-        {!ready ? <InfoStrip>{missingData}</InfoStrip> : null}
-      </Card>
-
-      <View>
-        <AppText variant="label" className="mb-2 text-muted">
-          我想做什么？
-        </AppText>
-        <View className="flex-row gap-2">
-          <QuickAction
-            icon={
-              <RefreshCw color={colors.brand} size={17} strokeWidth={1.8} />
-            }
-            label="重新规划"
-            description="调整目标或训练日期"
-            onPress={() => onTask("REPLAN")}
-          />
-          <QuickAction
-            icon={
-              <RotateCcw color={colors.brand} size={17} strokeWidth={1.8} />
-            }
-            label="赛后恢复"
-            description="安排恢复周再开始"
-            onPress={() => onTask("RECOVERY")}
-          />
+    <View className="gap-3" testID="coach-quick-tasks">
+      <AppText variant="section">AI 快捷调整</AppText>
+      {!ready ? (
+        <View className="rounded-xl bg-surface-2 px-3 py-2">
+          <AppText variant="caption" className="text-warning">
+            待补充：{missingData}
+          </AppText>
+          <Button variant="ghost" disabled={busy} onPress={onCompleteProfile}>
+            补全训练资料
+          </Button>
         </View>
-        <View className="mt-2 flex-row gap-2">
-          <QuickAction
-            icon={
-              <ClipboardCheck
-                color={colors.brand}
-                size={17}
-                strokeWidth={1.8}
-              />
-            }
-            label="训练反馈"
-            description="查看训练并告诉我结果"
-            onPress={onFeedback}
-          />
-          <QuickAction
-            icon={<Flag color={colors.brand} size={17} strokeWidth={1.8} />}
-            label="准备比赛"
-            description="加入比赛日期与目标"
-            onPress={() => onTask("RACE")}
-          />
-        </View>
+      ) : null}
+      <View className="flex-row gap-3">
+        <QuickAction
+          icon={<RefreshCw color={colors.brand} size={18} />}
+          label="重新规划"
+          description="目标、时间有变化"
+          onPress={() => onTask("REPLAN")}
+          disabled={busy}
+        />
+        <QuickAction
+          icon={<CalendarDays color={colors.brand} size={18} />}
+          label="调整本周"
+          description="修改近期训练安排"
+          onPress={onCurrentWeek}
+          disabled={busy}
+        />
       </View>
-
-      <Card>
-        <View className="flex-row items-center justify-between">
-          <View>
-            <AppText variant="label" className="text-muted">
-              训练日历
-            </AppText>
-            <AppText variant="card" className="mt-2">
-              从最近一周开始调整
-            </AppText>
-          </View>
-          <AppText className="text-brand">→</AppText>
-        </View>
-        <AppText variant="caption" muted className="mt-1">
-          选择影响范围后，AI 会把变化整理成一份可预览的草稿。
-        </AppText>
-        <View className="mt-4 flex-row gap-2">
-          <Button
-            className="flex-1"
-            variant="secondary"
-            onPress={onCurrentWeek}
-          >
-            调整本周
-          </Button>
-          <Button className="flex-1" variant="secondary" onPress={onNextWeek}>
-            规划下周
-          </Button>
-        </View>
-      </Card>
-    </>
+      <View className="flex-row gap-3">
+        <QuickAction
+          icon={<ClipboardCheck color={colors.brand} size={18} />}
+          label="训练反馈"
+          description="完成情况与疲劳"
+          onPress={onFeedback}
+          disabled={busy}
+        />
+        <QuickAction
+          icon={<Flag color={colors.brand} size={18} />}
+          label="比赛安排"
+          description="围绕赛事调整备赛"
+          onPress={() => onTask("RACE")}
+          disabled={busy}
+        />
+      </View>
+      <AppText variant="label" className="text-secondary">
+        计划调整先生成草稿，预览并确认后生效
+      </AppText>
+    </View>
   );
 }

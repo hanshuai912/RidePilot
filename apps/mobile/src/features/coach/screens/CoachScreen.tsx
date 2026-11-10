@@ -14,8 +14,10 @@ import {
   ScheduleStep,
 } from "../components/InitialPlanSteps";
 import { CoachHome } from "../components/CoachHome";
-import { CoachOverviewPanel } from "../components/CoachOverviewPanel";
-import { CoachSuggestionsPanel } from "../components/CoachSuggestionsPanel";
+import { CoachChatEntry } from "../components/CoachChatEntry";
+import { CoachMoreActions } from "../components/CoachMoreActions";
+import { CoachOverviewContent } from "../components/CoachOverviewPanel";
+import { CoachSuggestionSummary } from "../components/CoachSuggestionsPanel";
 import {
   AiMark,
   CoachPage,
@@ -26,6 +28,7 @@ import { GenerationProgress } from "../components/GenerationProgress";
 import { PlanCandidates } from "../components/PlanCandidates";
 import { PlanPreview } from "../components/PlanPreview";
 import { PlanningBrief, planningTaskCopy } from "../components/PlanningBrief";
+import { useCoachDashboard } from "../hooks/useCoachDashboard";
 import { useCoachFlow } from "../hooks/CoachFlowContext";
 import type { CoachTask, InitialPlanStage } from "../hooks/useInitialPlan";
 import { localDateInTimezone } from "../model/plan-dates";
@@ -76,6 +79,11 @@ export function CoachScreen() {
                         ? "success"
                         : null;
   const stage = routeStage ?? flowStage;
+  const dashboard = useCoachDashboard({
+    token: flow.token,
+    enabled: stage === "entry" && !!resources,
+    hasActivePlan: resources?.planStatus.hasActivePlan === true,
+  });
   const backToCoach = () => router.replace("/(tabs)/coach");
   useEffect(() => {
     const stageChanged = previousFlowStage.current !== flowStage;
@@ -116,7 +124,10 @@ export function CoachScreen() {
         </View>
       </Screen>
     );
-  if (flow.loading && !resources)
+  if (
+    (flow.loading && (!resources || stage === "entry")) ||
+    (stage === "entry" && dashboard.loading)
+  )
     return (
       <Screen>
         {stage !== "entry" ? (
@@ -224,53 +235,51 @@ export function CoachScreen() {
   if (hasActivePlan && stage === "entry")
     return (
       <CoachPage
-        eyebrow="AI 教练"
-        title="你的训练状态中心"
-        compactHeader
+        eyebrow="你的专属骑行伙伴"
+        title="AI 教练"
+        contentClassName="gap-5"
         description=""
-        primary={ready ? undefined : "补全训练资料"}
-        onPrimary={() => {
-          const next = firstMissingStep(missingFields);
-          flow.goTo(next);
-          router.push(coachRoute(next));
-        }}
+        footer={<CoachChatEntry />}
+        actionsInScroll
         busy={busy}
         error={error}
       >
-        <CoachOverviewPanel />
-        <CoachSuggestionsPanel compact />
-        <CoachHome
-          planVersion={resources.planStatus.planVersion}
-          ready={ready}
-          missingData={missingTrainingData(missingFields)}
-          onTask={startTask}
-          onFeedback={() => router.push("/(tabs)/training")}
-          onCurrentWeek={() => startWeekGeneration("current")}
-          onNextWeek={() => startWeekGeneration("next")}
-        />
-        <Button variant="secondary" onPress={() => router.push("/goals")}>
-          目标与阶段 · 按范围生成课程
-        </Button>
+        <CoachOverviewContent
+          resource={dashboard.overview}
+          detail={dashboard.detail}
+        >
+          <CoachSuggestionSummary resource={dashboard.suggestions} />
+          <CoachHome
+            ready={ready}
+            busy={busy}
+            missingData={missingTrainingData(missingFields)}
+            onCompleteProfile={() => {
+              const next = firstMissingStep(missingFields);
+              flow.goTo(next);
+              router.push(coachRoute(next));
+            }}
+            onTask={startTask}
+            onFeedback={() => router.push("/(tabs)/training")}
+            onCurrentWeek={() => startWeekGeneration("current")}
+          />
+          <CoachMoreActions
+            busy={busy}
+            onRecovery={() => startTask("RECOVERY")}
+            onNextWeek={() => startWeekGeneration("next")}
+          />
+        </CoachOverviewContent>
       </CoachPage>
     );
 
   if (stage === "entry")
     return (
       <CoachPage
-        eyebrow="首次使用 · 尚无正式计划"
+        eyebrow="从你的第一份计划开始"
         title="AI 教练"
-        compactHeader
-        primary="开始建立计划"
+        contentClassName="gap-4"
         actionsInScroll
-        onPrimary={() => {
-          flow.goTo("basics");
-          router.push(coachRoute("basics"));
-        }}
-        secondary="创建训练"
-        onSecondary={() => router.push("/workouts/new")}
         error={error}
       >
-        <CoachSuggestionsPanel compact />
         <View className="overflow-hidden rounded-[18px] border border-border bg-surface p-4">
           <AiMark />
           <AppText variant="label" className="mt-4 text-muted">
@@ -285,6 +294,23 @@ export function CoachScreen() {
           <AppText variant="body" className="mt-2 text-secondary">
             告诉我你的目标、时间和骑行基础，我会先生成一份可检查、可调整的计划草稿。
           </AppText>
+          <Button
+            size="lg"
+            className="mt-5"
+            onPress={() => {
+              flow.goTo("basics");
+              router.push(coachRoute("basics"));
+            }}
+          >
+            开始建立计划
+          </Button>
+          <Button
+            variant="ghost"
+            className="mt-1"
+            onPress={() => router.push("/workouts/new")}
+          >
+            创建训练
+          </Button>
           <View className="mt-4">
             <InfoStrip>
               已有资料会自动复用；饮食与禁忌会先保存在本次引导，不会提交后端。
@@ -303,6 +329,7 @@ export function CoachScreen() {
         <AppText variant="caption" muted className="mt-1">
           预计用时 3–5 分钟，之后可以根据每天状态调整课程。
         </AppText>
+        <CoachSuggestionSummary resource={dashboard.suggestions} />
       </CoachPage>
     );
 

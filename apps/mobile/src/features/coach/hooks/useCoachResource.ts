@@ -1,6 +1,13 @@
 import { useCallback, useState } from "react";
 import { useFocusEffect } from "expo-router";
 
+export type CoachResource<T> = {
+  data: T | null;
+  loading: boolean;
+  error: string | null;
+  retry: () => void;
+};
+
 // Mirrors the repository's focus-based resource hooks. Poll only existing jobs;
 // reads never submit generation or application requests.
 export function useCoachResource<T>(
