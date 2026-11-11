@@ -452,7 +452,13 @@ test("stage review, save and follow-up generation each require an explicit click
   await renderRouter(routes, {
     initialUrl: `/goals/stage-review?stageId=${stageId}`,
   });
+  await screen.findByText("耐力基础");
+  expect(screen.queryByText("日期结束不代表达成")).toBeNull();
+  await fireEvent.press(
+    screen.getByRole("button", { name: "查看复评依据说明" }),
+  );
   await screen.findByText("日期结束不代表达成");
+  await fireEvent.press(screen.getByText("知道了"));
   expect(api.saveReview).not.toHaveBeenCalled();
   expect(planning.generateCourses).not.toHaveBeenCalled();
   await fireEvent.changeText(
@@ -463,7 +469,7 @@ test("stage review, save and follow-up generation each require an explicit click
   await screen.findByText("复评决定预览");
   expect(api.saveReview).not.toHaveBeenCalled();
   await fireEvent.press(screen.getByText("确认保存复评"));
-  await screen.findByText("阶段复评已保存，请主动选择下方后续操作");
+  await screen.findByText("阶段复评已保存");
   await waitFor(() =>
     expect(screen.getByText("生成后续课程草稿")).toBeEnabled(),
   );
@@ -492,8 +498,10 @@ test("edited criteria must be saved first and stale review cannot generate cours
   await renderRouter(routes, {
     initialUrl: `/goals/stage-review?stageId=${stageId}`,
   });
+  await fireEvent.press(await screen.findByText("重新复评"));
+  await fireEvent.press(screen.getByRole("button", { name: "编辑达成条件" }));
   await fireEvent.changeText(
-    await screen.findByLabelText("阶段达成条件"),
+    screen.getByLabelText("阶段达成条件"),
     "新的测试条件",
   );
   await fireEvent.changeText(
@@ -520,7 +528,7 @@ test("review save retries preserve the idempotency key and rationale", async () 
   await fireEvent.press(await screen.findByText("确认保存复评"));
   await screen.findByText("保存响应中断");
   await fireEvent.press(screen.getByText("确认保存复评"));
-  await screen.findByText("阶段复评已保存，请主动选择下方后续操作");
+  await screen.findByText("阶段复评已保存");
   expect(api.saveReview.mock.calls[0]).toEqual(api.saveReview.mock.calls[1]);
 });
 
@@ -539,6 +547,172 @@ test("EXTEND generates an explicit stage draft and binds the review identity", a
     goalId,
   });
   expect(planning.generateCourses).not.toHaveBeenCalled();
+});
+
+test("review preview returns to the same input and collapsed evidence does not write", async () => {
+  await renderRouter(routes, {
+    initialUrl: `/goals/stage-review?stageId=${stageId}`,
+  });
+  await screen.findByText("耐力基础");
+  expect(screen.queryByText("暂无阶段测试记录")).toBeNull();
+  await fireEvent.press(
+    screen.getByRole("button", { name: "查看训练与测试依据" }),
+  );
+  await screen.findByText("暂无阶段测试记录");
+  expect(api.saveReview).not.toHaveBeenCalled();
+  expect(api.criteria).not.toHaveBeenCalled();
+  await fireEvent.press(screen.getByRole("radio", { name: "尚未达到预期" }));
+  await fireEvent.press(screen.getByRole("radio", { name: "调整后续安排" }));
+  await fireEvent.changeText(
+    screen.getByLabelText("复评理由与证据"),
+    "训练记录尚不足，调整负荷",
+  );
+  await fireEvent.press(screen.getByText("预览本次复评决定"));
+  await screen.findByText("复评决定预览");
+  expect(screen.queryByLabelText("复评理由与证据")).toBeNull();
+  expect(api.saveReview).not.toHaveBeenCalled();
+  await fireEvent.press(screen.getByText("返回修改复评"));
+  expect(screen.getByLabelText("复评理由与证据").props.value).toBe(
+    "训练记录尚不足，调整负荷",
+  );
+  expect(
+    screen.getByRole("radio", { name: "尚未达到预期" }).props.accessibilityState
+      .checked,
+  ).toBe(true);
+  expect(
+    screen.getByRole("radio", { name: "调整后续安排" }).props.accessibilityState
+      .checked,
+  ).toBe(true);
+});
+
+test("review criteria editor cancels locally and saves conditions separately", async () => {
+  api.criteria.mockImplementation(async (_token, _stage, criteria) => {
+    const next = {
+      snapshot: { ...snapshot, criteria, criteriaVersion: 2 },
+      history: [],
+    };
+    api.review.mockResolvedValue(next);
+    return next;
+  });
+  await renderRouter(routes, {
+    initialUrl: `/goals/stage-review?stageId=${stageId}`,
+  });
+  await fireEvent.press(
+    await screen.findByRole("button", { name: "编辑达成条件" }),
+  );
+  await fireEvent.changeText(
+    screen.getByLabelText("阶段达成条件"),
+    "取消这次修改",
+  );
+  await fireEvent.press(screen.getByText("取消编辑"));
+  expect(screen.getByText(snapshot.criteria!)).toBeTruthy();
+  expect(api.criteria).not.toHaveBeenCalled();
+  await fireEvent.press(screen.getByRole("button", { name: "编辑达成条件" }));
+  await fireEvent.changeText(
+    screen.getByLabelText("阶段达成条件"),
+    "连续完成两次耐力骑行并记录感受",
+  );
+  await fireEvent.press(screen.getByText("保存达成条件"));
+  await screen.findByText("连续完成两次耐力骑行并记录感受");
+  expect(api.criteria).toHaveBeenCalledWith(
+    "token",
+    stageId,
+    "连续完成两次耐力骑行并记录感受",
+    1,
+  );
+  expect(api.saveReview).not.toHaveBeenCalled();
+});
+
+test("review follow-up uses date selection and an explicit plan type with one generation action", async () => {
+  api.review.mockResolvedValue({
+    snapshot,
+    history: [{ ...evidence, decision: "ADJUST" }],
+  });
+  await renderRouter(routes, {
+    initialUrl: `/goals/stage-review?stageId=${stageId}`,
+  });
+  await screen.findByText("规划后续训练");
+  expect(screen.queryByLabelText("复评理由与证据")).toBeNull();
+  expect(screen.queryByText("生成阶段调整草稿")).toBeNull();
+  await fireEvent.press(screen.getByRole("button", { name: "复评后开始日期" }));
+  await fireEvent.press(screen.getByRole("radio", { name: "2日" }));
+  await fireEvent.press(screen.getByRole("button", { name: "取消" }));
+  expect(
+    screen.getByRole("button", { name: "复评后开始日期" }).props
+      .accessibilityValue.text,
+  ).toBe("2099年1月1日");
+  await selectPlanningDate("复评后开始日期", "2099-01-02");
+  await selectPlanningDate("复评后结束日期", "2099-01-20");
+  expect(planning.generateCourses).not.toHaveBeenCalled();
+  await fireEvent.press(screen.getByText("阶段安排"));
+  expect(screen.queryByText("生成后续课程草稿")).toBeNull();
+  expect(
+    screen.getByRole("button", { name: "复评后结束日期" }).props
+      .accessibilityValue.text,
+  ).toBe("2099年1月20日");
+  await fireEvent.press(screen.getByText("课程计划"));
+  await fireEvent.press(screen.getByText("生成后续课程草稿"));
+  await screen.findByText("课程待预览确认");
+  expect(planning.generateCourses).toHaveBeenCalledWith(
+    "token",
+    expect.objectContaining({
+      stageReviewId: evidence.id,
+      scope: "DATES",
+      startDate: "2099-01-02",
+      endDate: "2099-01-20",
+    }),
+    expect.any(String),
+  );
+  expect(planning.generateStages).not.toHaveBeenCalled();
+});
+
+test("review history is collapsed and load failures can retry without writes", async () => {
+  api.review.mockRejectedValueOnce(new Error("复评读取失败"));
+  api.review.mockResolvedValue({
+    snapshot,
+    history: [evidence, { ...evidence, id: goalId, rationale: "旧复评证据" }],
+  });
+  await renderRouter(routes, {
+    initialUrl: `/goals/stage-review?stageId=${stageId}`,
+  });
+  await fireEvent.press(await screen.findByText("重试"));
+  await screen.findByText("最近复评");
+  expect(screen.queryByText("理由：旧复评证据")).toBeNull();
+  await fireEvent.press(screen.getByText("历史复评 · 1 次"));
+  await screen.findByText("理由：旧复评证据");
+  expect(api.saveReview).not.toHaveBeenCalled();
+  expect(planning.generateCourses).not.toHaveBeenCalled();
+});
+
+test("a failed repeated review returns to its edit form with the same evidence", async () => {
+  api.review.mockResolvedValue({ snapshot, history: [evidence] });
+  api.saveReview
+    .mockImplementationOnce(async (_t, _id, input) => {
+      const saved = { ...evidence, ...input };
+      api.review.mockResolvedValue({ snapshot, history: [saved] });
+      return saved;
+    })
+    .mockRejectedValueOnce(new Error("复评保存中断"));
+  await renderRouter(routes, {
+    initialUrl: `/goals/stage-review?stageId=${stageId}`,
+  });
+  await fireEvent.press(await screen.findByText("重新复评"));
+  await fireEvent.changeText(
+    screen.getByLabelText("复评理由与证据"),
+    "保留实际训练证据",
+  );
+  await fireEvent.press(screen.getByText("预览本次复评决定"));
+  await fireEvent.press(await screen.findByText("确认保存复评"));
+  await screen.findByText("阶段复评已保存");
+  await fireEvent.press(screen.getByText("重新复评"));
+  await fireEvent.press(screen.getByText("预览本次复评决定"));
+  await fireEvent.press(await screen.findByText("确认保存复评"));
+  await screen.findByText("复评保存中断");
+  await fireEvent.press(screen.getByText("返回修改复评"));
+  expect(screen.getByLabelText("复评理由与证据").props.value).toBe(
+    "保留实际训练证据",
+  );
+  expect(screen.getByText("预览本次复评决定")).toBeTruthy();
 });
 
 test("reopening a stage resumes an existing generation without submitting a second task", async () => {
@@ -583,9 +757,7 @@ test("keeping an ended stage preserves the review but requires extend or adjust 
   await renderRouter(routes, {
     initialUrl: `/goals/stage-review?stageId=${stageId}`,
   });
-  await screen.findByText(
-    "阶段日程已结束，后续可选择延长或调整；进入下一阶段需要仍有效的后续日期。",
-  );
+  await screen.findByText("当前阶段已结束，请重新复评并选择延长或调整。");
   expect(screen.getByText("生成后续课程草稿")).toBeDisabled();
   await fireEvent.press(screen.getByText("生成后续课程草稿"));
   expect(planning.generateCourses).not.toHaveBeenCalled();

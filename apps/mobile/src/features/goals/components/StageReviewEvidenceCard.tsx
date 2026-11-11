@@ -4,6 +4,8 @@ import type {
 } from "@ridepilot/contracts";
 import { AppText, Card } from "../../../components/ui";
 import { decisionLabels, outcomeLabels } from "../model/goal-lifecycle";
+import { GoalInfoButton } from "./GoalInfoButton";
+import { View } from "react-native";
 
 export function StageReviewFacts({
   snapshot: s,
@@ -59,7 +61,15 @@ export function StageReviewEvidenceCard({
 }) {
   return (
     <Card>
-      <AppText variant="section">保存时的阶段复评依据</AppText>
+      <View className="flex-row items-center justify-between gap-2">
+        <AppText variant="card" className="flex-1">
+          保存时的阶段复评依据
+        </AppText>
+        <GoalInfoButton
+          title="已保存复评说明"
+          description="此处保留确认时的事实与决定，不代表当前依据仍然有效。后续草稿在生成与应用时会重新核对目标、阶段、测试、训练资料和版本。"
+        />
+      </View>
       <AppText muted className="mt-2">
         {evidence.createdAt.slice(0, 10)} · {outcomeLabels[evidence.outcome]} ·{" "}
         {decisionLabels[evidence.decision]}

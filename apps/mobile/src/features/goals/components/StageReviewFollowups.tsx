@@ -1,6 +1,8 @@
 import { router } from "expo-router";
 import type { StageReviewFollowup } from "@ridepilot/contracts";
 import { AppText, Button, Card } from "../../../components/ui";
+import { View } from "react-native";
+import { GoalInfoButton } from "./GoalInfoButton";
 
 export function StageReviewFollowups({
   items,
@@ -24,13 +26,16 @@ export function StageReviewFollowups({
     CANCELLED: "生成已取消",
   };
   return (
-    <Card>
-      <AppText variant="section">复评后的生成记录</AppText>
-      <AppText muted>
-        包含历史决定的任务。草稿需重新核对当前依据，正式应用以预览校验为准。
-      </AppText>
+    <View className="gap-3">
+      <View className="flex-row items-center justify-between">
+        <AppText variant="section">复评后的生成记录</AppText>
+        <GoalInfoButton
+          title="生成记录说明"
+          description="包含历史决定的任务。查看或继续查询已有任务不会再次提交生成。草稿需重新核对当前依据，正式应用以预览校验为准。"
+        />
+      </View>
       {items.map((item) => (
-        <Card key={item.generationId} className="mt-3">
+        <Card key={item.generationId} className="gap-3 p-5">
           <AppText>
             {item.kind === "STAGES" ? "阶段安排" : "课程计划"} ·{" "}
             {labels[item.status]}
@@ -60,13 +65,15 @@ export function StageReviewFollowups({
               继续查询原生成任务
             </Button>
           ) : (
-            <AppText muted>请核对当前证据后，主动重新生成。</AppText>
+            <AppText variant="caption" className="text-secondary">
+              核对依据后可重新生成。
+            </AppText>
           )}
         </Card>
       ))}
       <Button variant="ghost" disabled={busy} onPress={refresh}>
         刷新复评与生成记录
       </Button>
-    </Card>
+    </View>
   );
 }

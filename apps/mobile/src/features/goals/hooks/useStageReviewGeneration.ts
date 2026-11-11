@@ -114,7 +114,7 @@ export function useStageReviewGeneration(
       if (mounted.current)
         setError(
           e instanceof z.ZodError
-            ? "请填写有效的开始和结束日期（YYYY-MM-DD）"
+            ? "请选择有效的开始和结束日期"
             : e instanceof Error
               ? e.message
               : "草稿生成失败，请重试",

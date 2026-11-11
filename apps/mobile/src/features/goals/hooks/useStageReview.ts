@@ -99,8 +99,9 @@ export function useStageReview(stageId: string) {
         key: `stage-review-${Date.now()}-${Math.random().toString(36).slice(2)}`,
       });
     });
-  const confirm = () =>
-    run(async () => {
+  const confirm = async () => {
+    let confirmed = false;
+    await run(async () => {
       if (!preview) return;
       const result = await api.saveReview(
         token!,
@@ -112,7 +113,10 @@ export function useStageReview(stageId: string) {
       setPreview(null);
       setDirty(false);
       resource.retry();
+      confirmed = true;
     });
+    return confirmed;
+  };
   const evidence = saved ?? resource.data?.history[0] ?? null;
   return {
     ...resource,
