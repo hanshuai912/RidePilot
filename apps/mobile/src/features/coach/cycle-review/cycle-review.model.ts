@@ -47,18 +47,3 @@ export const cycleStatusLabel = (status: string) =>
     INCOMPLETE: "未完成",
     INVALID: "结果无效",
   })[status] ?? status;
-export function cycleGenerationError(code: string | null) {
-  if (code === "INSUFFICIENT_RECOVERY")
-    return "候选包含连续高强度训练，恢复间隔不足。请主动重新生成。";
-  if (code === "CYCLE_RECOVERY_INTENSITY")
-    return "恢复候选强度超过所选恢复范围，请重新生成。";
-  if (
-    [
-      "CYCLE_REVIEW_STALE",
-      "GENERATION_CONTEXT_CHANGED",
-      "PLAN_VERSION_CONFLICT",
-    ].includes(code ?? "")
-  )
-    return "生成期间复盘依据或计划已变化，请刷新复盘后重新生成。";
-  return `生成失败（${code ?? "AI_GENERATION_FAILED"}），可检查资料后主动重新生成。`;
-}

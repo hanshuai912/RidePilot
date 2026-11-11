@@ -66,3 +66,9 @@ AI 教练新增的计划生成、调整、历史恢复及相关资料接口见 [
 # 资料驱动的课程生成（2026-11-11）
 
 日期范围课程生成以当前 FTP、身体资料、可训练时间和活跃目标为依据。测试结果及阶段复评不再是新课程生成的必填输入；测试日期仍可作为排期冲突提示。资料变化通过 `/plans/input-impact` 检测，用户确认草稿后才更新正式计划。
+
+## 训练历史
+
+`GET /workouts/history?cursor=` 按账号时区返回截至今天的课程，每页最多 20 条，响应 `{timezone,localDate,items,nextCursor}`。按日期倒序、同日 dayOrder/id 升序；当前课程与旧版已记录原始课程按内部稳定活动身份去重，优先当前副本。不显示未来、草稿或已替换且未记录的旧课程。无七天/84 天范围限制。
+
+`GET /workouts/history/:workoutId` 返回本人历史课程摘要及反馈、执行功率快照，始终 `editable:false`；允许访问有反馈的旧版原始课程，不改变普通课程详情和所有写接口的当前版本限制。401 未登录；400 `INVALID_HISTORY_CURSOR`；404 `WORKOUT_NOT_FOUND`，包括非本人、未来、未发布或不可见记录。所有 schema 通过共享 Zod 契约同步到 Swagger。无数据库迁移，详见 [训练历史](../features/training-history.md)。

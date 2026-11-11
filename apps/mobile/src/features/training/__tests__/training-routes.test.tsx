@@ -289,12 +289,13 @@ beforeEach(() => {
   });
 });
 
-test("training keeps the calendar and cycle review without moved entries or the nutrition link", async () => {
+test("training keeps its calendar without history or the moved management entries", async () => {
   await renderRouter(routes, { initialUrl: "/training" });
-  await screen.findByText("训练执行与周期复盘");
   await waitFor(() => expect(api.getCalendar).toHaveBeenCalled());
   expect(screen.queryByText("训练与补给联动")).toBeNull();
   for (const name of [
+    "训练执行与周期复盘",
+    "训练历史",
     "目标与阶段 · 生成课程",
     "赛事管理 · 备赛与赛后恢复",
     "我的赛事",
@@ -1224,7 +1225,7 @@ test("adjustment preview rejects a draft for another workout", async () => {
   expect(coach.apply).not.toHaveBeenCalled();
 });
 
-test("calendar displays test events with courses and opens the test route", async () => {
+test("calendar keeps test date markers without the daily assessment module", async () => {
   jest.mocked(assessmentsApi).list.mockResolvedValue([
     {
       id: "00000000-0000-4000-8000-000000000099",
@@ -1251,15 +1252,14 @@ test("calendar displays test events with courses and opens the test route", asyn
     },
   ]);
   await renderRouter(routes, { initialUrl: `/(tabs)/training?date=${today}` });
-  await screen.findByText(`日历 FTP 方案`, { exact: false });
+  await screen.findByLabelText(new RegExp(`${today}.*有阶段测试`));
   expect(
     screen.getByLabelText(new RegExp(`${today}.*有阶段测试`)),
   ).toBeTruthy();
   expect(screen.getByText("耐力骑行")).toBeTruthy();
-  await fireEvent.press(
-    screen.getByRole("button", { name: /查看测试：.*日历 FTP 方案/ }),
-  );
-  await screen.findByText("已打开日历测试");
+  expect(screen.queryByText("当日阶段测试")).toBeNull();
+  expect(screen.queryByText("当天没有测试安排")).toBeNull();
+  expect(screen.queryByRole("button", { name: /查看测试：/ })).toBeNull();
 });
 
 test("failed test refresh preserves readable workout data and offers a retry", async () => {

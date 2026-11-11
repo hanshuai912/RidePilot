@@ -14,6 +14,7 @@ export function Detail({
   onFeedback,
   feedbackSaved,
   busy = false,
+  readOnly = false,
 }: {
   workout: Workout;
   onEdit: () => void;
@@ -21,6 +22,7 @@ export function Detail({
   onFeedback: () => void;
   feedbackSaved: boolean;
   busy?: boolean;
+  readOnly?: boolean;
 }) {
   const totals = segmentTotals(workout.segments);
   const recorded = !!workout.activity || feedbackSaved;
@@ -93,28 +95,36 @@ export function Detail({
           </AppText>
         </Card>
       ) : null}
-      <Button
-        onPress={onFeedback}
-        variant="secondary"
-        disabled={recorded || busy}
-      >
-        {recorded ? "已记录训练反馈" : "记录训练反馈"}
-      </Button>
-      <Button onPress={onAdjust} className="mt-2" disabled={!canAdjust || busy}>
-        {canAdjust
-          ? "让 AI 调整这节课"
-          : recorded
-            ? "已记录课程不可调整"
-            : "历史课程不可调整"}
-      </Button>
-      <Button
-        onPress={onEdit}
-        variant="ghost"
-        className="mt-2"
-        disabled={!canAdjust || busy}
-      >
-        编辑动作
-      </Button>
+      {!readOnly ? (
+        <>
+          <Button
+            onPress={onFeedback}
+            variant="secondary"
+            disabled={recorded || busy}
+          >
+            {recorded ? "已记录训练反馈" : "记录训练反馈"}
+          </Button>
+          <Button
+            onPress={onAdjust}
+            className="mt-2"
+            disabled={!canAdjust || busy}
+          >
+            {canAdjust
+              ? "让 AI 调整这节课"
+              : recorded
+                ? "已记录课程不可调整"
+                : "历史课程不可调整"}
+          </Button>
+          <Button
+            onPress={onEdit}
+            variant="ghost"
+            className="mt-2"
+            disabled={!canAdjust || busy}
+          >
+            编辑动作
+          </Button>
+        </>
+      ) : null}
     </View>
   );
 }

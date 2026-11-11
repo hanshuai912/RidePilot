@@ -300,8 +300,9 @@ it("uses four core tasks and keeps lower frequency actions in the collapsed menu
   await fireEvent.press(menu.getByText("规划下周"));
   expect(recovery).toHaveBeenCalledTimes(1);
   expect(next).toHaveBeenCalledTimes(1);
+  expect(menu.queryByText("训练执行与周期复盘")).toBeNull();
+  expect(menu.queryByText("训练历史")).toBeNull();
   for (const [name, route] of [
-    ["训练执行与周期复盘", "/(tabs)/coach/cycle-review"],
     ["目标阶段与按范围生成课程", "/goals"],
     ["赛事管理与新增比赛", "/races"],
     ["最近计划版本", "/(tabs)/coach/status"],

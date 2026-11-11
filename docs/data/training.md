@@ -38,3 +38,7 @@ AI 教练的新增模型、迁移和 AI 课程来源见 [AI 教练数据模型](
 AI `ChangeProposal.draft.replacedWorkouts[]` JSON 快照增加可选 `purpose/segments`，旧草稿缺失时不补造原动作。候选编辑保留原快照，更新只增加提案版本并清空校验。
 
 日历的 REST 事件由既有 `training_availability.weekdays` 推导，RECOVERY 事件来自正式课程动作类型；不在 PlanItem 写入虚构的空课程，无 migration。改期仍创建新 PlanVersion；跨日期移动的课程在目标日分配最大 dayOrder + 1。记录保护、原 FTP 快照与旧版本均保留。
+
+## 训练历史读取
+
+训练历史不新增表或修改数据。以用户时区今天为上界，读取当前正式课程及有反馈的旧版原始课程，按 `structure.activityWorkoutId` 去重并优先当前副本；旧课程仍保留原功率快照。日期、同日顺序与 ID 构成分页游标。列表及详情各使用 Repeatable Read 事务；数据访问始终验证计划 userId。独立活动无对应课程时不伪造课程详情。详见 [训练历史](../features/training-history.md)。

@@ -91,6 +91,7 @@ async function renderPage(initialUrl = "/profile") {
       "(tabs)/profile": ProfileScreen,
       "cycling-power-zones": () => <Text>FTP 详情</Text>,
       "heart-rate-zones": () => <Text>心率详情</Text>,
+      "training-history": () => <Text>训练历史列表</Text>,
       "races/index": () => <Text>赛事管理</Text>,
       "goals/index": () => <Text>目标管理</Text>,
       "third-party-apps": ThirdPartyAppsRoute,
@@ -134,12 +135,20 @@ test("one settings group includes races and goals with working independent desti
   const group = within(screen.getByTestId("profile-settings-list"));
   expect(
     group.getAllByRole("button").map((row) => row.props.accessibilityLabel),
-  ).toEqual(["FTP 功率", "心率区间", "我的赛事", "目标", "第三方 App"]);
+  ).toEqual([
+    "FTP 功率",
+    "心率区间",
+    "我的赛事",
+    "目标",
+    "训练历史",
+    "第三方 App",
+  ]);
   for (const [name, path] of [
     ["FTP 功率", "/cycling-power-zones"],
     ["心率区间", "/heart-rate-zones"],
     ["我的赛事", "/races"],
     ["目标", "/goals"],
+    ["训练历史", "/training-history"],
     ["第三方 App", "/third-party-apps"],
   ]) {
     await fireEvent.press(screen.getByRole("button", { name }));

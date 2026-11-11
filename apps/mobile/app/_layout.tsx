@@ -64,6 +64,10 @@ function AuthenticatedStack() {
           options={{ headerShown: false, title: "个人信息" }}
         />
         <Stack.Screen name="workouts" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="training-history"
+          options={{ headerShown: false }}
+        />
         <Stack.Screen name="goals" options={{ headerShown: false }} />
         <Stack.Screen name="plans" options={{ headerShown: false }} />
         <Stack.Screen name="nutrition" options={{ headerShown: false }} />

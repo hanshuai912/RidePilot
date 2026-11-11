@@ -128,6 +128,7 @@ export type {
 } from "./nutrition";
 
 export * from "./cycle-review";
+export * from "./training-history";
 export * from "./goal-lifecycle";
 export * from "./stage-review";
 export * from "./plan-impact";

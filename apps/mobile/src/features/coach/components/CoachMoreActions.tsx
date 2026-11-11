@@ -19,10 +19,6 @@ export function CoachMoreActions({
   const actions = [
     { title: "赛后恢复", run: onRecovery },
     { title: "规划下周", run: onNextWeek },
-    {
-      title: "训练执行与周期复盘",
-      run: () => router.push("/(tabs)/coach/cycle-review"),
-    },
     { title: "目标阶段与按范围生成课程", run: () => router.push("/goals") },
     { title: "赛事管理与新增比赛", run: () => router.push("/races") },
     { title: "最近计划版本", run: () => router.push("/(tabs)/coach/status") },

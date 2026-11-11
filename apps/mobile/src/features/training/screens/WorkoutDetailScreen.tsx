@@ -12,9 +12,10 @@ import { useTrainingResource } from "../hooks/useTrainingResource";
 import { trainingApi } from "../services/training.api";
 
 export function WorkoutDetailScreen() {
-  const { workoutId, action } = useLocalSearchParams<{
+  const { workoutId, action, source } = useLocalSearchParams<{
     workoutId: string;
     action?: string;
+    source?: string;
   }>();
   const { session } = useAuth();
   // Old links still reach the dedicated action page without mounting detail.
@@ -30,9 +31,10 @@ export function WorkoutDetailScreen() {
     );
   return (
     <WorkoutDetailContent
-      key={`${session?.user.id}-${workoutId}`}
+      key={`${session?.user.id}-${workoutId}-${source}`}
       workoutId={workoutId}
       token={session?.accessToken}
+      historical={source === "history"}
     />
   );
 }
@@ -40,14 +42,18 @@ export function WorkoutDetailScreen() {
 function WorkoutDetailContent({
   workoutId,
   token,
+  historical,
 }: {
   workoutId: string;
   token?: string;
+  historical: boolean;
 }) {
   const load = useCallback(async () => {
     if (!token || !workoutId) throw new Error("课程不存在或尚未登录");
-    return trainingApi.getWorkout(token, workoutId);
-  }, [token, workoutId]);
+    return historical
+      ? trainingApi.getHistoryWorkout(token, workoutId)
+      : trainingApi.getWorkout(token, workoutId);
+  }, [token, workoutId, historical]);
   const resource = useTrainingResource(load);
   const focusedBefore = useRef(false);
   const retry = resource.retry;
@@ -61,7 +67,14 @@ function WorkoutDetailContent({
   return (
     <TrainingPage
       title="课程详情"
-      onBack={backToTraining}
+      onBack={
+        historical
+          ? () => {
+              if (router.canGoBack()) router.back();
+              else router.replace("/training-history");
+            }
+          : backToTraining
+      }
       loading={resource.loading}
       error={resource.error}
       retry={resource.retry}
@@ -70,6 +83,7 @@ function WorkoutDetailContent({
         <Detail
           workout={resource.data}
           feedbackSaved={false}
+          readOnly={historical}
           onAdjust={() =>
             router.push({
               pathname: "/workouts/adjust",

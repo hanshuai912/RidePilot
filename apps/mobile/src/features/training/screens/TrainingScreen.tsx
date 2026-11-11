@@ -7,7 +7,6 @@ import { PlanImpactEntryCard } from "../../plan-impact/components/PlanImpactEntr
 import { coachApi } from "../../coach/services/coach.api";
 import { RaceDayEvents } from "../../races/components/RaceDayEvents";
 import { assessmentsApi } from "../../assessments/services/assessments.api";
-import { AssessmentList } from "../../assessments/components/AssessmentList";
 import { useCallback, useState, useRef } from "react";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import type { CalendarResponse, Assessment } from "@ridepilot/contracts";
@@ -181,21 +180,6 @@ function TrainingCalendar({
       <RaceDayEvents
         races={races.filter((race) => race.localDate === selectedDate)}
       />
-      <AppText variant="section">当日阶段测试</AppText>
-      {assessments.some(
-        (item) =>
-          item.localDate === selectedDate &&
-          ["SCHEDULED", "POSTPONED"].includes(item.status),
-      ) &&
-      calendar?.items.some((item) => item.scheduledDate === selectedDate) ? (
-        <AppText muted>
-          当天同时安排了课程和测试，请检查是否需要改期或另行调整课程。
-        </AppText>
-      ) : null}
-      <AssessmentList
-        items={assessments.filter((item) => item.localDate === selectedDate)}
-        empty="当天没有测试安排"
-      />
       {assessmentError ? (
         <>
           <AppText style={styles.error}>{assessmentError}</AppText>
@@ -207,12 +191,6 @@ function TrainingCalendar({
           </Button>
         </>
       ) : null}
-      <Button
-        variant="secondary"
-        onPress={() => router.push("/(tabs)/coach/cycle-review")}
-      >
-        训练执行与周期复盘
-      </Button>
     </Screen>
   );
 }

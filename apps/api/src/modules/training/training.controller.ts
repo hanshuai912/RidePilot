@@ -1,4 +1,9 @@
 import { TrainingCalendarService } from "./training-calendar.service";
+import { TrainingHistoryService } from "./training-history.service";
+import {
+  trainingHistoryResponseSchema,
+  workoutSummarySchema,
+} from "@ridepilot/contracts";
 import { WorkoutRescheduleService } from "./workout-reschedule.service";
 import {
   rescheduleInputSchema,
@@ -53,6 +58,7 @@ export class TrainingController {
     private readonly service: TrainingService,
     private readonly reschedules: WorkoutRescheduleService,
     private readonly calendar: TrainingCalendarService,
+    private readonly history: TrainingHistoryService,
   ) {}
 
   @Post("workouts/manual-proposals")
@@ -161,6 +167,26 @@ export class TrainingController {
   @ApiOkResponse({ schema: toOpenApiSchema(nextWorkoutResponseSchema) })
   async nextWorkout(@CurrentPrincipal() principal: AuthPrincipal) {
     return { workout: await this.service.nextWorkout(principal.userId) };
+  }
+
+  @Get("workouts/history")
+  @ApiOperation({ summary: "按日期倒序分页读取本人截至今天的训练历史" })
+  @ApiOkResponse({ schema: toOpenApiSchema(trainingHistoryResponseSchema) })
+  getHistory(
+    @CurrentPrincipal() principal: AuthPrincipal,
+    @Query("cursor") cursor?: string,
+  ) {
+    return this.history.list(principal.userId, cursor);
+  }
+
+  @Get("workouts/history/:workoutId")
+  @ApiOperation({ summary: "只读查看本人历史训练，包含已有反馈的旧版课程" })
+  @ApiOkResponse({ schema: toOpenApiSchema(workoutSummarySchema) })
+  getHistoryWorkout(
+    @CurrentPrincipal() principal: AuthPrincipal,
+    @Param("workoutId") workoutId: string,
+  ) {
+    return this.history.detail(principal.userId, workoutId);
   }
 
   @Get("workouts/:workoutId")

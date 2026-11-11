@@ -1,4 +1,5 @@
 import {
+  trainingHistoryResponseSchema,
   reschedulePreviewSchema,
   type RescheduleInput,
   applyProposalResponseSchema,
@@ -83,6 +84,25 @@ async function request<T>(
 }
 
 export const trainingApi = {
+  async history(accessToken: string, cursor?: string) {
+    const data = await request<unknown>(
+      `workouts/history${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`,
+      accessToken,
+    );
+    const parsed = trainingHistoryResponseSchema.safeParse(data);
+    if (!parsed.success) throw new TrainingApiError("训练历史数据无效", null);
+    return parsed.data;
+  },
+  async getHistoryWorkout(accessToken: string, workoutId: string) {
+    const data = await request<unknown>(
+      `workouts/history/${encodeURIComponent(workoutId)}`,
+      accessToken,
+    );
+    const parsed = proposalResponseSchema.shape.draftWorkout.safeParse(data);
+    if (!parsed.success)
+      throw new TrainingApiError("历史训练详情数据无效", null);
+    return parsed.data;
+  },
   async reschedulePreview(
     token: string,
     workoutId: string,

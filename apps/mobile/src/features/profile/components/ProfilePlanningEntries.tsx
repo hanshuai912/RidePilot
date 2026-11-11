@@ -1,7 +1,7 @@
 import { Fragment } from "react";
 import { Pressable, View } from "react-native";
 import { router } from "expo-router";
-import { ChevronRight, Flag, Target } from "lucide-react-native";
+import { ChevronRight, Flag, History, Target } from "lucide-react-native";
 import { AppText } from "../../../components/ui";
 import { colors } from "../../../theme/colors";
 import { profileMetricStyles as styles } from "./profile-metric-card.styles";
@@ -18,6 +18,12 @@ const entries = [
     hint: "管理目标、阶段与生成课程",
     href: "/goals",
     icon: Target,
+  },
+  {
+    title: "训练历史",
+    hint: "按日期查看历史训练与详情",
+    href: "/training-history",
+    icon: History,
   },
 ] as const;
 

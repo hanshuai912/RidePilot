@@ -12,14 +12,10 @@ export function CoachSuggestionScreen() {
     id = "",
     kind = "",
     source,
-    startDate,
-    endDate,
   } = useLocalSearchParams<{
     id?: string;
     kind?: string;
     source?: string;
-    startDate?: string;
-    endDate?: string;
   }>();
   const { session } = useAuth();
   const router = useRouter();
@@ -29,13 +25,7 @@ export function CoachSuggestionScreen() {
     source === "cycle-review" ||
     (state.data?.kind === "TRAINING" && !!state.data.proposal.cycleReview);
   const returnToReview = () =>
-    router.replace({
-      pathname: "/(tabs)/coach/cycle-review",
-      params: {
-        ...(startDate ? { startDate } : {}),
-        ...(endDate ? { endDate } : {}),
-      },
-    });
+    router.replace({ pathname: "/training-history" });
   const editable =
     !!proposal &&
     !state.data?.staleReason &&
@@ -70,7 +60,9 @@ export function CoachSuggestionScreen() {
         <Card>
           <AppText className="text-warning">{state.data.staleReason}</AppText>
           <AppText muted className="mt-2">
-            此建议已失效，可返回原入口选择范围并主动生成新草稿。
+            {fromReview
+              ? "此建议已失效，可查看训练历史；如需重新规划，请前往 AI 教练。"
+              : "此建议已失效，可返回原入口选择范围并主动生成新草稿。"}
           </AppText>
           <Button
             variant="secondary"
@@ -85,7 +77,7 @@ export function CoachSuggestionScreen() {
             }
           >
             {fromReview
-              ? "刷新周期复盘并重新选择"
+              ? "查看训练历史"
               : kind === "NUTRITION"
                 ? "前往饮食与补给"
                 : "前往 AI 教练"}
@@ -195,7 +187,7 @@ export function CoachSuggestionScreen() {
             disabled={state.busy}
             onPress={returnToReview}
           >
-            返回周期复盘与历史
+            返回训练历史
           </Button>
         </>
       ) : null}
