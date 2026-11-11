@@ -333,39 +333,6 @@ export function NutritionScreen() {
           </Button>
         </Card>
       ) : null}
-      {!loading && profile ? (
-        <Card className="p-4">
-          <View className="flex-row items-center justify-between">
-            <View>
-              <AppText variant="label" className="text-brand">
-                饮食档案已建立
-              </AppText>
-              <AppText variant="card" className="mt-1">
-                {profile.dietStyle === "OMNIVORE"
-                  ? "均衡饮食"
-                  : profile.dietStyle === "VEGETARIAN"
-                    ? "素食"
-                    : profile.dietStyle === "VEGAN"
-                      ? "纯植物"
-                      : "鱼素"}
-              </AppText>
-            </View>
-            <Button
-              variant="ghost"
-              size="sm"
-              onPress={() => setProfileOpen(true)}
-            >
-              编辑
-            </Button>
-          </View>
-          <AppText variant="caption" muted className="mt-2">
-            {profile.allergens.length
-              ? `已避开 ${profile.allergens.length} 项过敏原`
-              : "暂未填写过敏原"}{" "}
-            · 档案 v{profile.version}
-          </AppText>
-        </Card>
-      ) : null}
       {!loading && plan?.dailyTarget ? (
         <Card className="p-4">
           <View className="flex-row items-center justify-between">

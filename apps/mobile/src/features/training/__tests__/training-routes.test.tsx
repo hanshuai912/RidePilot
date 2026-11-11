@@ -289,6 +289,22 @@ beforeEach(() => {
   });
 });
 
+test("training keeps the calendar and cycle review without moved entries or the nutrition link", async () => {
+  await renderRouter(routes, { initialUrl: "/training" });
+  await screen.findByText("训练执行与周期复盘");
+  await waitFor(() => expect(api.getCalendar).toHaveBeenCalled());
+  expect(screen.queryByText("训练与补给联动")).toBeNull();
+  for (const name of [
+    "目标与阶段 · 生成课程",
+    "赛事管理 · 备赛与赛后恢复",
+    "我的赛事",
+    "目标",
+    "查看训练补给联动",
+  ]) {
+    expect(screen.queryByRole("button", { name })).toBeNull();
+  }
+});
+
 test("manual creation without FTP resumes the selected date after setting FTP", async () => {
   coach.ftp.mockResolvedValue(null);
   const selected = addDays(today, 5);

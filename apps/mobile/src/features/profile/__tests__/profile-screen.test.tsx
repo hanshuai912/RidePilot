@@ -98,6 +98,8 @@ async function openEditor() {
   );
   expect(screen.queryByText("账户与页面昵称")).toBeNull();
   expect(screen.queryByText("身体与能力")).toBeNull();
+  expect(screen.queryByText("资料变更与未来训练")).toBeNull();
+  expect(screen.queryByRole("button", { name: "检查未来训练安排" })).toBeNull();
   await fireEvent.press(screen.getByRole("button", { name: "个人信息" }));
   await waitFor(() =>
     expect(screen.getByTestId("profile-route")).toHaveTextContent(

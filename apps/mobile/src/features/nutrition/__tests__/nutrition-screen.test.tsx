@@ -99,7 +99,7 @@ test("guides a new user to create a nutrition profile", async () => {
   expect(screen.getByText("今天还没有饮食计划")).toBeTruthy();
 });
 
-test("shows today's plan entry and profile version", async () => {
+test("shows meals and nutrition linking while profile editing stays in the header", async () => {
   mockedApi.getProfile.mockResolvedValue(profile);
   mockedApi.getPlan.mockResolvedValue({
     ...plan,
@@ -140,9 +140,20 @@ test("shows today's plan entry and profile version", async () => {
   });
   const screen = await render(<NutritionScreen />);
   await waitFor(() => expect(screen.getByText("燕麦香蕉早餐")).toBeTruthy());
-  expect(screen.getByText("饮食档案已建立")).toBeTruthy();
-  expect(screen.getByText(/档案 v/)).toBeTruthy();
+  expect(screen.getByText("训练与补给联动")).toBeTruthy();
+  expect(screen.getByRole("button", { name: "查看训练补给联动" })).toBeTruthy();
+  await waitFor(() => expect(mockedApi.trainingState).toHaveBeenCalled());
+  expect(screen.queryByText("饮食档案已建立")).toBeNull();
+  expect(screen.queryByText("均衡饮食")).toBeNull();
+  expect(screen.queryByRole("button", { name: "编辑" })).toBeNull();
   expect(screen.getByRole("button", { name: "替换早餐" })).toBeTruthy();
+  await fireEvent.press(screen.getByRole("button", { name: "编辑饮食档案" }));
+  expect(screen.getByText("饮食方式")).toBeTruthy();
+  expect(screen.getByText("均衡饮食")).toBeTruthy();
+  await fireEvent.press(screen.getByRole("button", { name: "关闭饮食档案" }));
+  expect(screen.queryByText("饮食方式")).toBeNull();
+  expect(screen.queryByText("均衡饮食")).toBeNull();
+  expect(screen.getByText("燕麦香蕉早餐")).toBeTruthy();
 });
 
 test("keeps an AI result as a draft until the user applies it", async () => {

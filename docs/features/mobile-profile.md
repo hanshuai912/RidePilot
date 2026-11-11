@@ -7,7 +7,9 @@
 ## 2. 当前实现
 
 - 展示页面昵称、脱敏手机号、手机号验证状态、训练经验和档案版本。
-- “FTP 功率 / 心率区间 / 第三方 App”合为一张石墨灰卡片，内部三行列表用细线分隔，各行保留图标、数值或状态和进入箭头。统一为 16 pt 标题、13 pt 数值/操作和 12 pt 辅助说明，分组沿用黑金圆角卡片规范；FTP 和心率仍独立加载与刷新。
+- “FTP 功率 / 心率区间 / 我的赛事 / 目标 / 第三方 App”按此顺序合为一张石墨灰卡片，“第三方 App”位于列表最后。内部五行列表用细线分隔，各行保留图标、数值或状态和进入箭头。统一为 16 pt 标题、13 pt 数值/操作和 12 pt 辅助说明，分组沿用黑金圆角卡片规范；FTP 和心率仍独立加载与刷新。
+- 训练页的“赛事管理 · 备赛与赛后恢复”和“目标与阶段 · 生成课程”移至此列表，入口名为“我的赛事”和“目标”，分别进入现有 `/races`、`/goals`。仅移动导航入口，管理、草稿生成、预览确认与失败重试仍由原页面处理。
+- “我的”页面移除“资料变更与未来训练”卡片及“检查未来训练安排”按钮，不再为该卡片读取影响状态；训练页和资料保存后的相关检查入口继续使用现有流程。
 - “心率区间”对应独立五/五/七区设置页，三个心率和类型持久化；详见 [统一心率区间](heart-rate-zones.md)。
 - 编辑并保存昵称、性别、出生日期、身高、体重和训练经验。
 - 点击“我的”顶部整张个人卡片，跳转独立的“个人信息”页（`/personal-info`），隐藏底部五栏导航。顶部为左侧返回箭头按钮与居中 17 pt 标题，两侧预留相同宽度以保证标题相对页面居中，图标触控区域为 44 pt。下方“我的资料”分组、“账户与页面昵称”和“身体与能力”入口已移除。
@@ -39,6 +41,24 @@
 目标和可训练时间在 AI 教练首次建计划流程填写。完整 FTP 测量历史、饮食偏好、隐私导出/删除、设备同步和设置页仍未作为个人资料页面入口实现。
 
 ## 5. 验证
+
+### 2026-11-11：移除资料变更入口
+
+- 移除 `ProfileScreen` 中的 `PlanImpactEntryCard`，档案卡片、五行设置列表和个人资料编辑流程继续展示。
+- 在 `apps/mobile` 执行 `./node_modules/.bin/jest --runInBand --runTestsByPath src/features/profile/__tests__/profile-screen.test.tsx src/features/integrations/__tests__/third-party-apps.test.tsx`：2 组、18 项通过。新增断言验证“我的”页面不显示该卡片标题和检查按钮；原个人资料编辑、保存、失败处理和设置列表导航测试通过。
+- `./node_modules/.bin/tsc --noEmit`、相关文件 ESLint、Prettier 检查及 `git diff --check` 均通过。本次仅移除页面入口，无 API、数据库或依赖变更，未执行真机验收。
+
+### 2026-11-11：赛事与目标入口迁移
+
+- 后续排序调整：“第三方 App”移至“目标”下方，作为列表最后一行。重新执行移动端 `./node_modules/.bin/jest --runInBand --runTestsByPath src/features/integrations/__tests__/third-party-apps.test.tsx`，7 项通过；`./node_modules/.bin/tsc --noEmit`、相关文件 ESLint、Prettier 和 `git diff --check` 均通过。
+- `ProfilePlanningEntries.tsx` 复用 FTP 行的 `profileMetricStyles`：金色图标、72 pt 最小行高、16 pt 标题、右侧箭头和对齐标题的分隔线；接入现有 `ProfileSettingsList`，没有新增请求或状态。
+- `third-party-apps.test.tsx` 验证五行顺序、独立路由跳转和返回“我的”；`training-routes.test.tsx` 验证训练页保留日历与周期复盘，不再出现赛事、目标及补给联动入口。
+- `pnpm --filter @ridepilot/mobile test -- --runTestsByPath src/features/integrations/__tests__/third-party-apps.test.tsx src/features/training/__tests__/training-routes.test.tsx src/features/profile/__tests__/profile-screen.test.tsx`：3 组、63 项通过。
+- 移除训练补给卡片后，在 `apps/mobile` 执行 `./node_modules/.bin/jest --runInBand --runTestsByPath src/features/integrations/__tests__/third-party-apps.test.tsx src/features/training/__tests__/training-routes.test.tsx src/features/nutrition/__tests__/training-nutrition.test.tsx`：3 组、60 项通过，包含联动草稿恢复、生成失败与确认应用。
+- `pnpm typecheck`、`pnpm lint`、`pnpm build` 均通过；`pnpm test`：后端 31 组、173 项通过，16 组、135 项按既有环境条件跳过。修改文件 Prettier 检查与 `git diff --check` 通过。
+- 本次无 API、契约、数据库或依赖变更；未做浏览器视觉或真机验收。
+
+### 此前个人资料迭代验证
 
 - 本轮三行列表与第三方 App 迁移：`ProfileSettingsList.tsx` 统一外框，三个入口保留独立加载、状态和导航；完整验证见 [第三方 App](third-party-apps.md)。移动端 Jest 19 套件、143 项通过，类型检查、定向 ESLint 和 Web 导出通过。浏览器模拟 API 在 390/320 宽验证分组无额外内边距、行间无卡片间距、独立跳转及返回、无横向溢出；全量源码 lint 仍有饮食模块两处既有错误。
 - 移动端 TypeScript 类型检查通过。

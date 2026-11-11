@@ -4,7 +4,6 @@ import {
   type CalendarView,
 } from "../model/calendar-period";
 import { PlanImpactEntryCard } from "../../plan-impact/components/PlanImpactEntryCard";
-import { TrainingNutritionLinkCard } from "../../nutrition/components/TrainingNutritionLinkCard";
 import { coachApi } from "../../coach/services/coach.api";
 import { RaceDayEvents } from "../../races/components/RaceDayEvents";
 import { assessmentsApi } from "../../assessments/services/assessments.api";
@@ -176,7 +175,6 @@ function TrainingCalendar({
         onEdit={edit}
       />
       <PlanImpactEntryCard />
-      <TrainingNutritionLinkCard dates={[selectedDate]} checkStatus />
       {raceError ? (
         <AppText className="text-negative">{raceError}</AppText>
       ) : null}
@@ -214,15 +212,6 @@ function TrainingCalendar({
         onPress={() => router.push("/(tabs)/coach/cycle-review")}
       >
         训练执行与周期复盘
-      </Button>
-      <Button variant="secondary" onPress={() => router.push("/goals")}>
-        目标与阶段 · 生成课程
-      </Button>
-      <Button
-        variant="secondary"
-        onPress={() => router.push("/races" as never)}
-      >
-        赛事管理 · 备赛与赛后恢复
       </Button>
     </Screen>
   );

@@ -27,6 +27,7 @@
 
 - 饮食 Tab 已接入黑金暗色设计体系，首页优先展示当天餐次、训练补给和营养目标。
 - 新用户会先填写饮食方式、日常习惯、过敏原和饮食限制；档案保存沿用服务端版本号校验。
+- 已有档案的用户通过右上角设置图标打开饮食档案；移除正文中“均衡饮食”等饮食方式摘要卡及重复“编辑”按钮。未建档时仍展示填写引导，编辑抽屉保留饮食方式与限制的选择和保存。
 - AI 生成使用 `NutritionApi` 和异步生成轮询：生成结果保持为草稿，页面展示摘要、餐次、假设和校验告警，只有用户确认后才调用应用接口。
 - 餐次支持提交替换草稿。替换食材默认以 `PARTIAL` 成分状态和低置信度标记，需再次校验后才能应用。
 - 网络错误、档案缺失、生成失败、草稿阻塞和版本冲突均保留在页面状态中，不会把失败结果显示成正式计划。
@@ -35,6 +36,17 @@
 - 主要移动端文件：`apps/mobile/src/features/nutrition/screens/NutritionScreen.tsx`、`services/nutrition.api.ts`、`components/NutritionProfileSheet.tsx`、`components/NutritionProposalCard.tsx`。
 
 ## 验证
+
+### 2026-11-11：移除重复入口
+
+- 训练日历不再展示补给联动卡片；饮食页保留核对卡片。已有档案时移除“均衡饮食”摘要卡，右上角“编辑饮食档案”继续打开编辑抽屉，关闭后返回当天餐次；新用户填写档案引导保留。
+- 在 `apps/mobile` 执行 `./node_modules/.bin/jest --runInBand --runTestsByPath src/features/integrations/__tests__/third-party-apps.test.tsx src/features/training/__tests__/training-routes.test.tsx src/features/nutrition/__tests__/training-nutrition.test.tsx`：3 组、60 项通过，覆盖旧入口移除、独立导航及联动草稿失败/恢复/确认流程。
+- 执行 `./node_modules/.bin/jest --runInBand --runTestsByPath src/features/nutrition/__tests__/nutrition-screen.test.tsx`：3 项通过，验证正文无饮食摘要与重复编辑按钮、右上角打开/关闭档案、饮食页联动保留、未建档引导和正式计划确认。
+- 最后一次页面调整后执行 `./node_modules/.bin/eslint src/features/nutrition/screens/NutritionScreen.tsx src/features/nutrition/__tests__/nutrition-screen.test.tsx`：通过。此前同一任务的 `pnpm typecheck`、`pnpm lint`、`pnpm build` 均通过；`pnpm test` 后端 173 项通过、135 项按已有环境条件跳过。
+- 最后一次页面调整后的移动端 `./node_modules/.bin/tsc --noEmit`、本次修改文件 Prettier 检查及 `git diff --check` 均通过。
+- 本次无 API、数据库或依赖变更；未做浏览器视觉及真机验收。
+
+### 此前验证
 
 - `nutrition-validation.spec.ts` 覆盖过敏原、未知成分和估算营养警告。
 - 契约和 API TypeScript 类型检查通过。
@@ -47,12 +59,14 @@
 
 ## 训练与补给联动、份量与时间编辑
 
+2026-11-11：移除训练日历页的“训练与补给联动”卡片，统一从饮食页面查看该模块。饮食页继续按所选日期核对补给状态、打开联动详情；训练日历不再为该卡片发起状态请求。课程应用结果页的联动提示保留。本次仅调整展示入口，不更改 API、数据库或草稿确认流程。
+
 实现 FR-505 / FR-506：训练应用后可手动生成补给调整草稿，逐日比较旧安排与建议，独立确认后应用。未确认时保留正式饮食。
 
 ### 操作路径
 
-1. AI 教练应用成功页、赛事训练应用成功页、单节 AI 调整成功页 →「查看训练补给联动」；普通课程应用后在训练日历也可进入。
-2. 训练日历按选中日期显示核对卡；饮食页按今天起 7 天显示核对卡，应用后返回会重新读取状态。
+1. 饮食页、AI 教练应用成功页、赛事训练应用成功页、单节 AI 调整成功页 →「查看训练补给联动」。
+2. 饮食页按今天起 7 天显示核对卡，应用后返回会重新读取状态；训练日历不展示该模块。
 3. 联动页选择 1–31 天，点击读取范围；默认只读取/恢复已有任务和草稿，绝不自动生成。超长训练周期分批处理。
 4. 缺少饮食档案时在当前页填写偏好、禁忌和用餐时间，保存后仍须点击「生成训练补给草稿」。读取最新正式训练，包含休息日，长骑删除也能调整补给。
 5. 预览全部日期的原餐次与建议餐次，包含食物份量、时间、能量、碳水、水分与训练补给备注；可以编辑份量、时间，保存后重新校验。

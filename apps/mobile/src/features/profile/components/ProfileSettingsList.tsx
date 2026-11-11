@@ -3,6 +3,7 @@ import { Card } from "../../../components/ui";
 import { FtpMeasurementCard } from "./FtpMeasurementCard";
 import { HeartRateSettingsCard } from "./HeartRateSettingsCard";
 import { ThirdPartyAppsCard } from "./ThirdPartyAppsCard";
+import { ProfilePlanningEntries } from "./ProfilePlanningEntries";
 import { profileMetricStyles as styles } from "./profile-metric-card.styles";
 
 export function ProfileSettingsList({ token }: { token: string }) {
@@ -15,6 +16,8 @@ export function ProfileSettingsList({ token }: { token: string }) {
       <FtpMeasurementCard token={token} />
       <View style={styles.divider} />
       <HeartRateSettingsCard token={token} />
+      <View style={styles.divider} />
+      <ProfilePlanningEntries />
       <View style={styles.divider} />
       <ThirdPartyAppsCard />
     </Card>
