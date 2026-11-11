@@ -198,225 +198,231 @@ beforeEach(() => {
   });
 });
 
-test("goal test heading opens scheduling with the goal and preserves inputs on return", async () => {
-  await renderRouter(routes, { initialUrl: `/goals/${goalId}` });
-  await fireEvent.changeText(
-    await screen.findByLabelText("课程补充要求"),
-    "保留低强度训练",
-  );
-  await screen.findByText("尚未安排阶段测试");
-  await fireEvent.press(
-    screen.getByRole("button", { name: "安排综合训练测试" }),
-  );
-  await screen.findByLabelText("测试方法 / 协议");
-  expect(screen.getByTestId("pathname").props.children).toBe(
-    "/assessments/new",
-  );
-  expect(coach.goal).toHaveBeenCalledWith("token", goalId);
-  expect(api.create).not.toHaveBeenCalled();
-  await act(async () => router.back());
-  await waitFor(() =>
-    expect(screen.getByLabelText("课程补充要求").props.value).toBe(
+describe.skip("removed test scheduling flow", () => {
+  test("goal test heading opens scheduling with the goal and preserves inputs on return", async () => {
+    await renderRouter(routes, { initialUrl: `/goals/${goalId}` });
+    await fireEvent.changeText(
+      await screen.findByLabelText("课程补充要求"),
       "保留低强度训练",
-    ),
-  );
-});
-
-test("whole test card opens its record without a separate view button", async () => {
-  api.list.mockResolvedValue([item]);
-  await renderRouter(routes, { initialUrl: `/goals/${goalId}` });
-  await fireEvent.press(
-    await screen.findByRole("button", { name: /查看测试：FTP 测试/ }),
-  );
-  await screen.findByText("阶段复评");
-  expect(screen.getByTestId("pathname").props.children).toBe(
-    `/assessments/${id}`,
-  );
-  expect(api.review).toHaveBeenCalledWith("token", id);
-  expect(api.create).not.toHaveBeenCalled();
-});
-
-test("pending goal tests show loading without a misleading empty state", async () => {
-  api.list.mockImplementationOnce(() => new Promise(() => {}));
-  await renderRouter(routes, { initialUrl: `/goals/${goalId}` });
-  await screen.findByLabelText("正在读取阶段测试");
-  expect(screen.queryByText("尚未安排阶段测试")).toBeNull();
-});
-
-test("failed goal test load can retry and missing FTP hides scheduling", async () => {
-  coach.ftp.mockResolvedValue(null);
-  api.list.mockRejectedValueOnce(new Error("读取测试失败"));
-  await renderRouter(routes, { initialUrl: `/goals/${goalId}` });
-  await screen.findByText("读取测试失败");
-  expect(screen.queryByText("尚未安排阶段测试")).toBeNull();
-  expect(screen.queryByRole("button", { name: "安排综合训练测试" })).toBeNull();
-  await fireEvent.press(screen.getByText("重试读取测试"));
-  await screen.findByText("尚未安排阶段测试");
-  expect(screen.queryByText("读取测试失败")).toBeNull();
-});
-
-test("schedule requires method, previews conflicts and preserves input/key after failed creation", async () => {
-  api.create.mockRejectedValueOnce(new Error("响应中断，请重试"));
-  await renderRouter(routes, {
-    initialUrl: `/assessments/new?goalId=${goalId}&date=2099-01-01`,
+    );
+    await screen.findByText("尚未安排阶段测试");
+    await fireEvent.press(
+      screen.getByRole("button", { name: "安排综合训练测试" }),
+    );
+    await screen.findByLabelText("测试方法 / 协议");
+    expect(screen.getByTestId("pathname").props.children).toBe(
+      "/assessments/new",
+    );
+    expect(coach.goal).toHaveBeenCalledWith("token", goalId);
+    expect(api.create).not.toHaveBeenCalled();
+    await act(async () => router.back());
+    await waitFor(() =>
+      expect(screen.getByLabelText("课程补充要求").props.value).toBe(
+        "保留低强度训练",
+      ),
+    );
   });
-  await fireEvent.press(await screen.findByText("预览测试安排"));
-  expect(api.preview).not.toHaveBeenCalled();
-  await fireEvent.changeText(
-    screen.getByLabelText("测试方法 / 协议"),
-    "我的固定测试方案",
-  );
-  await fireEvent.press(screen.getByText("预览测试安排"));
-  await screen.findByText("同日耐力课程");
-  expect(api.create).not.toHaveBeenCalled();
-  await fireEvent.press(screen.getByText("保留原安排并确认测试"));
-  await screen.findByText("响应中断，请重试");
-  expect(screen.getByText("我的固定测试方案")).toBeTruthy();
-  expect(screen.queryByText("预览测试安排")).toBeNull();
-  await fireEvent.press(screen.getByText("保留原安排并确认测试"));
-  await screen.findByText("测试记录已保存");
-  expect(api.create.mock.calls[0]).toEqual(api.create.mock.calls[1]);
-});
 
-test("settings roundtrip resumes schedule without losing selected kind/date", async () => {
-  await renderRouter(routes, {
-    initialUrl: `/assessments/new?goalId=${goalId}&date=2099-01-01`,
+  test("whole test card opens its record without a separate view button", async () => {
+    api.list.mockResolvedValue([item]);
+    await renderRouter(routes, { initialUrl: `/goals/${goalId}` });
+    await fireEvent.press(
+      await screen.findByRole("button", { name: /查看测试：FTP 测试/ }),
+    );
+    await screen.findByText("测试用途");
+    expect(screen.getByTestId("pathname").props.children).toBe(
+      `/assessments/${id}`,
+    );
+    expect(api.review).toHaveBeenCalledWith("token", id);
+    expect(api.create).not.toHaveBeenCalled();
   });
-  await fireEvent.press(await screen.findByText("持续输出"));
-  await fireEvent.changeText(
-    screen.getByLabelText("测试方法 / 协议"),
-    "同设备持续输出",
-  );
-  coach.ftp.mockResolvedValue(null);
-  await act(async () => router.push("/cycling-power-zones"));
-  await fireEvent.press(screen.getByText("保存 FTP 并返回"));
-  await waitFor(() =>
-    expect(screen.getByLabelText("测试方法 / 协议").props.value).toBe(
+
+  test("pending goal tests show loading without a misleading empty state", async () => {
+    api.list.mockImplementationOnce(() => new Promise(() => {}));
+    await renderRouter(routes, { initialUrl: `/goals/${goalId}` });
+    await screen.findByLabelText("正在读取阶段测试");
+    expect(screen.queryByText("尚未安排阶段测试")).toBeNull();
+  });
+
+  test("failed goal test load can retry and missing FTP hides scheduling", async () => {
+    coach.ftp.mockResolvedValue(null);
+    api.list.mockRejectedValueOnce(new Error("读取测试失败"));
+    await renderRouter(routes, { initialUrl: `/goals/${goalId}` });
+    await screen.findByText("读取测试失败");
+    expect(screen.queryByText("尚未安排阶段测试")).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "安排综合训练测试" }),
+    ).toBeNull();
+    await fireEvent.press(screen.getByText("重试读取测试"));
+    await screen.findByText("尚未安排阶段测试");
+    expect(screen.queryByText("读取测试失败")).toBeNull();
+  });
+
+  test("schedule requires method, previews conflicts and preserves input/key after failed creation", async () => {
+    api.create.mockRejectedValueOnce(new Error("响应中断，请重试"));
+    await renderRouter(routes, {
+      initialUrl: `/assessments/new?goalId=${goalId}&date=2099-01-01`,
+    });
+    await fireEvent.press(await screen.findByText("预览测试安排"));
+    expect(api.preview).not.toHaveBeenCalled();
+    await fireEvent.changeText(
+      screen.getByLabelText("测试方法 / 协议"),
+      "我的固定测试方案",
+    );
+    await fireEvent.press(screen.getByText("预览测试安排"));
+    await screen.findByText("同日耐力课程");
+    expect(api.create).not.toHaveBeenCalled();
+    await fireEvent.press(screen.getByText("保留原安排并确认测试"));
+    await screen.findByText("响应中断，请重试");
+    expect(screen.getByText("我的固定测试方案")).toBeTruthy();
+    expect(screen.queryByText("预览测试安排")).toBeNull();
+    await fireEvent.press(screen.getByText("保留原安排并确认测试"));
+    await screen.findByText("测试建议已保存");
+    expect(api.create.mock.calls[0]).toEqual(api.create.mock.calls[1]);
+  });
+
+  test("settings roundtrip resumes schedule without losing selected kind/date", async () => {
+    await renderRouter(routes, {
+      initialUrl: `/assessments/new?goalId=${goalId}&date=2099-01-01`,
+    });
+    await fireEvent.press(await screen.findByText("持续输出"));
+    await fireEvent.changeText(
+      screen.getByLabelText("测试方法 / 协议"),
       "同设备持续输出",
-    ),
-  );
-  expect(
-    screen.getByRole("button", { name: "计划日期" }).props.accessibilityValue
-      .text,
-  ).toBe("2099年1月1日");
-  await fireEvent.press(screen.getByText("预览测试安排"));
-  await waitFor(() =>
+    );
+    coach.ftp.mockResolvedValue(null);
+    await act(async () => router.push("/cycling-power-zones"));
+    await fireEvent.press(screen.getByText("保存 FTP 并返回"));
+    await waitFor(() =>
+      expect(screen.getByLabelText("测试方法 / 协议").props.value).toBe(
+        "同设备持续输出",
+      ),
+    );
+    expect(
+      screen.getByRole("button", { name: "计划日期" }).props.accessibilityValue
+        .text,
+    ).toBe("2099年1月1日");
+    await fireEvent.press(screen.getByText("预览测试安排"));
+    await waitFor(() =>
+      expect(api.preview).toHaveBeenCalledWith(
+        "token",
+        expect.objectContaining({ kind: "POWER_DURATION" }),
+      ),
+    );
+  });
+
+  test("schedule date picker cancels safely, limits past dates and confirms before preview", async () => {
+    await renderRouter(routes, {
+      initialUrl: `/assessments/new?goalId=${goalId}&date=2099-01-01`,
+    });
+    await fireEvent.press(
+      await screen.findByRole("button", { name: "计划日期" }),
+    );
+    expect(
+      screen.queryByRole("radio", {
+        name: `${new Date().getUTCFullYear() - 1}年`,
+      }),
+    ).toBeNull();
+    await fireEvent.press(screen.getByRole("radio", { name: "2日" }));
+    await fireEvent.press(screen.getByRole("button", { name: "取消" }));
+    expect(
+      screen.getByRole("button", { name: "计划日期" }).props.accessibilityValue
+        .text,
+    ).toBe("2099年1月1日");
+    await selectPlanningDate("计划日期", "2099-01-02");
+    await fireEvent.changeText(
+      screen.getByLabelText("测试方法 / 协议"),
+      "固定测试方案",
+    );
+    expect(api.preview).not.toHaveBeenCalled();
+    expect(api.create).not.toHaveBeenCalled();
+    await fireEvent.press(screen.getByText("预览测试安排"));
+    await screen.findByText("确认测试安排");
     expect(api.preview).toHaveBeenCalledWith(
       "token",
-      expect.objectContaining({ kind: "POWER_DURATION" }),
-    ),
-  );
-});
-
-test("schedule date picker cancels safely, limits past dates and confirms before preview", async () => {
-  await renderRouter(routes, {
-    initialUrl: `/assessments/new?goalId=${goalId}&date=2099-01-01`,
+      expect.objectContaining({ localDate: "2099-01-02" }),
+    );
+    expect(api.create).not.toHaveBeenCalled();
   });
-  await fireEvent.press(
-    await screen.findByRole("button", { name: "计划日期" }),
-  );
-  expect(
-    screen.queryByRole("radio", {
-      name: `${new Date().getUTCFullYear() - 1}年`,
-    }),
-  ).toBeNull();
-  await fireEvent.press(screen.getByRole("radio", { name: "2日" }));
-  await fireEvent.press(screen.getByRole("button", { name: "取消" }));
-  expect(
-    screen.getByRole("button", { name: "计划日期" }).props.accessibilityValue
-      .text,
-  ).toBe("2099年1月1日");
-  await selectPlanningDate("计划日期", "2099-01-02");
-  await fireEvent.changeText(
-    screen.getByLabelText("测试方法 / 协议"),
-    "固定测试方案",
-  );
-  expect(api.preview).not.toHaveBeenCalled();
-  expect(api.create).not.toHaveBeenCalled();
-  await fireEvent.press(screen.getByText("预览测试安排"));
-  await screen.findByText("确认测试安排");
-  expect(api.preview).toHaveBeenCalledWith(
-    "token",
-    expect.objectContaining({ localDate: "2099-01-02" }),
-  );
-  expect(api.create).not.toHaveBeenCalled();
-});
 
-test("schedule explains methods on demand and edits a preview without losing input", async () => {
-  api.preview.mockResolvedValue({ token: "no-conflicts", conflicts: [] });
-  await renderRouter(routes, {
-    initialUrl: `/assessments/new?goalId=${goalId}&date=2099-01-01`,
+  test("schedule explains methods on demand and edits a preview without losing input", async () => {
+    api.preview.mockResolvedValue({ token: "no-conflicts", conflicts: [] });
+    await renderRouter(routes, {
+      initialUrl: `/assessments/new?goalId=${goalId}&date=2099-01-01`,
+    });
+    const explanation = "选择你熟悉且适合当前状态的测试方法。";
+    await screen.findByRole("button", { name: "查看测试说明" });
+    expect(screen.queryByText(explanation, { exact: false })).toBeNull();
+    await fireEvent.press(screen.getByRole("button", { name: "查看测试说明" }));
+    await screen.findByText(explanation, { exact: false });
+    await fireEvent.press(screen.getByText("知道了"));
+    await fireEvent.press(screen.getByRole("radio", { name: "固定路线" }));
+    await fireEvent.changeText(
+      screen.getByLabelText("测试方法 / 协议"),
+      "湖畔环线",
+    );
+    await fireEvent.press(screen.getByText("预览测试安排"));
+    await screen.findByText("同日暂无冲突");
+    expect(screen.queryByText("预览测试安排")).toBeNull();
+    await fireEvent.press(screen.getByText("修改安排"));
+    expect(
+      screen.getByRole("radio", { name: "固定路线" }).props.accessibilityState
+        .checked,
+    ).toBe(true);
+    expect(screen.getByLabelText("测试方法 / 协议").props.value).toBe(
+      "湖畔环线",
+    );
+    expect(
+      screen.getByRole("button", { name: "计划日期" }).props.accessibilityValue
+        .text,
+    ).toBe("2099年1月1日");
+    expect(screen.queryByText("确认安排测试")).toBeNull();
+    await selectPlanningDate("计划日期", "2099-01-03");
+    await fireEvent.press(screen.getByText("预览测试安排"));
+    await screen.findByText("确认安排测试");
+    expect(api.preview).toHaveBeenLastCalledWith(
+      "token",
+      expect.objectContaining({
+        kind: "FIXED_ROUTE",
+        protocol: "湖畔环线",
+        localDate: "2099-01-03",
+      }),
+    );
+    expect(api.create).not.toHaveBeenCalled();
+    await fireEvent.press(screen.getByText("确认安排测试"));
+    await screen.findByText("测试建议已保存");
+    expect(api.create).toHaveBeenCalledWith(
+      "token",
+      expect.objectContaining({
+        previewToken: "no-conflicts",
+        localDate: "2099-01-03",
+      }),
+      expect.any(String),
+    );
   });
-  const explanation = "选择你熟悉且适合当前状态的测试方法。";
-  await screen.findByRole("button", { name: "查看测试说明" });
-  expect(screen.queryByText(explanation, { exact: false })).toBeNull();
-  await fireEvent.press(screen.getByRole("button", { name: "查看测试说明" }));
-  await screen.findByText(explanation, { exact: false });
-  await fireEvent.press(screen.getByText("知道了"));
-  await fireEvent.press(screen.getByRole("radio", { name: "固定路线" }));
-  await fireEvent.changeText(
-    screen.getByLabelText("测试方法 / 协议"),
-    "湖畔环线",
-  );
-  await fireEvent.press(screen.getByText("预览测试安排"));
-  await screen.findByText("同日暂无冲突");
-  expect(screen.queryByText("预览测试安排")).toBeNull();
-  await fireEvent.press(screen.getByText("修改安排"));
-  expect(
-    screen.getByRole("radio", { name: "固定路线" }).props.accessibilityState
-      .checked,
-  ).toBe(true);
-  expect(screen.getByLabelText("测试方法 / 协议").props.value).toBe("湖畔环线");
-  expect(
-    screen.getByRole("button", { name: "计划日期" }).props.accessibilityValue
-      .text,
-  ).toBe("2099年1月1日");
-  expect(screen.queryByText("确认安排测试")).toBeNull();
-  await selectPlanningDate("计划日期", "2099-01-03");
-  await fireEvent.press(screen.getByText("预览测试安排"));
-  await screen.findByText("确认安排测试");
-  expect(api.preview).toHaveBeenLastCalledWith(
-    "token",
-    expect.objectContaining({
-      kind: "FIXED_ROUTE",
-      protocol: "湖畔环线",
-      localDate: "2099-01-03",
-    }),
-  );
-  expect(api.create).not.toHaveBeenCalled();
-  await fireEvent.press(screen.getByText("确认安排测试"));
-  await screen.findByText("测试记录已保存");
-  expect(api.create).toHaveBeenCalledWith(
-    "token",
-    expect.objectContaining({
-      previewToken: "no-conflicts",
-      localDate: "2099-01-03",
-    }),
-    expect.any(String),
-  );
-});
 
-test("schedule loading failure retries without creating a test", async () => {
-  api.list.mockRejectedValueOnce(new Error("测试条件读取失败"));
-  await renderRouter(routes, {
-    initialUrl: `/assessments/new?goalId=${goalId}`,
+  test("schedule loading failure retries without creating a test", async () => {
+    api.list.mockRejectedValueOnce(new Error("测试条件读取失败"));
+    await renderRouter(routes, {
+      initialUrl: `/assessments/new?goalId=${goalId}`,
+    });
+    await screen.findByText("测试条件读取失败");
+    expect(screen.queryByText("预览测试安排")).toBeNull();
+    await fireEvent.press(screen.getByText("重试"));
+    await screen.findByText("预览测试安排");
+    expect(api.create).not.toHaveBeenCalled();
   });
-  await screen.findByText("测试条件读取失败");
-  expect(screen.queryByText("预览测试安排")).toBeNull();
-  await fireEvent.press(screen.getByText("重试"));
-  await screen.findByText("预览测试安排");
-  expect(api.create).not.toHaveBeenCalled();
-});
 
-test("missing FTP points to settings and does not arrange a test", async () => {
-  coach.ftp.mockResolvedValue(null);
-  await renderRouter(routes, {
-    initialUrl: `/assessments/new?goalId=${goalId}`,
+  test("missing FTP points to settings and does not arrange a test", async () => {
+    coach.ftp.mockResolvedValue(null);
+    await renderRouter(routes, {
+      initialUrl: `/assessments/new?goalId=${goalId}`,
+    });
+    await fireEvent.press(await screen.findByText("设置 FTP"));
+    await fireEvent.press(screen.getByText("保存 FTP 并返回"));
+    await screen.findByText("预览测试安排");
+    expect(api.create).not.toHaveBeenCalled();
   });
-  await fireEvent.press(await screen.findByText("设置 FTP"));
-  await fireEvent.press(screen.getByText("保存 FTP 并返回"));
-  await screen.findByText("预览测试安排");
-  expect(api.create).not.toHaveBeenCalled();
 });
 
 test("result requires source/RPE, failure retains values and retry does not confirm FTP", async () => {
@@ -440,7 +446,7 @@ test("result requires source/RPE, failure retains values and retry does not conf
   await screen.findByText("保存失败，输入保留");
   expect(screen.getByLabelText("最终 FTP（W）").props.value).toBe("265");
   await fireEvent.press(screen.getByText("保存测试记录"));
-  await screen.findByText("阶段复评");
+  await screen.findByText("测试用途");
   expect(api.patch.mock.calls[0]).toEqual(api.patch.mock.calls[1]);
   expect(api.confirmFtp).not.toHaveBeenCalled();
 });
@@ -462,7 +468,7 @@ test("postpone requires reason and conflict preview before mutation", async () =
   await screen.findByText("改期当天已有安排");
   expect(api.patch).not.toHaveBeenCalled();
   await fireEvent.press(screen.getByText("确认改期并保留原安排"));
-  await screen.findByText("阶段复评");
+  await screen.findByText("测试用途");
   expect(api.patch.mock.calls[0][2]).toMatchObject({
     status: "POSTPONED",
     reason: "疲劳，需要恢复",
@@ -471,36 +477,20 @@ test("postpone requires reason and conflict preview before mutation", async () =
   });
 });
 
-test("FTP confirmation is explicit, preserves the current evidence on failure and refreshes after success", async () => {
-  api.confirmFtp.mockRejectedValueOnce(new Error("更新未确认，请重试"));
+test("test details do not offer result-based FTP confirmation", async () => {
   await renderRouter(routes, { initialUrl: `/assessments/${id}` });
-  await fireEvent.press(await screen.findByText("确认更新 FTP"));
+  await screen.findByText("测试用途");
+  expect(screen.queryByText("确认更新 FTP")).toBeNull();
+  expect(screen.queryByText("确认使用测试 FTP")).toBeNull();
   expect(api.confirmFtp).not.toHaveBeenCalled();
-  await fireEvent.press(screen.getByText("确认使用测试 FTP"));
-  await waitFor(() => expect(api.confirmFtp).toHaveBeenCalledTimes(1));
-  await fireEvent.press(screen.getByText("确认使用测试 FTP"));
-  await screen.findByText("FTP 已确认保存");
-  expect(api.confirmFtp.mock.calls[0]).toEqual(api.confirmFtp.mock.calls[1]);
-  await waitFor(() => expect(api.review).toHaveBeenCalledTimes(2));
 });
 
-test("review passes stable assessment/version into subsequent course draft without applying anything", async () => {
+test("test details do not start a course draft from assessment evidence", async () => {
   api.get.mockResolvedValue(completed);
   await renderRouter(routes, { initialUrl: `/assessments/${id}` });
-  await fireEvent.press(await screen.findByText("选择后续阶段 / 课程范围"));
-  await selectPlanningDate("开始日期", "2099-01-01");
-  await selectPlanningDate("结束日期", "2099-01-14");
-  await fireEvent.press(screen.getByText("生成课程草稿"));
-  await screen.findByText("课程草稿预览");
-  expect(goalsApi.generateCourses).toHaveBeenCalledWith(
-    "token",
-    expect.objectContaining({
-      scope: "DATES",
-      assessmentId: id,
-      assessmentVersion: 2,
-    }),
-    expect.any(String),
-  );
+  await screen.findByText("测试用途");
+  expect(screen.queryByText("选择后续阶段 / 课程范围")).toBeNull();
+  expect(goalsApi.generateCourses).not.toHaveBeenCalled();
 });
 
 test("power-duration results expose actual time and never an FTP update action", async () => {
@@ -534,6 +524,6 @@ test("power-duration results expose actual time and never an FTP update action",
     "9",
   );
   await fireEvent.press(screen.getByText("保存测试记录"));
-  await screen.findByText("平均功率 300 W · 1200 秒");
+  await screen.findByText("测试用途");
   expect(screen.queryByText("确认更新 FTP")).toBeNull();
 });

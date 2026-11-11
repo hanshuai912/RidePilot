@@ -127,7 +127,7 @@ export class CoachOverviewService {
             ? "目标、FTP 或训练资料已变化，请检查阶段安排"
             : !stage
               ? roadmap
-                ? "已到阶段安排末尾，请复评后规划后续阶段"
+                ? "已到阶段安排末尾，可按当前资料重新规划后续阶段"
                 : "尚未确认阶段安排，可在目标详情生成并预览"
               : null,
           status: coachStatus(

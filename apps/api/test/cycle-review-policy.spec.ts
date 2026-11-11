@@ -90,7 +90,7 @@ it("asks for reassessment on a newly completed test without changing FTP or stag
     },
   ] as CycleReviewData["tests"];
   const snapshot = buildCycleReview(data);
-  expect(snapshot.recommendation.code).toBe("REASSESS");
+  expect(snapshot.recommendation.code).toBe("INSUFFICIENT");
   expect(snapshot.ftp).toBeNull();
   expect(snapshot.stage).toBeNull();
 });

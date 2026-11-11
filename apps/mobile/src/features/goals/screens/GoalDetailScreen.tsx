@@ -3,7 +3,6 @@ import { View } from "react-native";
 import { router, useIsFocused, useLocalSearchParams } from "expo-router";
 import { AppText, Button, Card, Spinner } from "../../../components/ui";
 import { GenerationCancelButton } from "../../coach/components/GenerationCancelButton";
-import { GoalAssessments } from "../../assessments/components/GoalAssessments";
 import { TrainingPage } from "../../training/components/TrainingPage";
 import { FtpRequiredState } from "../../training/components/FtpRequiredState";
 import { useUnsavedTraining } from "../../training/hooks/useUnsavedTraining";
@@ -18,27 +17,14 @@ import { GoalStagePlanner } from "../components/GoalStagePlanner";
 import { GoalInfoButton } from "../components/GoalInfoButton";
 
 export function GoalDetailScreen() {
-  const { goalId = "", assessmentId } = useLocalSearchParams<{
+  const { goalId = "" } = useLocalSearchParams<{
     goalId?: string;
-    assessmentId?: string;
   }>();
-  return (
-    <GoalDetailContent
-      key={`${goalId}:${assessmentId ?? ""}`}
-      goalId={goalId}
-      assessmentId={assessmentId}
-    />
-  );
+  return <GoalDetailContent key={goalId} goalId={goalId} />;
 }
 
-function GoalDetailContent({
-  goalId,
-  assessmentId,
-}: {
-  goalId: string;
-  assessmentId?: string;
-}) {
-  const flow = useGoalPlanning(goalId, assessmentId);
+function GoalDetailContent({ goalId }: { goalId: string }) {
+  const flow = useGoalPlanning(goalId);
   const focused = useIsFocused();
   const [dirty, setDirty] = useState(false);
   const [selectedGoalId, setSelectedGoalId] = useState(goalId);
@@ -92,7 +78,7 @@ function GoalDetailContent({
             <AppText variant="section">综合训练规划</AppText>
             <GoalInfoButton
               title="综合训练规划说明"
-              description="阶段、测试和课程由全部进行中目标共同规划，以主目标决定训练重点，兼顾次目标。切换上方目标只查看各自信息，不会切换另一套训练安排。目标有变更时，需重新生成并确认草稿。"
+              description="阶段和课程由全部进行中目标共同规划，以主目标决定训练重点，兼顾次目标。测试只提供建议时间，不要求录入结果或完成复评。资料变化后，App 会提示你是否重新生成课程。"
             />
           </View>
           {!data.goalsError && !planningGoal ? (
@@ -112,25 +98,6 @@ function GoalDetailContent({
                 today={data.today}
                 disabled={flow.busy}
                 showSummary={false}
-                onReview={(stageId) =>
-                  router.push({
-                    pathname: "/goals/stage-review",
-                    params: { stageId },
-                  })
-                }
-                onAssessment={
-                  canPlan
-                    ? (stageId, date) =>
-                        router.push({
-                          pathname: "/assessments/new",
-                          params: {
-                            goalId: data.stages!.goalId,
-                            stageId,
-                            date,
-                          },
-                        })
-                    : undefined
-                }
               />
             ) : (
               <Card className="gap-2 p-5">
@@ -143,17 +110,6 @@ function GoalDetailContent({
               </Card>
             )}
           </View>
-          <GoalAssessments
-            goalId={planningGoal?.id ?? goalId}
-            canSchedule={canPlan && !flow.busy}
-          />
-          {data.assessment ? (
-            <Card>
-              <AppText>
-                基于测试「{data.assessment.protocol}」规划后续课程。
-              </AppText>
-            </Card>
-          ) : null}
           {!data.ftp ? (
             <FtpRequiredState />
           ) : canPlan ? (

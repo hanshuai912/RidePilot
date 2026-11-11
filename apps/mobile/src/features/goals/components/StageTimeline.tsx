@@ -10,20 +10,19 @@ import { goalDateLabel } from "../model/goal-presentation";
 export function StageTimeline({
   plan,
   today,
-  onAssessment,
   onReview,
   disabled = false,
   showSummary = true,
 }: {
   plan: StagePlanResponse;
   today?: string;
-  onAssessment?: (stageId: string, date: string) => void;
+  /** @deprecated Kept for compatibility with legacy callers; new flows do not pass it. */
   onReview?: (stageId: string) => void;
   disabled?: boolean;
   showSummary?: boolean;
 }) {
   const [expandedId, setExpandedId] = useState<string>();
-  const interactive = !!(onAssessment || onReview);
+  const interactive = !!onReview;
   const defaultStage =
     plan.stages.find(
       (stage) => today && stage.startDate <= today && stage.endDate >= today,
@@ -131,38 +130,6 @@ export function StageTimeline({
                 {expanded ? (
                   <View className="mt-3 gap-3">
                     <AppText>{stage.purpose}</AppText>
-                    {stage.assessmentSuggestion || onAssessment ? (
-                      <View className="gap-1 border-t border-divider pt-3">
-                        <View className="flex-row flex-wrap items-center justify-between gap-x-2">
-                          <AppText variant="label" className="text-secondary">
-                            {stage.assessmentSuggestion
-                              ? "测试建议"
-                              : "阶段测试"}
-                          </AppText>
-                          {onAssessment ? (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              accessibilityLabel="安排阶段测试"
-                              disabled={disabled || plan.stale}
-                              onPress={() =>
-                                onAssessment(
-                                  stage.id,
-                                  ended && today ? today : stage.endDate,
-                                )
-                              }
-                            >
-                              安排测试
-                            </Button>
-                          ) : null}
-                        </View>
-                        {stage.assessmentSuggestion ? (
-                          <AppText className="text-secondary">
-                            {stage.assessmentSuggestion}
-                          </AppText>
-                        ) : null}
-                      </View>
-                    ) : null}
                     {stage.latestReview ? (
                       <AppText variant="caption" className="text-secondary">
                         最近复评 · {outcomeLabels[stage.latestReview.outcome]} ·{" "}

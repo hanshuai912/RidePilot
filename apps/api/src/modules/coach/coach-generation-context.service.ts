@@ -335,10 +335,7 @@ export class CoachGenerationContextService {
         message: "该范围没有可调整的未来课程",
       });
     let relatedEvent: Record<string, unknown> | null = null;
-    if (
-      scene === "ASSESSMENT_REVIEW" ||
-      (scene === "RANGE_PLAN" && input.relatedId)
-    ) {
+    if (scene === "ASSESSMENT_REVIEW") {
       const review = await this.reviews.review(userId, input.relatedId!);
       const assessment = review.assessment;
       if (input.relatedVersion && input.relatedVersion !== assessment.version)
@@ -357,7 +354,7 @@ export class CoachGenerationContextService {
       )
         throw new ConflictException({
           code: "ASSESSMENT_NOT_REVIEWABLE",
-          message: "测试结果尚不可复评",
+          message: "测试结果不会影响课程生成",
         });
       relatedEvent = {
         ...assessment,

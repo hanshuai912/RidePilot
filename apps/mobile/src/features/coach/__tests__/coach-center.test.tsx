@@ -216,11 +216,7 @@ it("shows a concise status and published workout, with detailed evidence on a se
   expect(
     details.getByText("缺少疲劳反馈，不能仅根据 RPE 判断恢复"),
   ).toBeTruthy();
-  await fireEvent.press(details.getByText("查看测试 / 录入结果"));
-  expect(mockPush).toHaveBeenCalledWith({
-    pathname: "/assessments/[assessmentId]",
-    params: { assessmentId: id },
-  });
+  expect(details.queryByText("查看测试建议")).toBeNull();
   expect(details.getByText(/赛后恢复调整/)).toBeTruthy();
   expect(training.generate).not.toHaveBeenCalled();
   expect(training.apply).not.toHaveBeenCalled();
@@ -308,7 +304,6 @@ it("uses four core tasks and keeps lower frequency actions in the collapsed menu
     ["训练执行与周期复盘", "/(tabs)/coach/cycle-review"],
     ["目标阶段与按范围生成课程", "/goals"],
     ["赛事管理与新增比赛", "/races"],
-    ["阶段测试与状态依据", "/(tabs)/coach/status"],
     ["最近计划版本", "/(tabs)/coach/status"],
     ["全部建议与历史", "/(tabs)/coach/suggestions"],
   ]) {

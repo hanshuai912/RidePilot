@@ -22,20 +22,6 @@ export function CycleReviewActions({
         >
           保留当前计划，前往训练
         </Button>
-        <Button
-          variant="ghost"
-          onPress={() =>
-            state.router.push({
-              pathname: "/assessments/new",
-              params: r.goal ? { goalId: r.goal.id } : {},
-            })
-          }
-        >
-          安排下一次测试
-        </Button>
-        <AppText variant="caption" muted>
-          安排测试会进入测试确认流程；不会自动排期、更新 FTP 或推进阶段。
-        </AppText>
         {r.goal ? (
           <Button
             variant="secondary"

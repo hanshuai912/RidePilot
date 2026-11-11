@@ -62,3 +62,7 @@ AI 教练新增的计划生成、调整、历史恢复及相关资料接口见 [
 冲突信息检查赛事、测试、固定休息日与时长；最多提供后续 14 天内的 3 个替代日期。同日允许多课程，距离目标不能可靠估算时间时明确阻止自动改期。确认后复用 edit-proposal → validate → apply；创建、更新、校验及最终事务都检查日期变化，冲突返回 409 `WORKOUT_SCHEDULE_CONFLICT`。
 
 人工 apply 支持检查 `expectedProposalVersion`；与正式版本冲突分别返回 `PROPOSAL_VERSION_CONFLICT`、`PLAN_VERSION_CONFLICT`。相同已应用提案仍可幂等重试。
+
+# 资料驱动的课程生成（2026-11-11）
+
+日期范围课程生成以当前 FTP、身体资料、可训练时间和活跃目标为依据。测试结果及阶段复评不再是新课程生成的必填输入；测试日期仍可作为排期冲突提示。资料变化通过 `/plans/input-impact` 检测，用户确认草稿后才更新正式计划。

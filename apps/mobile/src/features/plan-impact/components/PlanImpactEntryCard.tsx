@@ -40,7 +40,7 @@ export function PlanImpactEntryCard() {
           ? "影响状态读取失败，进入后可重试。"
           : count
             ? `${count} 节未来课程待核对`
-            : "修改 FTP、目标或训练时间后，在这里核对未来安排。"}
+            : "修改 FTP、身体资料、目标或训练时间后，在这里核对未来安排。"}
       </AppText>
       <Button
         variant="secondary"

@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import { useRouter } from "expo-router";
 import { View } from "react-native";
-import { AppText, Button, Card } from "../../../components/ui";
+import { AppText, Card } from "../../../components/ui";
 import { useAuth } from "../../auth/hooks/AuthProvider";
 import { TrainingPage } from "../../training/components/TrainingPage";
 import { useCoachResource } from "../hooks/useCoachResource";
@@ -55,7 +55,7 @@ export function CoachStatusScreen() {
             ))}
             {!data.status.evidence.length ? (
               <AppText className="mt-3 text-secondary">
-                暂无训练、比赛或测试反馈，可从训练详情记录实际感受。
+                暂无训练或比赛反馈，可从训练详情记录实际感受；测试仅作为时间建议。
               </AppText>
             ) : null}
           </Card>
@@ -77,33 +77,6 @@ export function CoachStatusScreen() {
                 {data.stageNotice}
               </AppText>
             ) : null}
-          </Card>
-          <Card>
-            <AppText variant="card">阶段测试</AppText>
-            <AppText className="mt-2">
-              {data.nextAssessment
-                ? `${data.nextAssessment.date} · ${data.nextAssessment.title}`
-                : "暂无已安排测试"}
-            </AppText>
-            {data.nextAssessment?.overdue ? (
-              <AppText variant="caption" className="mt-2 text-warning">
-                已到期，请更新结果或安排
-              </AppText>
-            ) : null}
-            <Button
-              variant="secondary"
-              className="mt-3"
-              onPress={() =>
-                data.nextAssessment
-                  ? router.push({
-                      pathname: "/assessments/[assessmentId]",
-                      params: { assessmentId: data.nextAssessment.id },
-                    })
-                  : router.push("/assessments/new")
-              }
-            >
-              {data.nextAssessment ? "查看测试 / 录入结果" : "安排阶段测试"}
-            </Button>
           </Card>
           <AppText variant="section">最近计划版本</AppText>
           {data.versions.map((v) => (

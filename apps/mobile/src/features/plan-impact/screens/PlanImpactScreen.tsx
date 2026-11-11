@@ -58,7 +58,7 @@ export function PlanImpactScreen() {
             disabled={s.busy}
             onPress={() => router.push("/goals")}
           >
-            核对目标、阶段与测试
+            查看资料与目标
           </Button>
           {affected.length ? (
             <>
@@ -113,7 +113,7 @@ export function PlanImpactScreen() {
             </>
           ) : (
             <AppText muted>
-              没有待处理的未来课程。已有阶段仍需按上方提示单独核对。
+              没有待处理的未来课程。测试建议不会阻止课程生成。
             </AppText>
           )}
           {s.notice ? (

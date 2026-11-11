@@ -133,6 +133,8 @@ export async function readPlanImpact(db: ImpactDb, userId: string) {
           ? "目标或目标状态已变化，请复核课程目的及阶段安排"
           : "旧课程缺少目标依据，请复核是否继续保留",
       );
+    if (issues.includes("PROFILE"))
+      messages.push("个人身体资料已变化，请重新生成课程以使用最新条件");
     if (issues.includes("AVAILABILITY")) {
       messages.push(
         original

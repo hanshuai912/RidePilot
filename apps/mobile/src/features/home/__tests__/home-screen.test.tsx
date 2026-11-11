@@ -454,11 +454,6 @@ test("home shows explainable status, next test/race and pending suggestions with
   const view = await render(<HomeScreen />);
   await view.findByText("优先恢复");
   expect(view.getByText(/疲劳 8\/10/)).toBeTruthy();
-  await fireEvent.press(view.getByText(/下一测试 ·/));
-  expect(router.push).toHaveBeenLastCalledWith({
-    pathname: "/assessments/[assessmentId]",
-    params: { assessmentId: "test-1" },
-  });
   await fireEvent.press(view.getByText(/下一比赛 ·/));
   expect(router.push).toHaveBeenLastCalledWith({
     pathname: "/races/[raceId]",

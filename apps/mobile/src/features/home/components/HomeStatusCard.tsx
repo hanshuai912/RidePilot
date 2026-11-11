@@ -73,22 +73,6 @@ export function HomeStatusCard({
               </Button>
             </Card>
           ) : null}
-          {overview?.nextAssessment ? (
-            <Button
-              variant="secondary"
-              onPress={() =>
-                router.push({
-                  pathname: "/assessments/[assessmentId]",
-                  params: { assessmentId: overview.nextAssessment!.id },
-                })
-              }
-            >
-              {overview.nextAssessment.overdue ? "待补测试" : "下一测试"} ·{" "}
-              {overview.nextAssessment.date} · {overview.nextAssessment.title}
-            </Button>
-          ) : (
-            <AppText muted>暂无下一测试安排</AppText>
-          )}
           {data.nextRace ? (
             <Button
               variant="secondary"

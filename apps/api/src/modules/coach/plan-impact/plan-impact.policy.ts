@@ -40,7 +40,7 @@ export function stageImpactMessage(
     stage.goal.description?.trim() ||
     goalTypeLabels[stage.goal.type] ||
     "训练目标";
-  return `${title}：阶段依据已变化（${changes.join("、")}），请到训练目标复评或重新生成阶段。阶段测试须单独核对。`;
+  return `${title}：阶段依据已变化（${changes.join("、")}），请重新生成阶段安排。测试仅作为训练建议，不影响课程生成。`;
 }
 
 export function impactWorkoutKey(workout: {
@@ -68,9 +68,13 @@ export function changedInputs(
     ["FTP", "ftp"],
     ["AVAILABILITY", "availability"],
     ["GOAL", "goals"],
+    ["PROFILE", "profile"],
   ] as const;
   return pairs.flatMap(([issue, key]) => {
     const target = generationFingerprint(current[key]);
+    // Plans created before profile snapshots existed remain compatible; new
+    // plans carry the profile basis and can detect body-condition changes.
+    if (key === "profile" && !original?.profile) return [];
     const matches = [original, ...acknowledged].some(
       (s) => s && key in s && generationFingerprint(s[key]) === target,
     );

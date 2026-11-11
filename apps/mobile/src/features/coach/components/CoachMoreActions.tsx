@@ -25,10 +25,6 @@ export function CoachMoreActions({
     },
     { title: "目标阶段与按范围生成课程", run: () => router.push("/goals") },
     { title: "赛事管理与新增比赛", run: () => router.push("/races") },
-    {
-      title: "阶段测试与状态依据",
-      run: () => router.push("/(tabs)/coach/status"),
-    },
     { title: "最近计划版本", run: () => router.push("/(tabs)/coach/status") },
     {
       title: "全部建议与历史",

@@ -20,7 +20,7 @@ export function coachStatus(
   activities: TrainingActivity[],
   races: (TrainingRaceResult & { race: { name: string } })[],
   assessments: TrainingAssessment[],
-  appliedAt: Date | null,
+  _appliedAt: Date | null,
 ): CoachOverview["status"] {
   const effort = (rpe: number | null, fatigue: number | null) =>
     `${rpe === null ? "未填 RPE" : `RPE ${rpe}/10`}${fatigue === null ? " · 未填疲劳" : ` · 疲劳 ${fatigue}/10`}`;
@@ -77,14 +77,6 @@ export function coachStatus(
       label: "建议关注恢复",
       explanation:
         "最近三天最新疲劳反馈较高（≥7/10），可主动选择恢复或调整；RPE 不等同于疲劳。",
-      evidence,
-    };
-  if (assessments.some((a) => !appliedAt || a.updatedAt > appliedAt))
-    return {
-      code: "REASSESS",
-      label: "建议复评",
-      explanation:
-        "最近七天有晚于当前计划应用时间的测试结果，可查看结果并决定是否调整。",
       evidence,
     };
   if (feedback.length)

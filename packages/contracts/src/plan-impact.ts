@@ -6,7 +6,12 @@ export const planImpactReferenceSchema = z.strictObject({
   startDate: z.iso.date(),
   endDate: z.iso.date(),
 });
-export const planImpactIssueSchema = z.enum(["FTP", "AVAILABILITY", "GOAL"]);
+export const planImpactIssueSchema = z.enum([
+  "FTP",
+  "AVAILABILITY",
+  "GOAL",
+  "PROFILE",
+]);
 export const planImpactItemSchema = z.object({
   workout: workoutSummarySchema,
   issues: z.array(planImpactIssueSchema),

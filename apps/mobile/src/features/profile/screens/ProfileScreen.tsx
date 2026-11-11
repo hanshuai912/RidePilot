@@ -15,6 +15,7 @@ import { router, useFocusEffect } from "expo-router";
 import type { ProfileResponse } from "@ridepilot/contracts";
 import { ProfileSettingsList } from "../components/ProfileSettingsList";
 import { colors } from "../../../theme/colors";
+import { PlanImpactEntryCard } from "../../plan-impact/components/PlanImpactEntryCard";
 
 const m01Colors = {
   text: colors.textPrimary,
@@ -273,6 +274,7 @@ export function ProfileScreen() {
           {session?.accessToken ? (
             <ProfileSettingsList token={session.accessToken} />
           ) : null}
+          <PlanImpactEntryCard />
 
           <View style={styles.section}>
             <AppText style={styles.sectionTitle}>数据与隐私</AppText>

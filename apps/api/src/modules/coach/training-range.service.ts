@@ -36,39 +36,6 @@ export class TrainingRangeService {
           : { weekStartDate: input.startDate, endDate: input.endDate }),
       });
     }
-    if (!!input.assessmentId !== !!input.assessmentVersion)
-      throw new BadRequestException({
-        code: "ASSESSMENT_VERSION_REQUIRED",
-        message: "复评课程需要测试及版本",
-      });
-    if (input.assessmentId) {
-      const assessment = await this.prisma.trainingAssessment.findFirst({
-        where: { id: input.assessmentId, userId },
-      });
-      if (!assessment)
-        throw new NotFoundException({
-          code: "ASSESSMENT_NOT_FOUND",
-          message: "测试不存在",
-        });
-      if (assessment.version !== input.assessmentVersion)
-        throw new ConflictException({
-          code: "ASSESSMENT_VERSION_CONFLICT",
-          message: "测试已变化，请重新复评",
-        });
-      if (
-        ![
-          "COMPLETED",
-          "INCOMPLETE",
-          "SKIPPED",
-          "INVALID",
-          "POSTPONED",
-        ].includes(assessment.status)
-      )
-        throw new ConflictException({
-          code: "ASSESSMENT_NOT_REVIEWABLE",
-          message: "请先录入结果或说明测试状态",
-        });
-    }
     let startDate: string;
     let endDate: string;
     if (input.scope === "STAGE") {
@@ -142,13 +109,6 @@ export class TrainingRangeService {
       expectedBaseVersion: input.expectedBaseVersion,
       ...(input.scope === "STAGE" ? { stageId: input.stageId } : {}),
       ...(input.notes ? { notes: input.notes } : {}),
-      ...(input.assessmentId
-        ? {
-            relatedId: input.assessmentId,
-            relatedVersion: input.assessmentVersion,
-            reason: "ASSESSMENT" as const,
-          }
-        : {}),
     };
   }
 }

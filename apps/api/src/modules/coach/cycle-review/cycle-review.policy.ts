@@ -81,36 +81,23 @@ export function buildCycleReview(data: CycleReviewData): CycleReviewSnapshot {
               "本周期最后两次已记录训练均为部分完成或跳过，可检查时间安排和课程难度；未记录课程不参与该判断。",
             ],
           }
-        : data.tests.some(
-              (t) =>
-                t.status === "COMPLETED" &&
-                (!data.plan?.activeVersion?.appliedAt ||
-                  t.updatedAt > data.plan.activeVersion.appliedAt),
-            )
+        : data.records.length === 0 || !recentFatigue
           ? {
-              code: "REASSESS",
-              label: "先查看测试复评",
+              code: "INSUFFICIENT",
+              label: "补充反馈后再判断",
               reasons: [
-                "本周期有晚于当前计划应用时间的测试结果，建议先核对结果再决定后续课程；不会自动更新 FTP 或推进阶段。",
+                data.records.length === 0
+                  ? "本周期没有已保存训练反馈，未记录不等于未完成。"
+                  : "最近三天缺少已填疲劳，不能只凭完成率或 RPE 判断恢复。",
               ],
             }
-          : data.records.length === 0 || !recentFatigue
-            ? {
-                code: "INSUFFICIENT",
-                label: "补充反馈后再判断",
-                reasons: [
-                  data.records.length === 0
-                    ? "本周期没有已保存训练反馈，未记录不等于未完成。"
-                    : "最近三天缺少已填疲劳，不能只凭完成率或 RPE 判断恢复。",
-                ],
-              }
-            : {
-                code: "CONTINUE",
-                label: "可沿用目标规划后续",
-                reasons: [
-                  "近期最新已填疲劳低于7/10，且没有命中上述调整条件；仅表示当前记录未触发提示，不代表能力已提升或身体已全面评估。",
-                ],
-              };
+          : {
+              code: "CONTINUE",
+              label: "可沿用目标规划后续",
+              reasons: [
+                "近期最新已填疲劳低于7/10，且没有命中上述调整条件；仅表示当前记录未触发提示，不代表能力已提升或身体已全面评估。",
+              ],
+            };
   const stageValid =
     data.roadmap &&
     data.roadmapGoalsCurrent &&
@@ -179,13 +166,9 @@ export function buildCycleReview(data: CycleReviewData): CycleReviewSnapshot {
     workouts,
     additionalFeedback,
     recentFeedback: data.recent.map(feedback),
-    tests: data.tests.map((t) => ({
-      id: t.id,
-      date: dbToDate(t.actualDate ?? t.localDate),
-      title: t.protocol,
-      status: t.status,
-      watts: t.resultWatts === null ? null : Number(t.resultWatts),
-    })),
+    // Tests remain a calendar suggestion. Their results are deliberately not
+    // part of cycle-review evidence or generation decisions.
+    tests: [],
     ftp: data.ftp[0]
       ? {
           valueWatts: Number(data.ftp[0].value),
@@ -217,7 +200,6 @@ export function buildCycleReview(data: CycleReviewData): CycleReviewSnapshot {
     profileVersion: data.user.profileVersion,
     availabilityVersion: data.availability?.version,
     goal: data.goal,
-    tests: data.tests,
     ftp: data.ftp,
   });
   return cycleReviewSnapshotSchema.parse({ ...value, fingerprint });
