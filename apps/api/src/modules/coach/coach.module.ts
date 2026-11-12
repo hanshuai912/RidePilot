@@ -22,6 +22,8 @@ import { CoachDataController } from "./coach-data.controller";
 import { CoachDataService } from "./coach-data.service";
 import { CoachChatController } from "./coach-chat.controller";
 import { CoachChatService } from "./coach-chat.service";
+import { CoachChatRepository } from "./coach-chat.repository";
+import { CoachChatHistoryService } from "./coach-chat-history.service";
 import { CoachEventsController } from "./coach-events.controller";
 import { CoachEventsService } from "./coach-events.service";
 import { CoachPlanValidator } from "./coach-plan.validator";
@@ -71,6 +73,8 @@ import { CoachSuggestionsRepository } from "./coach-suggestions.repository";
     CoachGenerationContextService,
     CoachDataService,
     CoachChatService,
+    CoachChatRepository,
+    CoachChatHistoryService,
     CoachEventsService,
     PlanRestoreService,
     SkillLoaderService,

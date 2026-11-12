@@ -225,3 +225,7 @@ GET 建议列表把版本/资料失效的候选投影为 EXPIRED，从 pending �
 ## 取消生成（2026-11-10）
 
 新增 `POST /ai-coach/generations/:id/cancel`，要求 Bearer 登录态、UUID，无请求体；返回 200 共享 `generationResponseSchema`，状态为 `CANCELLED`。此统一入口可取消本人训练、阶段或营养任务。仅 `QUEUED/RUNNING` 可迁移，重复取消幂等成功。任务已结束返回 409 `GENERATION_NOT_CANCELLABLE`；非法 ID 400，非本人或不存在 404。取消与草稿落库在用户行锁下串行；不会修改已有草稿或正式计划。完整行为见 [取消生成功能](../features/ai-generation-cancellation.md)。
+
+## 持久化聊天接口（2026-11-12）
+
+新增 GET /ai-coach/chat/messages（before 游标、每页20轮）、GET /ai-coach/chat/messages/:clientMessageId（本人消息恢复，返回 {turn}，未找到时 turn 为 null）、POST /ai-coach/chat/messages（clientMessageId、message、expectedVersion）。接口均要求 JWT 并按账号隔离，失败重试校验版本，相同标识去重。POST 返回 PROCESSING / COMPLETED / FAILED 轮次，模型失败记录为 FAILED；旧 POST /ai-coach/chat 兼容保留且不保存历史。新接口响应与边界见 [聊天布局与历史记录](../features/coach-chat-history.md)。

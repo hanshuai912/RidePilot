@@ -64,3 +64,7 @@ FTP 使用现有 `AbilityMeasurement` 的 `metricType=FTP`、`unit=W`。课程�
 `AiGeneration.status` 增加应用层终态 `CANCELLED`，现有 varchar(16) 可直接保存，无 schema 或迁移变化。QUEUED/RUNNING 可取消；取消清空 leaseUntil/errorCode，保留输入、幂等键、尝试次数和追踪 ID。重复取消不变；原提交键返回已取消结果，新键才创建新任务。
 
 取消与训练/阶段/营养草稿完成均锁定所属用户行，Worker 按 RUNNING 与 attempts 条件写入。先取消则迟到结果丢弃，先完成则取消返回冲突，避免取消后复活或生成候选。CANCELLED 进入历史记录，去重和待处理查询排除该状态。详见 [取消生成功能](../features/ai-generation-cancellation.md)。
+
+## 聊天历史（2026-11-12）
+
+新增 CoachChatTurn（coach_chat_turns），保存所属用户、客户端消息标识、问题、回答、状态、版本、尝试编号、租约及时间戳。唯一键为 (user_id, client_message_id)，分页索引为 (user_id, created_at, id)，User 删除时级联清理。迁移 20261112090000_coach_chat_history 仅新增表、枚举及索引。用户行锁、attemptId 和 expectedVersion 分别保证同账号发送串行、旧尝试隔离和失败重试版本校验；模型调用在事务外。详情与兼容策略见 [聊天布局与历史记录](../features/coach-chat-history.md)。

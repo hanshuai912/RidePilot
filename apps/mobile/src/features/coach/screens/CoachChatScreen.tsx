@@ -1,12 +1,23 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "expo-router";
-import type { CoachChatInput } from "@ridepilot/contracts";
-import { AppText, Button, Card, Input } from "../../../components/ui";
+import {
+  FlatList,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  View,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import type { CoachChatTurn as Turn } from "@ridepilot/contracts";
+import { AppText, Button, Spinner } from "../../../components/ui";
+import { NavigationHeader } from "../../../components/layout/NavigationHeader";
+import { Screen } from "../../../components/layout/Screen";
+import { spacing } from "../../../theme/tokens";
 import { useAuth } from "../../auth/hooks/AuthProvider";
-import { TrainingPage } from "../../training/components/TrainingPage";
-import { coachCenterApi } from "../services/coach-center.api";
-
-type Message = NonNullable<CoachChatInput["history"]>[number];
+import { useCoachChat } from "../hooks/useCoachChat";
+import { CoachChatTurn } from "../components/CoachChatTurn";
+import { CoachChatComposer } from "../components/CoachChatComposer";
+import { chatStyles as styles } from "../components/coach-chat.styles";
 
 export function CoachChatScreen() {
   const { session } = useAuth();
@@ -20,91 +31,146 @@ export function CoachChatScreen() {
 
 function CoachChatSession({ token }: { token?: string }) {
   const router = useRouter();
-  const [message, setMessage] = useState("");
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const sending = useRef(false);
-  const ask = async () => {
-    const question = message.trim();
-    if (sending.current || !question || !token) return;
-    sending.current = true;
-    setBusy(true);
-    setError(null);
-    try {
-      const answer = await coachCenterApi.chat(token, {
-        message: question,
-        history: messages.slice(-6),
-      });
-      setMessages(
-        (old) =>
-          [
-            ...old,
-            { role: "user", content: question },
-            { role: "assistant", content: answer.answer },
-          ].slice(-20) as Message[],
-      );
-      setMessage("");
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "问答失败，请重试");
-    } finally {
-      sending.current = false;
-      setBusy(false);
-    }
+  const insets = useSafeAreaInsets();
+  const chat = useCoachChat(token);
+  const list = useRef<FlatList<Turn>>(null);
+  const atBottom = useRef(true);
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+  const scrollToLatest = () => {
+    atBottom.current = true;
+    list.current?.scrollToOffset({ offset: 0, animated: false });
   };
+  useEffect(() => {
+    const show = Keyboard.addListener(
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
+      () => setKeyboardOpen(true),
+    );
+    const hide = Keyboard.addListener(
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide",
+      () => setKeyboardOpen(false),
+    );
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
+  const latestKey = chat.turns[0]?.clientMessageId;
+  useEffect(() => {
+    if (atBottom.current)
+      list.current?.scrollToOffset({ offset: 0, animated: false });
+  }, [latestKey]);
   return (
-    <TrainingPage
-      title="问 AI 教练"
-      onBack={() => router.replace("/(tabs)/coach")}
-    >
-      <AppText muted>
-        依据当前计划和近期记录解答；需要改变安排时，请返回选择结构化调整。本页问答仅在当前页面保留，模型参考最近三轮对话。
-      </AppText>
-      {messages.map((m, i) => (
-        <Card key={i}>
-          <AppText
-            variant="label"
-            className={m.role === "user" ? "text-secondary" : "text-brand"}
-          >
-            {m.role === "user" ? "我" : "AI 教练 · 只读建议"}
-          </AppText>
-          <AppText className="mt-2" selectable>
-            {m.content}
-          </AppText>
-        </Card>
-      ))}
-      {!token ? <AppText className="text-negative">请先登录</AppText> : null}
-      <Input
-        accessibilityLabel="向 AI 教练提问"
-        placeholder="例如：为什么下一节安排耐力训练？"
-        multiline
-        maxLength={500}
-        value={message}
-        onChangeText={setMessage}
-        editable={!busy}
-        className="min-h-28 py-3"
-      />
-      {error ? (
-        <AppText accessibilityRole="alert" className="text-negative">
-          {error}
+    <Screen>
+      <KeyboardAvoidingView
+        testID="coach-chat-keyboard"
+        style={styles.fill}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={insets.top}
+        enabled={Platform.OS !== "web"}
+      >
+        <NavigationHeader
+          title="AI 教练"
+          onBack={() => router.replace("/(tabs)/coach")}
+        />
+        <AppText variant="label" muted style={styles.hint}>
+          训练建议供你参考，调整计划请返回教练首页
         </AppText>
-      ) : null}
-      <Button
-        loading={busy}
-        disabled={!token || !message.trim()}
-        onPress={() => void ask()}
-      >
-        {error ? "重试提问" : "发送问题"}
-      </Button>
-      {busy ? (
-        <AppText muted>正在读取最新训练上下文并回答，可稍后返回。</AppText>
-      ) : null}
-      <Button
-        variant="secondary"
-        onPress={() => router.replace("/(tabs)/coach")}
-      >
-        返回教练 · 选择调整范围
-      </Button>
-    </TrainingPage>
+        {!token ? (
+          <View style={styles.empty}>
+            <AppText>请先登录</AppText>
+          </View>
+        ) : chat.loading ? (
+          <View style={styles.empty}>
+            <Spinner accessibilityLabel="正在读取聊天记录" />
+          </View>
+        ) : chat.loadError ? (
+          <View style={styles.empty}>
+            <AppText accessibilityRole="alert">{chat.loadError}</AppText>
+            <Button onPress={() => void chat.refresh()}>
+              重新读取聊天记录
+            </Button>
+          </View>
+        ) : chat.turns.length === 0 ? (
+          <View style={styles.empty}>
+            <AppText variant="section">今天想聊点什么？</AppText>
+            <AppText muted style={styles.emptyText}>
+              可以问我训练安排、恢复或骑行补给的问题。
+            </AppText>
+          </View>
+        ) : (
+          <FlatList
+            ref={list}
+            testID="coach-chat-messages"
+            style={styles.fill}
+            contentContainerStyle={styles.list}
+            data={chat.turns}
+            inverted
+            keyExtractor={(turn) => turn.clientMessageId}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode={
+              Platform.OS === "ios" ? "interactive" : "on-drag"
+            }
+            onScroll={(event) => {
+              atBottom.current = event.nativeEvent.contentOffset.y < 80;
+            }}
+            scrollEventThrottle={100}
+            onLayout={() => {
+              if (atBottom.current) scrollToLatest();
+            }}
+            maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
+            renderItem={({ item }) => (
+              <CoachChatTurn
+                turn={item}
+                disabled={chat.blocked}
+                onRetry={() => {
+                  void chat.send(item);
+                }}
+              />
+            )}
+            ListFooterComponent={
+              <View style={styles.footer}>
+                {chat.moreError ? (
+                  <AppText accessibilityRole="alert" className="text-negative">
+                    {chat.moreError}
+                  </AppText>
+                ) : null}
+                {chat.nextCursor ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    loading={chat.loadingMore}
+                    onPress={() => void chat.loadMore()}
+                  >
+                    查看更早消息
+                  </Button>
+                ) : (
+                  <AppText variant="label" muted>
+                    以上是全部聊天记录
+                  </AppText>
+                )}
+              </View>
+            }
+          />
+        )}
+        {chat.syncError ? (
+          <Button size="sm" variant="ghost" onPress={() => void chat.refresh()}>
+            {chat.syncError} · 重试同步
+          </Button>
+        ) : null}
+        <CoachChatComposer
+          message={chat.message}
+          onChange={chat.setMessage}
+          onSend={() => {
+            scrollToLatest();
+            void chat.send();
+          }}
+          onFocus={scrollToLatest}
+          disabled={chat.blocked}
+          bottomInset={
+            keyboardOpen ? spacing.xs : Math.max(insets.bottom, spacing.md)
+          }
+        />
+      </KeyboardAvoidingView>
+    </Screen>
   );
 }

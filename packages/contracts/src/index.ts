@@ -116,6 +116,7 @@ export type { HomeTodayResponse, HomeTraining } from "./home";
 
 export * from "./assessments";
 export * from "./coach-center";
+export * from "./coach-chat";
 
 export {
   trainingNutritionStateSchema,

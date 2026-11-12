@@ -119,8 +119,35 @@ model User {
   heartRateSettings    HeartRateSettings?
   nutritionPlans       NutritionPlan[]
   nutritionProposals   NutritionProposal[]
+  coachChatTurns       CoachChatTurn[]
 
   @@map("users")
+}
+
+enum CoachChatTurnStatus {
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model CoachChatTurn {
+  id              String              @id @default(uuid()) @db.Uuid
+  userId          String              @map("user_id") @db.Uuid
+  user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clientMessageId String              @map("client_message_id") @db.VarChar(100)
+  question        String              @db.VarChar(500)
+  answer          String?
+  status          CoachChatTurnStatus @default(PROCESSING)
+  version         Int                 @default(1)
+  attemptId       String              @map("attempt_id") @db.Uuid
+  leaseExpiresAt  DateTime            @map("lease_expires_at")
+  errorMessage    String?             @map("error_message") @db.VarChar(200)
+  createdAt       DateTime            @default(now()) @map("created_at")
+  updatedAt       DateTime            @updatedAt @map("updated_at")
+
+  @@unique([userId, clientMessageId])
+  @@index([userId, createdAt, id])
+  @@map("coach_chat_turns")
 }
 
 model HeartRateSettings {

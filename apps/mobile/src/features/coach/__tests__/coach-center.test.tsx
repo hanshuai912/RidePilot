@@ -12,7 +12,6 @@ import { CoachChatEntry } from "../components/CoachChatEntry";
 import { trainingApi } from "../../training/services/training.api";
 import { CoachHome } from "../components/CoachHome";
 import { CoachSuggestionsPanel } from "../components/CoachSuggestionsPanel";
-import { CoachChatScreen } from "../screens/CoachChatScreen";
 import { CoachSuggestionScreen } from "../screens/CoachSuggestionScreen";
 import { coachCenterApi } from "../services/coach-center.api";
 import { coachApi } from "../services/coach.api";
@@ -476,43 +475,6 @@ it("displays expired reasons and running tasks and reads again when a task finis
   expect(training.generate).not.toHaveBeenCalled();
   await screen.unmount();
   jest.useRealTimers();
-});
-it("sends questions only on click, keeps failed input and supports bounded follow-up context", async () => {
-  api.chat.mockRejectedValueOnce(new Error("回答超时")).mockResolvedValue({
-    answer: "依据近期安排解释训练",
-    requestId: "req",
-    model: "mock",
-    readOnly: true,
-  });
-  const screen = await render(<CoachChatScreen />);
-  expect(api.chat).not.toHaveBeenCalled();
-  await fireEvent.changeText(
-    screen.getByLabelText("向 AI 教练提问"),
-    "为什么安排耐力训练？",
-  );
-  await fireEvent.press(screen.getByText("发送问题"));
-  await screen.findByText("回答超时");
-  expect(screen.getByLabelText("向 AI 教练提问").props.value).toBe(
-    "为什么安排耐力训练？",
-  );
-  await fireEvent.press(screen.getByText("重试提问"));
-  await screen.findByText("依据近期安排解释训练");
-  await fireEvent.changeText(
-    screen.getByLabelText("向 AI 教练提问"),
-    "明天很累可以怎么调整？",
-  );
-  await fireEvent.press(screen.getByText("发送问题"));
-  await waitFor(() =>
-    expect(api.chat).toHaveBeenLastCalledWith("token", {
-      message: "明天很累可以怎么调整？",
-      history: [
-        { role: "user", content: "为什么安排耐力训练？" },
-        { role: "assistant", content: "依据近期安排解释训练" },
-      ],
-    }),
-  );
-  expect(training.apply).not.toHaveBeenCalled();
-  expect(training.generate).not.toHaveBeenCalled();
 });
 it.each(["TRAINING", "NUTRITION"])(
   "revalidates and explicitly confirms %s before applying the previewed version",
