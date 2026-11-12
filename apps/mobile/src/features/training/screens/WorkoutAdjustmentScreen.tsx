@@ -1,7 +1,8 @@
+import { NavigationHeaderAction } from "../../../components/layout/NavigationHeaderAction";
 import { GenerationCancelButton } from "../../coach/components/GenerationCancelButton";
 import { useState } from "react";
-import { Pressable, View } from "react-native";
-import { AppText, Spinner } from "../../../components/ui";
+import { View } from "react-native";
+import { AppText } from "../../../components/ui";
 import { useWorkoutAdjustmentForm } from "../hooks/useWorkoutAdjustmentForm";
 import { TrainingPage } from "../components/TrainingPage";
 import { WorkoutAdjustmentForm } from "../components/WorkoutAdjustmentForm";
@@ -45,30 +46,13 @@ export function WorkoutAdjustmentScreen() {
         !ftp.error &&
         ftp.available === true &&
         !unavailable ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="生成"
-            accessibilityHint="生成调整草稿，联动后续课程时先确认范围"
-            accessibilityState={{
-              disabled: action.busy || !form.canSubmit,
-              busy: action.busy,
-            }}
-            disabled={action.busy || !form.canSubmit}
+          <NavigationHeaderAction
+            label="生成"
+            hint="生成调整草稿，联动后续课程时先确认范围"
+            loading={action.busy}
+            disabled={!form.canSubmit}
             onPress={submit}
-            className={`min-h-11 w-11 items-center justify-center ${action.busy || !form.canSubmit ? "opacity-50" : "active:opacity-70"}`}
-          >
-            {action.busy ? (
-              <Spinner accessibilityLabel="正在生成调整草稿" />
-            ) : (
-              <AppText
-                numberOfLines={1}
-                style={{ fontSize: 15, lineHeight: 20 }}
-                className="font-semibold text-brand"
-              >
-                生成
-              </AppText>
-            )}
-          </Pressable>
+          />
         ) : null
       }
       loading={route.loading || (ftp.available === null && !ftp.error)}
@@ -79,7 +63,7 @@ export function WorkoutAdjustmentScreen() {
       }}
     >
       {guard}
-      <View className="gap-6 px-0.5 pt-4">
+      <View className="gap-6 pt-4">
         {route.data ? (
           <View
             testID="workout-adjustment-context"

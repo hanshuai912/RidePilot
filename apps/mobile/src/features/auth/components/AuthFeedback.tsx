@@ -1,3 +1,4 @@
+import { textStyles } from "../../../theme/typography";
 import { StyleSheet, Text, View } from "react-native";
 import { authColors as colors } from "./auth-theme";
 
@@ -19,5 +20,5 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 14,
   },
-  text: { color: colors.negative, fontSize: 12, lineHeight: 19 },
+  text: { ...textStyles.caption, color: colors.negative },
 });

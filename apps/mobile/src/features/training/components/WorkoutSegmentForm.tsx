@@ -1,3 +1,4 @@
+import { textStyles } from "../../../theme/typography";
 import { useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, TextInput, View } from "react-native";
 import type { WorkoutSegment } from "@ridepilot/contracts";
@@ -94,18 +95,24 @@ export function WorkoutSegmentForm({
   return (
     <View style={styles.root}>
       <Card style={styles.card}>
-        <AppText variant="label" muted>
+        <AppText variant="caption" muted>
           动作类型
         </AppText>
         <View style={styles.toggle}>
           {segmentTypes.map(([key, label]) => (
             <Pressable
               key={key}
-              style={[styles.option, type === key && styles.activeOption]}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: type === key }}
+              style={[
+                styles.option,
+                styles.typeOption,
+                type === key && styles.activeOption,
+              ]}
               onPress={() => setType(key)}
             >
               <AppText
-                variant="label"
+                variant="caption"
                 style={type === key ? styles.activeText : undefined}
               >
                 {label}
@@ -113,7 +120,7 @@ export function WorkoutSegmentForm({
             </Pressable>
           ))}
         </View>
-        <AppText variant="label" muted>
+        <AppText variant="caption" muted>
           目标类型
         </AppText>
         <View style={styles.toggle}>
@@ -125,11 +132,13 @@ export function WorkoutSegmentForm({
           ).map(([key, label]) => (
             <Pressable
               key={key}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: targetKind === key }}
               style={[styles.option, targetKind === key && styles.activeOption]}
               onPress={() => setTargetKind(key)}
             >
               <AppText
-                variant="label"
+                variant="caption"
                 style={targetKind === key ? styles.activeText : undefined}
               >
                 {label}
@@ -139,10 +148,11 @@ export function WorkoutSegmentForm({
         </View>
         <View style={styles.fieldRow}>
           <View style={styles.flex}>
-            <AppText variant="label" muted>
+            <AppText variant="caption" muted>
               目标值（{unit}）
             </AppText>
             <TextInput
+              accessibilityLabel="目标值"
               value={targetValue}
               onChangeText={setTargetValue}
               keyboardType="decimal-pad"
@@ -152,10 +162,11 @@ export function WorkoutSegmentForm({
             />
           </View>
           <View style={styles.flex}>
-            <AppText variant="label" muted>
+            <AppText variant="caption" muted>
               重复组数（选填）
             </AppText>
             <TextInput
+              accessibilityLabel="重复组数"
               value={repeat}
               onChangeText={setRepeat}
               keyboardType="number-pad"
@@ -169,14 +180,14 @@ export function WorkoutSegmentForm({
       <Card style={styles.card}>
         <View style={styles.row}>
           <View>
-            <AppText variant="label" muted>
+            <AppText variant="caption" muted>
               强度范围
             </AppText>
             <AppText variant="caption" muted>
               最小和最大强度均必填
             </AppText>
           </View>
-          <AppText variant="label" style={styles.required}>
+          <AppText variant="caption" style={styles.required}>
             必填
           </AppText>
         </View>
@@ -191,6 +202,11 @@ export function WorkoutSegmentForm({
             return (
               <Pressable
                 key={key}
+                accessibilityRole="radio"
+                accessibilityState={{
+                  checked: intensityKind === key,
+                  disabled,
+                }}
                 disabled={disabled}
                 style={[
                   styles.option,
@@ -200,7 +216,7 @@ export function WorkoutSegmentForm({
                 onPress={() => setIntensityKind(key)}
               >
                 <AppText
-                  variant="label"
+                  variant="caption"
                   style={intensityKind === key ? styles.activeText : undefined}
                 >
                   {label}
@@ -211,10 +227,11 @@ export function WorkoutSegmentForm({
         </View>
         <View style={styles.fieldRow}>
           <View style={styles.flex}>
-            <AppText variant="label" muted>
+            <AppText variant="caption" muted>
               最小强度（{intensityUnit}）
             </AppText>
             <TextInput
+              accessibilityLabel="最小强度"
               value={min}
               onChangeText={setMin}
               keyboardType="decimal-pad"
@@ -224,10 +241,11 @@ export function WorkoutSegmentForm({
             />
           </View>
           <View style={styles.flex}>
-            <AppText variant="label" muted>
+            <AppText variant="caption" muted>
               最大强度（{intensityUnit}）
             </AppText>
             <TextInput
+              accessibilityLabel="最大强度"
               value={max}
               onChangeText={setMax}
               keyboardType="decimal-pad"
@@ -249,18 +267,20 @@ export function WorkoutSegmentForm({
         </AppText>
       ) : null}
       <View style={styles.actions}>
-        <Button variant="secondary" onPress={onCancel}>
+        <Button className="flex-1" variant="secondary" onPress={onCancel}>
           取消
         </Button>
-        <Button onPress={save}>保存动作</Button>
+        <Button className="flex-1" onPress={save}>
+          保存动作
+        </Button>
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { gap: 11 },
-  card: { padding: 16, gap: 9 },
+  root: { gap: 24, paddingTop: 12 },
+  card: { padding: 16, gap: 16 },
   toggle: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -273,19 +293,24 @@ const styles = StyleSheet.create({
   },
   option: {
     flex: 1,
-    minWidth: 65,
+    minWidth: 80,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
     alignItems: "center",
     justifyContent: "center",
     minHeight: 44,
     borderRadius: 8,
   },
   activeOption: { backgroundColor: colors.brandSubtle },
-  activeText: { color: colors.brand, fontWeight: "700" },
+  typeOption: { flexBasis: "45%" },
+  activeText: { color: colors.brand, fontWeight: "600" },
   disabled: { opacity: 0.4 },
-  fieldRow: { flexDirection: "row", gap: 10 },
-  flex: { flex: 1, gap: 6 },
+  fieldRow: { flexDirection: "row", alignItems: "flex-end", gap: 10 },
+  flex: { flex: 1, minWidth: 0, gap: 6 },
   input: {
-    height: 48,
+    ...textStyles.body,
+    minHeight: 48,
+    paddingVertical: 12,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 11,

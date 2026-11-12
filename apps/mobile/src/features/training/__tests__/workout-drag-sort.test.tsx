@@ -1,3 +1,4 @@
+import { StyleSheet } from "react-native";
 import { useState } from "react";
 import {
   render,
@@ -191,4 +192,54 @@ test("unsaved identical actions get distinct stable keys without introducing per
   ]);
   expect(first).not.toHaveProperty("id");
   expect(second).not.toHaveProperty("id");
+});
+
+test("segment cards follow measured list width after layout changes without changing draft parameters", async () => {
+  const onEdit = jest.fn();
+  const onMove = jest.fn();
+  await render(
+    <WorkoutSegmentList
+      segments={draft.segments}
+      onEdit={onEdit}
+      onMove={onMove}
+    />,
+  );
+  for (const width of [280, 350, 390]) {
+    await fireEvent(screen.getByTestId("workout-segment-list"), "layout", {
+      nativeEvent: { layout: { x: 0, y: 0, width, height: 500 } },
+    });
+    for (let i = 0; i < draft.segments.length; i++) {
+      expect(
+        StyleSheet.flatten(
+          screen.getByTestId(`workout-segment-${i}`).props.style,
+        ).width,
+      ).toBe(width);
+    }
+    expect(screen.getByText("时间 · 10 分钟 × 3")).toBeTruthy();
+  }
+  expect(onMove).not.toHaveBeenCalled();
+  await fireEvent.press(screen.getByRole("button", { name: "编辑第2个动作" }));
+  expect(onEdit).toHaveBeenCalledWith(1);
+});
+
+test("refreshes cached grid measurements after parameter changes but keeps the grid during reordering", async () => {
+  const move = jest.fn();
+  await render(<WorkoutSegmentList segments={draft.segments} onMove={move} />);
+  const initialGrid = screen.getByTestId("sortable-segments");
+  expect(initialGrid.props.itemEntering).toBeNull();
+  expect(initialGrid.props.itemExiting).toBeNull();
+  expect(initialGrid.props.itemsLayoutTransitionMode).toBe("reorder");
+  await screen.rerender(
+    <WorkoutSegmentList
+      segments={[...draft.segments].reverse()}
+      onMove={move}
+    />,
+  );
+  expect(screen.getByTestId("sortable-segments")).toBe(initialGrid);
+  const edited = [...draft.segments];
+  edited[1] = { ...edited[1], repeatCount: 12 };
+  await screen.rerender(<WorkoutSegmentList segments={edited} onMove={move} />);
+  expect(screen.getByTestId("sortable-segments")).not.toBe(initialGrid);
+  expect(screen.getByText("时间 · 10 分钟 × 12")).toBeTruthy();
+  expect(move).not.toHaveBeenCalled();
 });

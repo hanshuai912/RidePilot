@@ -14,7 +14,7 @@ export function PersonalInformationForm({
 }) {
   return (
     <View>
-      <AppText variant="label" muted>
+      <AppText variant="caption" muted>
         页面昵称
       </AppText>
       <Input
@@ -25,7 +25,7 @@ export function PersonalInformationForm({
         placeholder="未填写时显示骑行者"
         onChangeText={(displayName) => onChange({ ...draft, displayName })}
       />
-      <AppText variant="label" className="mt-5" muted>
+      <AppText variant="caption" className="mt-5" muted>
         性别
       </AppText>
       <OptionGroup
@@ -42,7 +42,7 @@ export function PersonalInformationForm({
           onChange({ ...draft, gender: gender as ProfileDraft["gender"] })
         }
       />
-      <AppText variant="label" className="mt-5" muted>
+      <AppText variant="caption" className="mt-5" muted>
         出生日期
       </AppText>
       <BirthDateField
@@ -52,7 +52,7 @@ export function PersonalInformationForm({
       />
       <View className="mt-5 flex-row gap-3">
         <View className="flex-1">
-          <AppText variant="label" muted>
+          <AppText variant="caption" muted>
             身高（cm）
           </AppText>
           <Input
@@ -66,7 +66,7 @@ export function PersonalInformationForm({
           />
         </View>
         <View className="flex-1">
-          <AppText variant="label" muted>
+          <AppText variant="caption" muted>
             体重（kg）
           </AppText>
           <Input
@@ -80,7 +80,7 @@ export function PersonalInformationForm({
           />
         </View>
       </View>
-      <AppText variant="label" className="mt-5" muted>
+      <AppText variant="caption" className="mt-5" muted>
         训练经验
       </AppText>
       <OptionGroup
@@ -125,7 +125,7 @@ function OptionGroup({
           onPress={() => onChange(option)}
         >
           <AppText
-            variant="label"
+            variant="caption"
             className={value === option ? "text-brand" : "text-secondary"}
           >
             {label}

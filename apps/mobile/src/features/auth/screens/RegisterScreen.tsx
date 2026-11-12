@@ -1,3 +1,4 @@
+import { textStyles } from "../../../theme/typography";
 import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -178,8 +179,12 @@ const styles = StyleSheet.create({
     marginTop: -3,
     marginBottom: 18,
   },
-  ruleTitle: { color: colors.textPrimary, fontSize: 12, fontWeight: "700" },
-  ruleDescription: { color: colors.textSecondary, fontSize: 11, marginTop: 5 },
+  ruleTitle: { ...textStyles.card, color: colors.textPrimary },
+  ruleDescription: {
+    ...textStyles.caption,
+    color: colors.textSecondary,
+    marginTop: 5,
+  },
   ruleList: { flexDirection: "row", flexWrap: "wrap", gap: 7, marginTop: 10 },
   rule: {
     borderWidth: 1,
@@ -190,20 +195,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   ruleMet: { borderColor: colors.positive, backgroundColor: colors.surface2 },
-  ruleText: { color: colors.textSecondary, fontSize: 11 },
+  ruleText: { ...textStyles.caption, color: colors.textSecondary },
   ruleTextMet: { color: colors.positive },
-  note: {
-    color: colors.textMuted,
-    fontSize: 11,
-    lineHeight: 17,
-    marginBottom: 18,
-  },
   switch: {
     minHeight: 44,
     alignItems: "center",
     justifyContent: "center",
     marginTop: 16,
   },
-  switchText: { color: colors.textSecondary, fontSize: 13 },
+  switchText: { ...textStyles.body, color: colors.textSecondary },
   link: { color: colors.brand, fontWeight: "600" },
 });

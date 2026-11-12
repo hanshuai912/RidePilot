@@ -1,15 +1,13 @@
+import { NavigationHeaderAction } from "../../../components/layout/NavigationHeaderAction";
 import type { ReactNode } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Screen } from "../../../components/layout/Screen";
-import { AppText, Spinner } from "../../../components/ui";
-import { colors } from "../../../theme/colors";
 import { layout } from "../../../theme/layout";
 import { spacing } from "../../../theme/spacing";
 import { ProfilePageHeader } from "./ProfilePageHeader";
@@ -44,28 +42,12 @@ export function ProfileEditorPage({
             onBack={onBack}
             rightAction={
               onSave ? (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="保存"
-                  accessibilityState={{
-                    disabled: saveDisabled || saving,
-                    busy: saving,
-                  }}
-                  style={({ pressed }) => [
-                    styles.save,
-                    (saveDisabled || saving || pressed) && styles.dimmed,
-                  ]}
-                  disabled={saveDisabled || saving}
+                <NavigationHeaderAction
+                  label="保存"
+                  loading={saving}
+                  disabled={saveDisabled}
                   onPress={onSave}
-                >
-                  {saving ? (
-                    <Spinner accessibilityLabel="正在保存" />
-                  ) : (
-                    <AppText numberOfLines={1} style={styles.saveText}>
-                      保存
-                    </AppText>
-                  )}
-                </Pressable>
+                />
               ) : null
             }
           />
@@ -93,17 +75,4 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
     paddingBottom: spacing.xxl,
   },
-  save: {
-    width: layout.tapMin,
-    minHeight: layout.tapMin,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  saveText: {
-    fontSize: 15,
-    lineHeight: 20,
-    fontWeight: "600",
-    color: colors.brand,
-  },
-  dimmed: { opacity: 0.5 },
 });

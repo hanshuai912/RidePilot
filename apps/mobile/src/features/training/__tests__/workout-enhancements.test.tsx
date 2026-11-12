@@ -46,6 +46,18 @@ test("editor always exposes full parameters and sorting preserves units and repe
     );
   }
   await render(<Harness />);
+  const sections = screen
+    .getByTestId("workout-editor")
+    .children.filter((child) => typeof child !== "string")
+    .map((child) => child.props.testID)
+    .filter(Boolean);
+  expect(sections).toEqual([
+    "workout-editor-information",
+    "workout-editor-overview",
+    "workout-editor-segments",
+  ]);
+  expect(screen.getByLabelText("课程名称")).toBeTruthy();
+  expect(screen.getByLabelText("训练目的")).toBeTruthy();
   expect(screen.queryByText("简洁视图")).toBeNull();
   expect(screen.queryByText("专业视图")).toBeNull();
   expect(screen.queryByText("时长 +10%")).toBeNull();

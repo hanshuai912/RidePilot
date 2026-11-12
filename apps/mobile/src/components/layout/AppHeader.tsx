@@ -23,7 +23,13 @@ export function AppHeader({
   className?: string;
 }) {
   return (
-    <View className={cn("mb-5 flex-row items-start gap-3", className)}>
+    <View
+      className={cn(
+        "flex-row items-start gap-3",
+        compact ? "mb-4" : "mb-5",
+        className,
+      )}
+    >
       {onBack ? (
         <Pressable
           accessibilityRole="button"
@@ -36,13 +42,15 @@ export function AppHeader({
       ) : null}
       <View className="min-w-0 flex-1">
         {eyebrow ? (
-          <AppText variant="label" className="mb-1 tracking-[1.1px] text-brand">
+          <AppText variant="label" className="mb-1 text-secondary">
             {eyebrow}
           </AppText>
         ) : null}
-        <AppText variant={compact ? "section" : "display"}>{title}</AppText>
+        <AppText variant="pageTitle" accessibilityRole="header">
+          {title}
+        </AppText>
         {subtitle ? (
-          <AppText variant="caption" muted className="mt-1 leading-5">
+          <AppText variant="caption" className="mt-2 text-secondary">
             {subtitle}
           </AppText>
         ) : null}

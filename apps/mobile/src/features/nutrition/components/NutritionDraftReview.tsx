@@ -18,7 +18,7 @@ function Meal({ item }: { item: NutritionItemDraft }) {
           .map((food) => `${food.name} ${food.amount}${food.unit}`)
           .join("、")}
       </AppText>
-      <AppText variant="label" muted>
+      <AppText variant="caption" muted>
         能量 {formatNutrient(item.nutrients.energyKcal, "kcal")} · 碳水{" "}
         {formatNutrient(item.nutrients.carbohydrateG, "g")} · 水分{" "}
         {formatNutrient(item.nutrients.fluidMl, "ml")}
@@ -58,7 +58,7 @@ export function NutritionDraftReview({
           <AppText variant="card" className="text-brand">
             {date}
           </AppText>
-          <AppText variant="label" muted className="mt-3">
+          <AppText variant="caption" muted className="mt-3">
             原安排
           </AppText>
           {proposal.original?.items
@@ -71,7 +71,7 @@ export function NutritionDraftReview({
               无已记录餐次
             </AppText>
           ) : null}
-          <AppText variant="label" className="mt-4 text-brand">
+          <AppText variant="caption" className="mt-4 text-brand">
             {proposal.status === "APPLIED" ? "已应用安排" : "建议安排"}
           </AppText>
           {!proposal.draft.items.some((item) => item.localDate === date) ? (

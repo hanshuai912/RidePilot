@@ -4,7 +4,7 @@ import { colors } from "../../theme/colors";
 import { layout } from "../../theme/layout";
 import { radii } from "../../theme/radius";
 import { spacing } from "../../theme/spacing";
-import { typography } from "../../theme/typography";
+import { textStyles } from "../../theme/typography";
 
 export const datePickerStyles = StyleSheet.create({
   field: { marginTop: spacing.sm },
@@ -22,7 +22,7 @@ export const datePickerStyles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
   },
-  fieldValue: { flex: 1, fontSize: typography.body },
+  fieldValue: { ...textStyles.body, flex: 1 },
   placeholder: { color: colors.textMuted },
   disabled: { opacity: 0.5 },
   modal: { flex: 1, justifyContent: "flex-end" },
@@ -61,16 +61,14 @@ export const datePickerStyles = StyleSheet.create({
   },
   description: { color: colors.textSecondary },
   preview: {
-    fontSize: typography.section,
-    fontWeight: "600",
-    lineHeight: 28,
+    ...textStyles.section,
     marginVertical: spacing.xl,
     fontVariant: ["tabular-nums"],
   },
   columns: { flexDirection: "row", gap: spacing.md, flexShrink: 1 },
   column: { flex: 1, minWidth: 0, flexShrink: 1 },
   columnLabel: {
-    fontSize: typography.caption,
+    ...textStyles.label,
     color: colors.textSecondary,
     textAlign: "center",
     marginBottom: spacing.sm,
@@ -101,7 +99,7 @@ export const datePickerStyles = StyleSheet.create({
     borderRadius: radii.md,
   },
   optionText: {
-    fontSize: typography.body,
+    ...textStyles.body,
     fontVariant: ["tabular-nums"],
     color: colors.textSecondary,
   },

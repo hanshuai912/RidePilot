@@ -1025,8 +1025,8 @@ test("adjustment failure keeps notes, and apply timeout retries the identical wr
 });
 
 test.each([
-  ["调整这节训练", "/workouts/adjust", "调整训练"],
-  ["记录完成情况", "/workouts/feedback", "记录完成"],
+  ["调整训练", "/workouts/adjust", "调整训练"],
+  ["记录完成", "/workouts/feedback", "记录完成"],
 ] as const)(
   "home %s opens one action route and cancel returns directly to home",
   async (label, path, title) => {
@@ -1073,8 +1073,8 @@ test("home feedback saves once, blocks native back during save and refreshes hom
       }),
   );
   await open("/");
-  await waitFor(() => expect(screen.getByText("记录完成情况")).toBeTruthy());
-  await fireEvent.press(screen.getByText("记录完成情况"));
+  await waitFor(() => expect(screen.getByText("记录完成")).toBeTruthy());
+  await fireEvent.press(screen.getByText("记录完成"));
   await waitFor(() => expect(screen.getByText("保存训练反馈")).toBeTruthy());
   await fireEvent.changeText(screen.getByPlaceholderText("时长（分钟）"), "25");
   const reads = jest.mocked(homeApi.today).mock.calls.length;
@@ -1106,9 +1106,9 @@ test.each(["adjust", "feedback"] as const)(
   "%s form confirms unsaved native back and keeps input when staying",
   async (action) => {
     await open("/");
-    await waitFor(() => expect(screen.getByText("记录完成情况")).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("记录完成")).toBeTruthy());
     await fireEvent.press(
-      screen.getByText(action === "adjust" ? "调整这节训练" : "记录完成情况"),
+      screen.getByText(action === "adjust" ? "调整训练" : "记录完成"),
     );
     const placeholder =
       action === "adjust"
@@ -1144,8 +1144,8 @@ test.each(["adjust", "feedback"] as const)(
 
 test("home adjustment previews on its own route, preserves inputs on back and refreshes home after apply", async () => {
   await open("/");
-  await waitFor(() => expect(screen.getByText("调整这节训练")).toBeTruthy());
-  await fireEvent.press(screen.getByText("调整这节训练"));
+  await waitFor(() => expect(screen.getByText("调整训练")).toBeTruthy());
+  await fireEvent.press(screen.getByText("调整训练"));
   await waitFor(() => expect(screen.getByText("生成")).toBeTruthy());
   await fireEvent.changeText(
     screen.getByPlaceholderText("例如：昨晚只睡了 5 小时"),

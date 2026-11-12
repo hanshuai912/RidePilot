@@ -15,7 +15,7 @@ export function HomeStatusCard({
   const data = resource.data;
   const overview = data?.overview;
   return (
-    <View className="mt-3 gap-3">
+    <View className="gap-3">
       <AppText variant="section">身体状态</AppText>
       <HomeResourceFeedback
         {...resource}

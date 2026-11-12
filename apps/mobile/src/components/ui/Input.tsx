@@ -1,18 +1,25 @@
 import { TextInput, type TextInputProps } from "react-native";
 
 import { cn } from "../../lib/cn";
+import { textStyles } from "../../theme/typography";
 import { colors } from "../../theme/colors";
 
 export type InputProps = TextInputProps & { className?: string };
 
-export function Input({ className, editable = true, ...props }: InputProps) {
+export function Input({
+  className,
+  editable = true,
+  style,
+  ...props
+}: InputProps) {
   return (
     <TextInput
       className={cn(
-        "min-h-[48px] rounded-xl border border-border bg-surface-2 px-4 text-[16px] text-primary",
+        "min-h-[48px] rounded-xl border border-border bg-surface-2 px-4 text-primary",
         !editable && "opacity-50",
         className,
       )}
+      style={[textStyles.body, style]}
       editable={editable}
       placeholderTextColor={colors.textMuted}
       {...props}

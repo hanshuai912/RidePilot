@@ -176,8 +176,8 @@ test("one home request shows real meals and training, with detail, adjustment an
   expect(screen.getAllByLabelText("刷新首页")).toHaveLength(1);
   for (const [label, action] of [
     ["查看今日训练", undefined],
-    ["调整这节训练", "adjust"],
-    ["记录完成情况", "feedback"],
+    ["调整训练", "adjust"],
+    ["记录完成", "feedback"],
   ] as const) {
     await fireEvent.press(screen.getByText(label));
     expect(router.push).toHaveBeenLastCalledWith({
@@ -204,7 +204,7 @@ test("a day without training still shows meals, calendar/create entries and the 
   );
   expect(screen.getByText("燕麦香蕉早餐")).toBeTruthy();
   expect(screen.getByText(/下次训练：11 月 3 日/)).toBeTruthy();
-  expect(screen.queryByText("调整这节训练")).toBeNull();
+  expect(screen.queryByText("调整训练")).toBeNull();
   await fireEvent.press(screen.getByText("手动添加今天的训练"));
   expect(router.push).toHaveBeenLastCalledWith({
     pathname: "/workouts/new",
@@ -269,8 +269,8 @@ test("multiple courses keep independent completion states and actions", async ()
   const screen = await render(<HomeScreen />);
   await waitFor(() => expect(screen.getByText("恢复骑行")).toBeTruthy());
   expect(screen.getByText(/实际 20 分钟/)).toBeTruthy();
-  expect(screen.getAllByText("记录完成情况")).toHaveLength(1);
-  await fireEvent.press(screen.getByText("记录完成情况"));
+  expect(screen.getAllByText("记录完成")).toHaveLength(1);
+  await fireEvent.press(screen.getByText("记录完成"));
   expect(router.push).toHaveBeenLastCalledWith({
     pathname: "/workouts/feedback",
     params: { workoutId: "course-2", source: "home" },
@@ -296,7 +296,7 @@ test("pull refresh retains cached courses on failure and updates feedback after 
   await fireEvent(screen.getByLabelText("刷新首页"), "refresh");
   await waitFor(() => expect(screen.getByText(/读取超时/)).toBeTruthy());
   expect(screen.getByText("耐力训练")).toBeTruthy();
-  expect(screen.queryByText("记录完成情况")).toBeNull();
+  expect(screen.queryByText("记录完成")).toBeNull();
   api.today.mockResolvedValue(
     response({
       items: [
@@ -389,7 +389,7 @@ test("a failed aggregate request retains same-day content and exposes retry", as
   await waitFor(() => expect(screen.getByText(/首页请求超时/)).toBeTruthy());
   expect(screen.getByText("耐力训练")).toBeTruthy();
   expect(screen.getByText("燕麦香蕉早餐")).toBeTruthy();
-  expect(screen.queryByText("记录完成情况")).toBeNull();
+  expect(screen.queryByText("记录完成")).toBeNull();
   jest.useRealTimers();
 });
 

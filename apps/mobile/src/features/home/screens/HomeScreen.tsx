@@ -41,7 +41,7 @@ function HomeContent({ token }: { token: string }) {
     <Screen
       scroll
       scrollProps={{
-        contentContainerClassName: "grow gap-5 px-4 pb-10",
+        contentContainerClassName: "grow gap-6 px-screen pb-10 pt-3",
         refreshControl: (
           <RefreshControl
             refreshing={refreshing}

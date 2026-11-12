@@ -36,7 +36,7 @@ function Choice<T extends string>({
       onPress={() => onPress(value)}
     >
       <AppText
-        variant="label"
+        variant="caption"
         className={selected ? "text-brand" : "text-secondary"}
       >
         {label}
@@ -101,7 +101,7 @@ function NutritionProfileEditor({
             contentContainerClassName="gap-5 pb-5"
           >
             <View>
-              <AppText variant="label" muted className="mb-2">
+              <AppText variant="caption" muted className="mb-2">
                 饮食方式
               </AppText>
               <View className="flex-row flex-wrap gap-2">
@@ -122,7 +122,7 @@ function NutritionProfileEditor({
               </View>
             </View>
             <View>
-              <AppText variant="label" muted className="mb-2">
+              <AppText variant="caption" muted className="mb-2">
                 日常习惯（可多选）
               </AppText>
               <View className="flex-row flex-wrap gap-2">
@@ -143,7 +143,7 @@ function NutritionProfileEditor({
               </View>
             </View>
             <View>
-              <AppText variant="label" muted className="mb-2">
+              <AppText variant="caption" muted className="mb-2">
                 过敏原
               </AppText>
               <View className="flex-row flex-wrap gap-2">
@@ -166,7 +166,7 @@ function NutritionProfileEditor({
               </View>
             </View>
             <View>
-              <AppText variant="label" muted className="mb-2">
+              <AppText variant="caption" muted className="mb-2">
                 饮食限制
               </AppText>
               <View className="flex-row flex-wrap gap-2">

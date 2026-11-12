@@ -32,7 +32,7 @@ export function NavigationHeader({
         <ArrowLeft size={20} color={colors.textPrimary} />
       </Pressable>
       <AppText
-        variant="card"
+        variant="navigation"
         accessibilityRole="header"
         numberOfLines={1}
         ellipsizeMode="tail"

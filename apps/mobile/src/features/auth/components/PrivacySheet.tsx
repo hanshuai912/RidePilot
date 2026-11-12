@@ -1,4 +1,12 @@
-import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { textStyles } from "../../../theme/typography";
+import {
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AuthButton } from "./AuthButton";
@@ -61,15 +69,17 @@ export function PrivacySheet({
         accessibilityLabel="关闭隐私说明"
       />
       <SafeAreaView style={styles.sheet} edges={["bottom"]}>
-        <Text style={styles.title}>{details.title}</Text>
-        <Text style={styles.text}>{details.text}</Text>
-        <View style={styles.bullets}>
-          {details.bullets.map((bullet) => (
-            <Text key={bullet} style={styles.text}>
-              • {bullet}
-            </Text>
-          ))}
-        </View>
+        <ScrollView style={styles.scroll} contentContainerStyle={styles.copy}>
+          <Text style={styles.title}>{details.title}</Text>
+          <Text style={styles.text}>{details.text}</Text>
+          <View style={styles.bullets}>
+            {details.bullets.map((bullet) => (
+              <Text key={bullet} style={styles.text}>
+                • {bullet}
+              </Text>
+            ))}
+          </View>
+        </ScrollView>
         <AuthButton secondary onPress={onClose}>
           我知道了
         </AuthButton>
@@ -81,6 +91,7 @@ export function PrivacySheet({
 const styles = StyleSheet.create({
   scrim: { flex: 1, backgroundColor: "#000A" },
   sheet: {
+    maxHeight: "85%",
     backgroundColor: colors.sheet,
     paddingHorizontal: 20,
     paddingTop: 21,
@@ -89,7 +100,9 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 22,
     gap: 12,
   },
-  title: { color: colors.textPrimary, fontSize: 20, fontWeight: "700" },
-  text: { color: colors.textSecondary, fontSize: 12, lineHeight: 19 },
+  scroll: { flexShrink: 1 },
+  copy: { gap: 12 },
+  title: { ...textStyles.section, color: colors.textPrimary },
+  text: { ...textStyles.body, color: colors.textSecondary },
   bullets: { gap: 5, marginVertical: 8 },
 });

@@ -1,0 +1,75 @@
+import { StyleSheet } from "react-native";
+import { colors } from "../../../theme/colors";
+
+export const segmentListStyles = StyleSheet.create({
+  touch: {
+    minHeight: 44,
+    minWidth: 44,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  card: { width: "100%", gap: 12 },
+  dropIndicator: {
+    borderColor: colors.brand,
+    backgroundColor: colors.brandSubtle,
+    borderRadius: 14,
+  },
+  segment: {
+    width: "100%",
+    alignSelf: "stretch",
+    flexDirection: "column",
+    backgroundColor: colors.surface1,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: "hidden",
+  },
+  segmentBody: {
+    minWidth: 0,
+    minHeight: 44,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    gap: 12,
+  },
+  pressed: { backgroundColor: colors.brandSubtle },
+  segmentHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 4,
+    minHeight: 48,
+  },
+  segmentTitle: { flex: 1, paddingHorizontal: 12, paddingVertical: 12 },
+  editHint: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    minHeight: 24,
+  },
+  editLabel: { color: colors.brand },
+  metaRow: {
+    alignItems: "flex-start",
+    gap: 8,
+  },
+  intensity: {
+    maxWidth: "100%",
+    flexShrink: 1,
+    color: colors.brand,
+    backgroundColor: colors.brandSubtle,
+    paddingHorizontal: 7,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  addButton: {
+    minHeight: 48,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    borderStyle: "dashed",
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 8,
+  },
+  addLabel: { color: colors.brand },
+});

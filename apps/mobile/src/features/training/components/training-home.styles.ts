@@ -1,3 +1,4 @@
+import { textStyles } from "../../../theme/typography";
 import { StyleSheet } from "react-native";
 import { colors } from "../../../theme/colors";
 import { spacing } from "../../../theme/spacing";
@@ -40,7 +41,7 @@ export const styles = StyleSheet.create({
     justifyContent: "center",
   },
   restCopy: { flex: 1, gap: spacing.sm },
-  restDescription: { lineHeight: 21 },
+  restDescription: { ...textStyles.caption },
   emptyCard: {
     alignItems: "center",
     justifyContent: "center",
@@ -59,7 +60,11 @@ export const styles = StyleSheet.create({
   },
   emptyCopy: { gap: spacing.sm, alignItems: "center" },
   centerText: { textAlign: "center" },
-  emptyDescription: { textAlign: "center", lineHeight: 21, maxWidth: 280 },
+  emptyDescription: {
+    textAlign: "center",
+    ...textStyles.caption,
+    maxWidth: 280,
+  },
   addRow: {
     minHeight: 52,
     flexDirection: "row",

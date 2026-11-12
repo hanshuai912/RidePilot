@@ -2,7 +2,7 @@ import { StyleSheet } from "react-native";
 import { colors } from "../../../theme/colors";
 import { spacing } from "../../../theme/spacing";
 import { radii } from "../../../theme/radius";
-import { typography } from "../../../theme/typography";
+import { textStyles } from "../../../theme/typography";
 
 export const profileMetricStyles = StyleSheet.create({
   group: {
@@ -33,17 +33,14 @@ export const profileMetricStyles = StyleSheet.create({
     backgroundColor: colors.brandSubtle,
   },
   content: { flex: 1, minWidth: 0 },
-  title: { fontSize: typography.body, lineHeight: 22, fontWeight: "500" },
+  title: { ...textStyles.card },
   value: {
-    fontSize: typography.caption,
-    lineHeight: 20,
-    fontWeight: "500",
+    ...textStyles.card,
     color: colors.brand,
     fontVariant: ["tabular-nums"],
   },
   description: {
-    fontSize: typography.label,
-    lineHeight: 18,
+    ...textStyles.caption,
     color: colors.textSecondary,
     marginTop: spacing.xs,
   },

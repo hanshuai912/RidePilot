@@ -1,12 +1,13 @@
+import { textStyles } from "../../../theme/typography";
 import { useCallback, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import {
   ChevronRight,
   CircleUserRound,
-  Settings,
   ShieldCheck,
 } from "lucide-react-native";
 
+import { AppHeader } from "../../../components/layout/AppHeader";
 import { Screen } from "../../../components/layout/Screen";
 import { AppText, Button, Card, Spinner } from "../../../components/ui";
 import { useAuth } from "../../auth/hooks/AuthProvider";
@@ -28,15 +29,9 @@ const m01Colors = {
 const styles = StyleSheet.create({
   content: {
     flexGrow: 1,
-    paddingHorizontal: 18,
-    paddingTop: 8,
-    paddingBottom: 112,
-  },
-  pageHeader: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    marginBottom: 22,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 40,
   },
   flushCard: {
     padding: 0,
@@ -44,26 +39,24 @@ const styles = StyleSheet.create({
   profileMain: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 14,
-    paddingHorizontal: 17,
-    paddingTop: 18,
-    paddingBottom: 17,
+    gap: 12,
+    padding: 16,
   },
   avatar: {
-    height: 58,
-    width: 58,
+    height: 48,
+    width: 48,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
     borderColor: colors.brandSubtle,
-    borderRadius: 29,
+    borderRadius: 24,
     backgroundColor: colors.surface2,
   },
   profileStats: {
     flexDirection: "row",
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.divider,
-    paddingHorizontal: 17,
+    paddingHorizontal: 16,
     paddingTop: 13,
     paddingBottom: 14,
   },
@@ -80,77 +73,14 @@ const styles = StyleSheet.create({
     marginTop: 25,
     marginBottom: 12,
   },
-  eyebrow: {
-    color: m01Colors.muted,
-    fontSize: 12,
-    fontWeight: "600",
-    letterSpacing: 1.2,
-    lineHeight: 14,
-  },
-  pageTitle: {
-    color: m01Colors.text,
-    fontSize: 32,
-    fontWeight: "700",
-    letterSpacing: -1.1,
-    lineHeight: 38,
-    marginTop: 4,
-  },
-  statusText: {
-    color: m01Colors.green,
-    fontSize: 11,
-    fontWeight: "600",
-    lineHeight: 14,
-  },
-  profileName: {
-    color: m01Colors.text,
-    fontSize: 20,
-    fontWeight: "600",
-    letterSpacing: -0.5,
-    lineHeight: 24,
-    marginTop: 5,
-  },
-  profileMeta: {
-    color: m01Colors.sub,
-    fontSize: 12,
-    lineHeight: 16,
-    marginTop: 4,
-  },
-  statLabel: {
-    color: m01Colors.muted,
-    fontSize: 11,
-    lineHeight: 14,
-  },
-  statValue: {
-    color: m01Colors.text,
-    fontSize: 13,
-    fontWeight: "600",
-    lineHeight: 17,
-    marginTop: 4,
-  },
-  sectionTitle: {
-    color: m01Colors.text,
-    fontSize: 19,
-    fontWeight: "600",
-    letterSpacing: -0.4,
-    lineHeight: 24,
-  },
-  sectionHint: {
-    color: m01Colors.muted,
-    fontSize: 11,
-    lineHeight: 14,
-  },
-  infoTitle: {
-    color: m01Colors.text,
-    fontSize: 13,
-    fontWeight: "600",
-    lineHeight: 18,
-  },
-  infoBody: {
-    color: m01Colors.sub,
-    fontSize: 11,
-    lineHeight: 16,
-    marginTop: 4,
-  },
+  statusText: { ...textStyles.label, color: m01Colors.green },
+  profileName: { ...textStyles.section, color: m01Colors.text, marginTop: 5 },
+  profileMeta: { ...textStyles.caption, color: m01Colors.sub, marginTop: 4 },
+  statLabel: { ...textStyles.caption, color: m01Colors.muted },
+  statValue: { ...textStyles.card, color: m01Colors.text, marginTop: 4 },
+  sectionTitle: { ...textStyles.section, color: m01Colors.text },
+  infoTitle: { ...textStyles.card, color: m01Colors.text },
+  infoBody: { ...textStyles.caption, color: m01Colors.sub, marginTop: 4 },
   infoCard: {
     flexDirection: "row",
     alignItems: "flex-start",
@@ -206,15 +136,7 @@ export function ProfileScreen() {
         contentContainerStyle: styles.content,
       }}
     >
-      <View style={styles.pageHeader}>
-        <View>
-          <AppText style={styles.eyebrow}>个人档案与训练偏好</AppText>
-          <AppText style={styles.pageTitle}>我的</AppText>
-        </View>
-        <View className="h-11 w-11 items-center justify-center rounded-full border border-border bg-surface">
-          <Settings color={m01Colors.sub} size={20} strokeWidth={1.7} />
-        </View>
-      </View>
+      <AppHeader title="我的" subtitle="个人档案与训练偏好" />
 
       {loading ? <Spinner accessibilityLabel="正在加载个人资料" /> : null}
       {error ? (
@@ -231,7 +153,8 @@ export function ProfileScreen() {
             onPress={() => router.push("/personal-info")}
           >
             <Card
-              className="overflow-hidden rounded-[20px] p-0"
+              padding="none"
+              className="overflow-hidden rounded-[20px]"
               style={styles.flushCard}
             >
               <View style={styles.profileMain}>
@@ -242,7 +165,7 @@ export function ProfileScreen() {
                     strokeWidth={1.6}
                   />
                 </View>
-                <View className="flex-1">
+                <View className="min-w-0 flex-1">
                   <View className="flex-row items-center gap-1.5">
                     <View className="h-1.5 w-1.5 rounded-full bg-positive" />
                     <AppText style={styles.statusText}>档案已建立</AppText>
@@ -264,8 +187,12 @@ export function ProfileScreen() {
                   </AppText>
                 </View>
                 <View className="flex-1" style={styles.secondStat}>
-                  <AppText style={styles.statLabel}>档案版本</AppText>
-                  <AppText style={styles.statValue}>v{profile.version}</AppText>
+                  <AppText style={styles.statLabel}>体重</AppText>
+                  <AppText style={styles.statValue}>
+                    {profile.weightKg === null
+                      ? "未填写"
+                      : `${profile.weightKg} kg`}
+                  </AppText>
                 </View>
               </View>
             </Card>

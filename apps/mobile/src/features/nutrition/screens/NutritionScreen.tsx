@@ -280,12 +280,14 @@ export function NutritionScreen() {
   return (
     <Screen
       scroll
-      scrollProps={{ contentContainerClassName: "grow gap-5 px-4 pb-10" }}
+      scrollProps={{
+        contentContainerClassName: "grow gap-6 px-screen pb-10 pt-3",
+      }}
     >
       <AppHeader
-        eyebrow="NUTRITION"
+        className="!mb-0"
         title="饮食"
-        subtitle={`${sectionTitle(date ?? plan?.from ?? "")} · 今天吃什么，训练前中后怎么补给`}
+        subtitle={`${sectionTitle(date ?? plan?.from ?? "")} · 三餐与骑行补给`}
         right={
           <Pressable
             accessibilityRole="button"
@@ -358,7 +360,7 @@ export function NutritionScreen() {
             />
             <Metric label="蛋白质" value={plan.dailyTarget.proteinG} unit="g" />
           </View>
-          <AppText variant="label" muted className="mt-3">
+          <AppText variant="caption" muted className="mt-3">
             目标来自
             {plan.dailyTarget.basis === "ESTIMATE"
               ? "当前训练与个人信息的估算"
@@ -429,7 +431,7 @@ export function NutritionScreen() {
             <GenerationCancelButton cancellation={cancellation} />
           ) : null}
           {generationStatus ? (
-            <AppText variant="label" muted className="mt-2 text-center">
+            <AppText variant="caption" muted className="mt-2 text-center">
               {generationStatus === "QUEUED"
                 ? "任务排队中"
                 : "AI 生成与安全校验中"}

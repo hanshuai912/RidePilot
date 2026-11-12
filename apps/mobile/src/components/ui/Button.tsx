@@ -6,6 +6,7 @@ import {
 } from "react-native";
 
 import { cn } from "../../lib/cn";
+import { textStyles } from "../../theme/typography";
 import { colors } from "../../theme/colors";
 
 type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
@@ -55,7 +56,7 @@ export function Button({
       accessibilityRole="button"
       accessibilityState={{ disabled: isDisabled, busy: loading }}
       className={cn(
-        "flex-row items-center justify-center rounded-xl",
+        "flex-row items-center justify-center rounded-xl py-3",
         variantClasses[variant],
         sizeClasses[size],
         isDisabled && "opacity-50",
@@ -70,10 +71,9 @@ export function Button({
         <Text
           style={{
             color: textColors[variant],
-            fontSize: 15,
-            lineHeight: 20,
-            fontWeight:
-              variant === "secondary" || variant === "ghost" ? "600" : "700",
+            ...textStyles.button,
+            flexShrink: 1,
+            textAlign: "center",
           }}
         >
           {children}

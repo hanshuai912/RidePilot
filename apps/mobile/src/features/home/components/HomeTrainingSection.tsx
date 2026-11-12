@@ -92,7 +92,7 @@ export function HomeTrainingSection({
         </Card>
       ) : null}
       {workouts.map((workout, index) => (
-        <Card key={workout.id} className="overflow-hidden !p-0">
+        <Card key={workout.id} padding="none" className="overflow-hidden">
           <ImageBackground
             source={require("../../../../assets/road-cycling-hero.png")}
             resizeMode="cover"
@@ -157,7 +157,7 @@ export function HomeTrainingSection({
                       variant="secondary"
                       onPress={() => onWorkout(workout, "adjust")}
                     >
-                      调整这节训练
+                      调整训练
                     </Button>
                   ) : null}
                   <Button
@@ -165,7 +165,7 @@ export function HomeTrainingSection({
                     variant="secondary"
                     onPress={() => onWorkout(workout, "feedback")}
                   >
-                    记录完成情况
+                    记录完成
                   </Button>
                 </View>
               ) : null}

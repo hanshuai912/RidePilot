@@ -1,3 +1,4 @@
+import { textStyles } from "../../../theme/typography";
 import {
   ActivityIndicator,
   Pressable,
@@ -52,7 +53,9 @@ export function AuthButton({
 const styles = StyleSheet.create({
   button: {
     width: "100%",
-    height: 52,
+    minHeight: 52,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     borderWidth: 1,
     borderRadius: 13,
     alignItems: "center",
@@ -64,7 +67,7 @@ const styles = StyleSheet.create({
     backgroundColor: authColors.surface2,
   },
   disabled: { opacity: 0.48 },
-  label: { fontSize: 15, lineHeight: 20, fontWeight: "700" },
+  label: { ...textStyles.button, flexShrink: 1, textAlign: "center" },
   primaryLabel: { color: authColors.brandOn },
   secondaryLabel: { color: authColors.textPrimary, fontWeight: "600" },
 });

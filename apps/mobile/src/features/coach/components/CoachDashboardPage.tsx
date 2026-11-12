@@ -20,7 +20,7 @@ export function CoachDashboardPage({
         keyboardShouldPersistTaps="handled"
       >
         <View className="mb-6 mt-3 flex-row items-center justify-between gap-4">
-          <AppText variant="display" accessibilityRole="header">
+          <AppText variant="pageTitle" accessibilityRole="header">
             AI 教练
           </AppText>
           <CoachChatEntry />

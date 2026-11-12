@@ -73,7 +73,6 @@ export function Home({
     <View style={styles.page}>
       <AppHeader
         className="!mb-0"
-        eyebrow="骑行训练计划"
         title="训练"
         right={
           <Pressable

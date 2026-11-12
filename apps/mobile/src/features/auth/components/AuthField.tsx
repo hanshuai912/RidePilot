@@ -1,3 +1,4 @@
+import { textStyles } from "../../../theme/typography";
 import { useState } from "react";
 import {
   Pressable,
@@ -70,28 +71,25 @@ const styles = StyleSheet.create({
   head: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 9,
+    alignItems: "flex-start",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 8,
   },
-  label: {
-    color: colors.textPrimary,
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: "600",
-  },
-  hint: { color: colors.textMuted, fontSize: 11 },
+  label: { ...textStyles.card, color: colors.textPrimary },
+  hint: { ...textStyles.caption, color: colors.textMuted },
   inputWrap: { position: "relative", width: "100%" },
   input: {
+    ...textStyles.body,
     width: "100%",
-    height: 54,
+    minHeight: 54,
+    paddingVertical: 14,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 13,
     backgroundColor: colors.surface1,
     color: colors.textPrimary,
     paddingHorizontal: 15,
-    fontSize: 16,
-    letterSpacing: 0.3,
   },
   inputError: { borderColor: colors.negative },
   passwordInput: { paddingRight: 64 },
@@ -105,13 +103,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  toggleText: { color: colors.textSecondary, fontSize: 12 },
+  toggleText: { ...textStyles.caption, color: colors.textSecondary },
   helper: {
+    ...textStyles.caption,
     minHeight: 19,
     marginTop: 6,
     color: colors.textMuted,
-    fontSize: 11,
-    lineHeight: 16,
   },
   error: { color: colors.negative },
 });

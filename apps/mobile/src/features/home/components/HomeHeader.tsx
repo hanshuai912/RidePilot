@@ -30,6 +30,7 @@ export function HomeHeader({
 
   return (
     <AppHeader
+      className="!mb-0"
       title={greeting(
         Number(
           new Intl.DateTimeFormat("en-GB", {

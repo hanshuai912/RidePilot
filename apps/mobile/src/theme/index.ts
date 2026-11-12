@@ -8,7 +8,7 @@ export { colors } from "./colors";
 export { layout } from "./layout";
 export { radii } from "./radius";
 export { spacing } from "./spacing";
-export { typography } from "./typography";
+export { typography, textStyles, type TextVariant } from "./typography";
 
 export const darkTheme = {
   colors,

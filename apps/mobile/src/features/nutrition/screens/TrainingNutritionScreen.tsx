@@ -38,7 +38,7 @@ export function TrainingNutritionScreen() {
         <AppText variant="caption" muted className="mt-2">
           使用饮食偏好、过敏原和用餐时间生成草稿。训练和饮食分别确认应用。
         </AppText>
-        <AppText variant="label" muted className="mt-4">
+        <AppText variant="caption" muted className="mt-4">
           开始日期（YYYY-MM-DD）
         </AppText>
         <Input
@@ -49,7 +49,7 @@ export function TrainingNutritionScreen() {
             flow.setRange((range) => ({ ...range, from: value }))
           }
         />
-        <AppText variant="label" muted className="mt-3">
+        <AppText variant="caption" muted className="mt-3">
           结束日期（一次最多 31 天）
         </AppText>
         <Input

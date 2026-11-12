@@ -99,8 +99,13 @@ export function NutritionMealCard({
         </View>
       ) : null}
       {onEdit ? (
-        <Button variant="ghost" onPress={() => onEdit(item)}>
-          编辑份量和时间 · {item.title}
+        <Button
+          variant="ghost"
+          accessibilityLabel={`编辑份量和时间 · ${item.title}`}
+          className="mt-2 self-start"
+          onPress={() => onEdit(item)}
+        >
+          编辑份量和时间
         </Button>
       ) : null}
       <View className="mt-3 flex-row items-center gap-2">

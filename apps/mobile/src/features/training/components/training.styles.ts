@@ -1,8 +1,9 @@
 import { StyleSheet } from "react-native";
+import { textStyles } from "../../../theme/typography";
 import { colors } from "../../../theme/tokens";
 
 export const styles = StyleSheet.create({
-  content: { paddingHorizontal: 18, paddingTop: 8, paddingBottom: 120 },
+  content: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 40 },
   page: { gap: 11 },
   iconButton: {
     width: 44,
@@ -14,7 +15,7 @@ export const styles = StyleSheet.create({
     borderRadius: 14,
     backgroundColor: colors.surface1,
   },
-  eyebrow: { color: colors.brand, letterSpacing: 1.1 },
+  eyebrow: { color: colors.textSecondary },
   calendar: { padding: 13 },
   calendarHead: {
     flexDirection: "row",
@@ -111,6 +112,7 @@ export const styles = StyleSheet.create({
   },
   card: { padding: 16, gap: 10 },
   input: {
+    ...textStyles.body,
     minHeight: 48,
     borderWidth: 1,
     borderColor: colors.border,
@@ -118,6 +120,7 @@ export const styles = StyleSheet.create({
     backgroundColor: colors.surface2,
     color: colors.textPrimary,
     paddingHorizontal: 12,
+    paddingVertical: 12,
   },
   row: {
     flexDirection: "row",
@@ -150,7 +153,7 @@ export const styles = StyleSheet.create({
   },
   dangerNotice: { borderColor: colors.negative, backgroundColor: "#352522" },
   orange: { color: colors.warning },
-  noticeText: { flex: 1, lineHeight: 18 },
+  noticeText: { flex: 1, ...textStyles.caption },
   bottomButtons: { flexDirection: "row", gap: 8, marginTop: 4 },
   sectionRow: {
     flexDirection: "row",

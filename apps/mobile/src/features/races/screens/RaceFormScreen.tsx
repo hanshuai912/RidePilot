@@ -97,7 +97,7 @@ export function RaceFormScreen() {
   return (
     <TrainingPage title={raceId ? "编辑赛事" : "添加赛事"} busy={busy}>
       <Card>
-        <AppText variant="label" muted>
+        <AppText variant="caption" muted>
           赛事名称
         </AppText>
         <Input
@@ -106,7 +106,7 @@ export function RaceFormScreen() {
           onChangeText={setName}
           placeholder="例如：环湖公路赛"
         />
-        <AppText variant="label" muted className="mt-4">
+        <AppText variant="caption" muted className="mt-4">
           比赛日期（YYYY-MM-DD）
         </AppText>
         <Input
@@ -115,7 +115,7 @@ export function RaceFormScreen() {
           onChangeText={setLocalDate}
           placeholder="2026-12-15"
         />
-        <AppText variant="label" muted className="mt-4">
+        <AppText variant="caption" muted className="mt-4">
           比赛时区
         </AppText>
         <Input
@@ -124,7 +124,7 @@ export function RaceFormScreen() {
           onChangeText={setTimezone}
           placeholder="Asia/Shanghai"
         />
-        <AppText variant="label" muted className="mt-4">
+        <AppText variant="caption" muted className="mt-4">
           距离（km）
         </AppText>
         <Input
@@ -134,7 +134,7 @@ export function RaceFormScreen() {
           keyboardType="decimal-pad"
           placeholder="100"
         />
-        <AppText variant="label" muted className="mt-4">
+        <AppText variant="caption" muted className="mt-4">
           预计爬升（m，可选）
         </AppText>
         <Input
@@ -146,7 +146,7 @@ export function RaceFormScreen() {
         />
       </Card>
       <Card>
-        <AppText variant="label" muted>
+        <AppText variant="caption" muted>
           赛事类型
         </AppText>
         <ViewChoices
@@ -154,7 +154,7 @@ export function RaceFormScreen() {
           value={type ?? "ROAD_RACE"}
           onChange={(value) => setType(value as RaceInput["type"])}
         />
-        <AppText variant="label" muted className="mt-4">
+        <AppText variant="caption" muted className="mt-4">
           优先级
         </AppText>
         <ViewChoices
@@ -168,7 +168,7 @@ export function RaceFormScreen() {
           value={priority}
           onChange={(value) => setPriority(value as RaceInput["priority"])}
         />
-        <AppText variant="label" muted className="mt-4">
+        <AppText variant="caption" muted className="mt-4">
           参赛意图
         </AppText>
         <ViewChoices

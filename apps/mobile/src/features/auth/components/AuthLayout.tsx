@@ -1,3 +1,4 @@
+import { textStyles } from "../../../theme/typography";
 import { type ReactNode, useState } from "react";
 import {
   KeyboardAvoidingView,
@@ -77,14 +78,8 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 28,
   },
-  eyebrow: {
-    color: colors.brand,
-    fontSize: 11,
-    lineHeight: 15,
-    fontWeight: "700",
-    letterSpacing: 1.3,
-  },
-  subtitle: { color: colors.textSecondary, fontSize: 13, lineHeight: 20 },
+  eyebrow: { ...textStyles.label, color: colors.brand },
+  subtitle: { ...textStyles.body, color: colors.textSecondary },
   privacy: {
     minHeight: 44,
     alignItems: "center",
@@ -92,6 +87,10 @@ const styles = StyleSheet.create({
     marginTop: "auto",
     paddingTop: 24,
   },
-  privacyNote: { color: colors.textMuted, fontSize: 11, marginBottom: 5 },
-  privacyText: { color: colors.brand, fontSize: 11 },
+  privacyNote: {
+    ...textStyles.caption,
+    color: colors.textMuted,
+    marginBottom: 5,
+  },
+  privacyText: { ...textStyles.caption, color: colors.brand },
 });

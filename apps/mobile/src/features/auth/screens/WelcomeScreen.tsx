@@ -1,3 +1,4 @@
+import { textStyles } from "../../../theme/typography";
 import { useState } from "react";
 import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
@@ -112,25 +113,13 @@ const styles = StyleSheet.create({
     borderTopColor: colors.brand,
     transform: [{ rotate: "-35deg" }],
   },
-  markText: {
-    color: colors.brand,
-    fontSize: 12,
-    fontWeight: "600",
-    letterSpacing: 0.8,
-  },
+  markText: { ...textStyles.label, color: colors.brand },
   heroCopy: { marginHorizontal: 21, marginBottom: 24 },
-  heroTitle: {
-    color: colors.textPrimary,
-    fontSize: 34,
-    lineHeight: 41,
-    fontWeight: "700",
-    letterSpacing: -0.7,
-  },
+  heroTitle: { ...textStyles.pageTitle, color: colors.textPrimary },
   heroHighlight: { color: colors.brand },
   heroSubtitle: {
+    ...textStyles.body,
     color: colors.textSecondary,
-    fontSize: 13,
-    lineHeight: 20,
     maxWidth: 295,
     marginTop: 10,
   },
@@ -143,12 +132,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   footerText: {
+    ...textStyles.caption,
     width: "100%",
     color: colors.textMuted,
-    fontSize: 11,
-    lineHeight: 18,
     textAlign: "center",
   },
   privacyButton: { minHeight: 44, justifyContent: "center" },
-  privacyText: { color: colors.brand, fontSize: 11 },
+  privacyText: { ...textStyles.caption, color: colors.brand },
 });

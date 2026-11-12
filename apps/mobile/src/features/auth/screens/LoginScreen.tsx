@@ -1,3 +1,4 @@
+import { textStyles } from "../../../theme/typography";
 import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { loginRequestSchema, type LoginRequest } from "@ridepilot/contracts";
@@ -102,6 +103,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginTop: 16,
   },
-  switchText: { color: colors.textSecondary, fontSize: 13 },
+  switchText: { ...textStyles.body, color: colors.textSecondary },
   link: { color: colors.brand, fontWeight: "600" },
 });

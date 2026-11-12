@@ -6,5 +6,5 @@ export const spacing = {
   xl: 20,
   xxl: 24,
   xxxl: 32,
-  screen: 16,
+  screen: 20,
 } as const;

@@ -11,7 +11,7 @@ export const colors = {
   brandSubtle: "#373628",
   textPrimary: "#EFF0E9",
   textSecondary: "#A2A99F",
-  textMuted: "#787F77",
+  textMuted: "#939B91",
   positive: "#90AD98",
   warning: "#D9A66F",
   negative: "#CF837B",

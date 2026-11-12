@@ -1,3 +1,4 @@
+import { textStyles } from "../../src/theme/typography";
 import { Tabs, usePathname } from "expo-router";
 import {
   Dumbbell,
@@ -28,7 +29,7 @@ export default function TabsLayout() {
               paddingBottom: 16,
               paddingTop: 10,
             },
-        tabBarLabelStyle: { fontSize: 11 },
+        tabBarLabelStyle: textStyles.chart,
       }}
     >
       <Tabs.Screen

@@ -68,7 +68,7 @@ function NutritionSwapEditor({
               <AppText className="text-brand">关闭</AppText>
             </Pressable>
           </View>
-          <AppText variant="label" muted className="mb-2 mt-5">
+          <AppText variant="caption" muted className="mb-2 mt-5">
             替换原因
           </AppText>
           <Tabs
@@ -76,7 +76,7 @@ function NutritionSwapEditor({
             value={reason}
             onValueChange={(value) => setReason(value as Reason)}
           />
-          <AppText variant="label" muted className="mb-2 mt-5">
+          <AppText variant="caption" muted className="mb-2 mt-5">
             想换成什么（可选）
           </AppText>
           <Input

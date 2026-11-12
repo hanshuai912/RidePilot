@@ -1,3 +1,4 @@
+import { textStyles } from "../../../theme/typography";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, Pressable, StyleSheet, View } from "react-native";
 import { openURL, parse, useLinkingURL } from "expo-linking";
@@ -179,6 +180,7 @@ export function CorosConnectionCard() {
             accessibilityRole="button"
             accessibilityLabel="解除 COROS 绑定"
             onPress={disconnect}
+            className="min-h-11 min-w-11 items-center justify-center"
           >
             <AppText style={styles.unlink}>解除</AppText>
           </Pressable>
@@ -207,11 +209,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.brandSubtle,
   },
   headerCopy: { flex: 1 },
-  title: { color: colors.textPrimary, fontSize: 14, fontWeight: "600" },
+  title: { ...textStyles.card, color: colors.textPrimary },
   description: {
+    ...textStyles.caption,
     color: colors.textSecondary,
-    fontSize: 11,
-    lineHeight: 16,
     marginTop: 4,
   },
   errorRow: {
@@ -220,10 +221,10 @@ const styles = StyleSheet.create({
     gap: 7,
     marginTop: 12,
   },
-  error: { flex: 1, color: colors.warning, fontSize: 11, lineHeight: 16 },
+  error: { ...textStyles.caption, flex: 1, color: colors.warning },
   connectedRow: { flexDirection: "row", alignItems: "center", marginTop: 13 },
   connectedCopy: { flex: 1 },
-  status: { fontSize: 12, fontWeight: "600" },
-  meta: { color: colors.textMuted, fontSize: 11, marginTop: 3 },
-  unlink: { color: colors.textMuted, fontSize: 12 },
+  status: { ...textStyles.caption },
+  meta: { ...textStyles.caption, color: colors.textMuted, marginTop: 3 },
+  unlink: { ...textStyles.button, color: colors.textMuted },
 });

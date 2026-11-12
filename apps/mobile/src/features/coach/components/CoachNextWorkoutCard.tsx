@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { Pressable, View } from "react-native";
-import { ArrowRight, Bike, CircleCheck } from "lucide-react-native";
+import { ArrowRight, Bike } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import type { CoachOverview, ProposalResponse } from "@ridepilot/contracts";
 import { AppText, Button, Card } from "../../../components/ui";
@@ -72,7 +72,8 @@ export function CoachNextWorkoutContent({
   return (
     <Card
       testID="coach-next-workout"
-      className="overflow-hidden border-brand-subtle p-5"
+      padding="roomy"
+      className="overflow-hidden border-brand-subtle"
     >
       <View className="flex-row flex-wrap items-center justify-between gap-2">
         <View className="flex-row items-center gap-2">
@@ -90,7 +91,7 @@ export function CoachNextWorkoutContent({
       <AppText variant="section" className="mt-4">
         {next.title}
       </AppText>
-      <View className="my-5 flex-row flex-wrap gap-y-4">
+      <View className="mb-3 mt-4 flex-row flex-wrap gap-y-4">
         <View className="min-w-[96px] flex-1 pr-4">
           <AppText variant="label" className="text-secondary">
             {minutes !== null
@@ -141,7 +142,7 @@ export function CoachNextWorkoutContent({
           </Button>
         </View>
       ) : null}
-      <View className="mt-4 border-t border-divider pt-2">
+      <View className="border-t border-divider pt-2">
         <WorkoutDetailLink changed={changed} workoutId={next.id} />
       </View>
     </Card>

@@ -215,11 +215,11 @@ export function CoachScreen() {
       >
         <View className="items-center">
           <View className="h-[72px] w-[72px] items-center justify-center rounded-full border border-positive/50 bg-surface-2">
-            <AppText className="text-[35px] leading-[40px] text-positive">
+            <AppText variant="display" className="text-positive">
               ✓
             </AppText>
           </View>
-          <AppText variant="display" className="mt-5 text-center text-[27px]">
+          <AppText variant="title" className="mt-5 text-center">
             你的训练计划已准备好
           </AppText>
           <AppText variant="caption" muted className="mt-2 text-center">
