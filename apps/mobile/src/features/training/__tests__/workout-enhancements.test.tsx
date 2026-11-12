@@ -3,7 +3,7 @@ import { render, screen, fireEvent } from "@testing-library/react-native";
 import type { ManualWorkoutDraft } from "@ridepilot/contracts";
 import { Editor } from "../components/Editor";
 import { WorkoutDiff } from "../components/WorkoutDiff";
-import { WorkoutAdjustmentForm } from "../components/WorkoutAdjustmentForm";
+import { WorkoutAdjustmentFormHarness as WorkoutAdjustmentForm } from "./fixtures/WorkoutAdjustmentFormHarness";
 import { TrainingCalendarGrid } from "../components/TrainingCalendarGrid";
 import { calendarDays, moveCalendar } from "../model/calendar-period";
 
@@ -88,32 +88,41 @@ test("diff includes repeated duration, distance and both original and new intens
   expect(screen.getByText("100–150 W")).toBeTruthy();
   expect(screen.getByText("FTP 40–50%")).toBeTruthy();
 });
-test("future scope needs a valid date and explicit range confirmation, while cancellation never generates", async () => {
+test("future scope limits date selection and requires explicit range confirmation, while cancellation never generates", async () => {
   const submit = jest.fn();
   await render(
     <WorkoutAdjustmentForm
       scheduledDate={draft.scheduledDate}
       loading={false}
       error={null}
-      onClose={jest.fn()}
       onSubmit={submit}
       onChange={jest.fn()}
       onDirtyChange={jest.fn()}
     />,
   );
   await fireEvent.press(screen.getByText("联动后续课程"));
-  await fireEvent.changeText(
-    screen.getByLabelText("后续联动结束日期"),
-    "2031-01-01",
+  await fireEvent.press(
+    screen.getByRole("button", { name: "后续联动结束日期" }),
   );
-  await fireEvent.press(screen.getByText("生成调整草稿"));
+  expect(screen.queryByRole("radio", { name: "2031年" })).toBeNull();
+  expect(screen.queryByRole("radio", { name: "6日" })).toBeNull();
+  await fireEvent.press(screen.getByRole("radio", { name: "20日" }));
+  await fireEvent.press(screen.getByRole("button", { name: "取消日期选择" }));
   expect(submit).not.toHaveBeenCalled();
-  await fireEvent.changeText(
-    screen.getByLabelText("后续联动结束日期"),
-    "2030-01-20",
+  expect(
+    screen.getByRole("button", { name: "后续联动结束日期" }).props
+      .accessibilityValue.text,
+  ).toBe("2030年1月13日");
+  await fireEvent.press(
+    screen.getByRole("button", { name: "后续联动结束日期" }),
   );
-  await fireEvent.press(screen.getByText("生成调整草稿"));
+  await fireEvent.press(screen.getByRole("radio", { name: "20日" }));
+  await fireEvent.press(screen.getByRole("button", { name: "确认日期" }));
+  await fireEvent.press(screen.getByText("生成"));
   expect(submit).not.toHaveBeenCalled();
+  await fireEvent.press(screen.getByRole("button", { name: "返回修改" }));
+  expect(submit).not.toHaveBeenCalled();
+  await fireEvent.press(screen.getByText("生成"));
   await fireEvent.press(screen.getByText("确认范围并生成草稿"));
   expect(submit).toHaveBeenCalledWith("TIME_SHORT", "", "2030-01-20");
 });

@@ -39,3 +39,51 @@
 覆盖：首页单次直接跳转/取消返回、详情入口、成功后的首页与详情刷新、表单未保存提醒、忙碌阻止返回、重复提交保护、失败保留输入、非法数值、已记录课程、读取失败重试、预览返回保留输入、草稿不匹配、应用超时使用相同幂等请求重试。
 
 真机的小屏、键盘、滚动及转场流畅度尚需设备验收。
+
+## 2026-11-12：具体课程调整表单与顶部生成
+
+按用户要求重设计 `WorkoutAdjustmentForm`；本节取代上述调整页底部取消操作说明，完成记录页面沿用原操作。
+
+- 正文按当前课程摘要、主要调整原因、影响范围、补充说明组织。摘要读取真实课程名称、日期、已知时长和正式版本，不补造缺失数据。
+- 六项原因排成两列，使用统一的金色选中底色、边框与勾选；范围为「仅此课程」「联动后续课程」两项紧凑单选，并显示当前范围说明。默认值、原因枚举及业务语义保留。
+- 复用黑金 Token：20 横向留白、24 分区间距、20 分区标题、16 正文、13 辅助文字，原因和范围高至少 48。输入改为至少 120 高的多行区域，最大 200 字并展示字数。
+- 生成操作移到固定标题右侧，精简为单行金色「生成」，无水平内边距，触控至少 44×44。移除正文中的生成和取消按钮，左上返回继续保留来源导航与未保存确认。
+- 联动时复用 `DatePickerField` 的年／月／日滚动选择器，最早为当前课程日期，最晚为其后第 83 天，含首日共 84 天，默认结束为第 7 天。取消不修改，确认才更新。非法范围仍阻断生成。
+- 点击顶部生成才执行：单节直接请求替代草稿；联动先确认日期范围，「返回修改」不生成且保留输入，明确确认后才调用现有范围生成。之后继续差异预览、规则校验和确认应用，不提前改正式计划。
+- 生成期间顶部操作显示加载并禁用，原因、范围、日期和备注锁定；原生与顶部返回仍受忙碌保护。既有长任务取消能力保留。读取失败、FTP 缺失及课程不可编辑时不展示生成操作。
+- 切换原因、范围和取消日期选择均不清空备注。生成失败、预览返回继续保留输入。错误仍展示真实消息并允许从顶部重试。
+
+职责拆分：`WorkoutAdjustmentScreen` 负责真实课程、顶部动作与生成服务；`useWorkoutAdjustmentForm` 管理范围、原因、备注及生成前确认；`WorkoutAdjustmentForm` 展示输入与确认，`WorkoutAdjustmentScope` 展示范围和日期。结束日期默认值由已加载的课程日期派生，不在课程数据尚未加载时计算无效日期。
+
+未修改 API、共享契约、鉴权、幂等、版本冲突和应用服务；没有数据库迁移或新增依赖。设计同步 `RidePilot_UI/design/screens/T05-workout-adjustment.html`、同名交接 Markdown 与 `design/decisions.md`。
+
+### 本次实际验证
+
+移动端命令均在 `apps/mobile` 执行：
+
+```sh
+./node_modules/.bin/jest --runInBand --runTestsByPath \
+  src/features/training/__tests__/workout-adjustment-form.test.tsx \
+  src/features/training/__tests__/workout-enhancements.test.tsx \
+  src/features/training/__tests__/training-routes.test.tsx
+./node_modules/.bin/tsc --noEmit
+./node_modules/.bin/eslint \
+  src/features/training/components/WorkoutAdjustmentForm.tsx \
+  src/features/training/components/WorkoutAdjustmentScope.tsx \
+  src/features/training/screens/WorkoutAdjustmentScreen.tsx \
+  src/features/training/hooks/useWorkoutAdjustmentForm.ts \
+  src/features/training/__tests__/workout-adjustment-form.test.tsx \
+  src/features/training/__tests__/workout-enhancements.test.tsx \
+  src/features/training/__tests__/training-routes.test.tsx \
+  src/features/training/__tests__/fixtures/WorkoutAdjustmentFormHarness.tsx
+./node_modules/.bin/expo export --platform web \
+  --output-dir /tmp/ridepilot-workout-adjustment-web --max-workers 2
+```
+
+- Jest：3 组、51 项通过，覆盖唯一顶部生成、正文无取消、未保存退出确认、范围日期上下界、日期取消与确认、联动范围二次确认及对应 API、单节生成、失败保留输入、预览返回、忙碌禁用与应用幂等重试。
+- TypeScript、修改文件 ESLint：通过。Web 导出成功，3873 个模块。
+- `node /tmp/ridepilot-workout-adjustment-browser.cjs`：合成 API 检查 320／390／430 屏宽的单节和联动布局、顶部单行生成及正文无重复操作、触控尺寸、120 高备注、范围切换、日期取消和确认、联动确认返回、读取目标失败后保留输入、课程不可编辑、缺少 FTP 与读取重试。无业务写请求和页面脚本错误。
+- `node /tmp/ridepilot-workout-adjustment-design-check.cjs`：T05 设计稿三种屏宽、唯一顶部操作、选中状态、输入保留与无横向溢出通过。
+- 本次修改文件 Prettier、主仓库与设计仓库 `git diff --check`：通过。
+
+浏览器使用合成数据，不替代 iOS／Android 真机、系统大字体、原生键盘和真实模型联调。

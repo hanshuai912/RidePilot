@@ -1,14 +1,35 @@
 import { Pressable, View } from "react-native";
-import { Check, ChevronRight } from "lucide-react-native";
-import { AppText, Input } from "../../../components/ui";
+import { ChevronRight } from "lucide-react-native";
+import { AppText } from "../../../components/ui";
 import { colors } from "../../../theme/colors";
 import type { PlanningScope } from "../services/adjustment-scope";
 import type { CoachPlanStatus } from "../services/coach.api";
+import { ReplanNote } from "./ReplanNote";
 
-const scopes: { value: PlanningScope; label: string; note: string }[] = [
-  { value: "NEXT_WORKOUT", label: "下一节训练", note: "只调整最近一节课程" },
-  { value: "THIS_WEEK", label: "本周剩余训练", note: "调整本周尚未完成的安排" },
-  { value: "NEXT_WEEK", label: "从下周开始", note: "重新安排下一周的训练" },
+const scopes: {
+  value: PlanningScope;
+  label: string;
+  shortLabel: string;
+  note: string;
+}[] = [
+  {
+    value: "NEXT_WORKOUT",
+    label: "下一节训练",
+    shortLabel: "下一节",
+    note: "只调整最近一节尚未完成的训练，其他课程保留。",
+  },
+  {
+    value: "THIS_WEEK",
+    label: "本周剩余训练",
+    shortLabel: "本周剩余",
+    note: "调整本周尚未完成的训练，已完成记录保留。",
+  },
+  {
+    value: "NEXT_WEEK",
+    label: "从下周开始",
+    shortLabel: "下周",
+    note: "重新安排下一周的训练，本周安排保持不变。",
+  },
 ];
 
 export function ReplanBrief({
@@ -20,6 +41,7 @@ export function ReplanBrief({
   goalLabel,
   goalDate,
   onEditGoal,
+  busy = false,
 }: {
   planningScope: PlanningScope;
   setPlanningScope: (value: PlanningScope) => void;
@@ -29,80 +51,71 @@ export function ReplanBrief({
   goalLabel: string;
   goalDate: string;
   onEditGoal: () => void;
+  busy?: boolean;
 }) {
   return (
     <View className="gap-6" testID="coach-replan-brief">
       <View>
-        <AppText variant="title">让训练适应最近的变化</AppText>
+        <AppText variant="title">调整接下来的训练</AppText>
         <AppText className="mt-2 text-secondary">
-          时间、精力或训练重点有变化时，先选范围，再告诉教练你的想法。
+          选好范围，再补充时间、强度或训练环境的变化。
         </AppText>
       </View>
-      <View>
+      <View testID="replan-scope-section">
         <AppText variant="section" className="mb-3">
           调整哪些训练
         </AppText>
-        <View className="gap-2">
-          {scopes.map(({ value, label, note }) => {
+        <View className="flex-row flex-wrap gap-2">
+          {scopes.map(({ value, label, shortLabel }) => {
             const selected = value === planningScope;
             return (
               <Pressable
                 key={value}
                 accessibilityRole="radio"
                 accessibilityLabel={label}
-                accessibilityState={{ checked: selected }}
+                accessibilityState={{ checked: selected, disabled: busy }}
+                disabled={busy}
                 aria-checked={selected}
                 onPress={() => setPlanningScope(value)}
-                className={`min-h-[76px] flex-row items-center gap-3 rounded-xl border p-4 ${selected ? "border-brand bg-brand-subtle" : "border-border bg-surface"}`}
+                className={`min-h-12 min-w-[80px] flex-1 items-center justify-center rounded-xl border px-2 py-3 ${selected ? "border-brand bg-brand-subtle" : "border-border bg-surface"} ${busy ? "opacity-50" : "active:opacity-70"}`}
               >
-                <View className="min-w-0 flex-1 gap-1">
-                  <AppText className="font-medium">{label}</AppText>
-                  <AppText variant="caption" className="text-secondary">
-                    {note}
-                  </AppText>
-                </View>
-                <View
-                  className={`h-6 w-6 items-center justify-center rounded-full border ${selected ? "border-brand bg-brand" : "border-border"}`}
+                <AppText
+                  className={
+                    selected ? "font-medium text-brand" : "text-secondary"
+                  }
                 >
-                  {selected ? <Check size={15} color={colors.brandOn} /> : null}
-                </View>
+                  {shortLabel}
+                </AppText>
               </Pressable>
             );
           })}
         </View>
+        <AppText variant="caption" className="mt-3 text-secondary">
+          {scopes.find(({ value }) => value === planningScope)?.note}
+        </AppText>
       </View>
-      <View>
-        <View className="mb-3 flex-row items-center justify-between">
-          <AppText variant="section">有哪些变化</AppText>
-          <AppText variant="caption" className="text-secondary">
-            选填
-          </AppText>
-        </View>
-        <Input
-          accessibilityLabel="训练调整说明"
-          value={taskNote}
-          onChangeText={setTaskNote}
-          multiline
-          textAlignVertical="top"
-          maxLength={240}
-          className="min-h-[120px] py-4"
-          placeholder="例如：这周工作比较忙，每次只能练 40 分钟，希望保留耐力训练。"
-        />
-      </View>
+      <ReplanNote value={taskNote} onChange={setTaskNote} disabled={busy} />
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="修改当前目标与日期"
+        accessibilityState={{ disabled: busy }}
+        disabled={busy}
         onPress={onEditGoal}
-        className="min-h-[76px] flex-row items-center gap-3 rounded-xl bg-surface p-4 active:bg-surface-2"
+        testID="replan-goal-context"
+        className={`min-h-[76px] flex-row items-center gap-3 rounded-xl border border-border bg-surface p-4 ${busy ? "opacity-50" : "active:bg-surface-2"}`}
       >
         <View className="min-w-0 flex-1 gap-1">
           <AppText variant="caption" className="text-secondary">
-            围绕当前目标
+            当前目标
           </AppText>
-          <AppText>
-            {goalLabel} · {goalDate}
+          <AppText variant="card">{goalLabel}</AppText>
+          <AppText variant="caption" className="text-secondary">
+            {goalDate}
           </AppText>
         </View>
+        <AppText variant="caption" className="text-brand">
+          修改
+        </AppText>
         <ChevronRight size={18} color={colors.textSecondary} />
       </Pressable>
       <AppText variant="caption" className="text-secondary">

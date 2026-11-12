@@ -44,6 +44,7 @@ export function PlanningBrief({
   if (task === "REPLAN")
     return (
       <ReplanBrief
+        busy={busy}
         planningScope={planningScope}
         setPlanningScope={setPlanningScope}
         taskNote={taskNote}

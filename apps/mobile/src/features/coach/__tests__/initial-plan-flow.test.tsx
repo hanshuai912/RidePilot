@@ -701,7 +701,7 @@ test("existing plan task cards open the planning route without a render loop", a
   expect(
     within(view.getByTestId("coach-page-content")).queryByRole("header"),
   ).toBeNull();
-  expect(view.getByText("让训练适应最近的变化")).toBeTruthy();
+  expect(view.getByText("调整接下来的训练")).toBeTruthy();
   await fireEvent.press(view.getByRole("radio", { name: /从下周开始/ }));
   expect(
     view.getByRole("radio", { name: /从下周开始/ }).props.accessibilityState

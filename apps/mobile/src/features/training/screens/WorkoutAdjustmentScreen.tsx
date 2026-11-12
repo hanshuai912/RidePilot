@@ -1,6 +1,8 @@
 import { GenerationCancelButton } from "../../coach/components/GenerationCancelButton";
 import { useState } from "react";
-import { AppText } from "../../../components/ui";
+import { Pressable, View } from "react-native";
+import { AppText, Spinner } from "../../../components/ui";
+import { useWorkoutAdjustmentForm } from "../hooks/useWorkoutAdjustmentForm";
 import { TrainingPage } from "../components/TrainingPage";
 import { WorkoutAdjustmentForm } from "../components/WorkoutAdjustmentForm";
 import { useWorkoutActionRoute } from "../hooks/useWorkoutActionRoute";
@@ -14,6 +16,17 @@ export function WorkoutAdjustmentScreen() {
   const ftp = useFtpRequirement();
   const action = useWorkoutAdjustment(route.token, route.data, route.source);
   const [dirty, setDirty] = useState(false);
+  const form = useWorkoutAdjustmentForm(
+    route.data?.scheduledDate,
+    setDirty,
+    action.markChanged,
+  );
+  const submit = () => {
+    if (!action.busy)
+      form.requestSubmit((reason, notes, endDate) => {
+        void action.generate(reason, notes, endDate);
+      });
+  };
   const { guard } = useWorkoutActionExit(
     dirty && !action.generated,
     action.busy,
@@ -25,6 +38,39 @@ export function WorkoutAdjustmentScreen() {
       title="调整训练"
       onBack={route.back}
       busy={action.busy}
+      headerAction={
+        route.data &&
+        !route.loading &&
+        !route.error &&
+        !ftp.error &&
+        ftp.available === true &&
+        !unavailable ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="生成"
+            accessibilityHint="生成调整草稿，联动后续课程时先确认范围"
+            accessibilityState={{
+              disabled: action.busy || !form.canSubmit,
+              busy: action.busy,
+            }}
+            disabled={action.busy || !form.canSubmit}
+            onPress={submit}
+            className={`min-h-11 w-11 items-center justify-center ${action.busy || !form.canSubmit ? "opacity-50" : "active:opacity-70"}`}
+          >
+            {action.busy ? (
+              <Spinner accessibilityLabel="正在生成调整草稿" />
+            ) : (
+              <AppText
+                numberOfLines={1}
+                style={{ fontSize: 15, lineHeight: 20 }}
+                className="font-semibold text-brand"
+              >
+                生成
+              </AppText>
+            )}
+          </Pressable>
+        ) : null
+      }
       loading={route.loading || (ftp.available === null && !ftp.error)}
       error={route.error ?? ftp.error}
       retry={() => {
@@ -33,31 +79,45 @@ export function WorkoutAdjustmentScreen() {
       }}
     >
       {guard}
-      {route.data ? (
-        <AppText variant="caption" muted>
-          {route.data.scheduledDate} · {route.data.title || "骑行训练"}
-        </AppText>
-      ) : null}
-      {ftp.available === false ? (
-        <FtpRequiredState />
-      ) : unavailable ? (
-        <AppText>当前课程已记录或不可调整，请返回刷新计划。</AppText>
-      ) : route.data ? (
-        <WorkoutAdjustmentForm
-          scheduledDate={route.data.scheduledDate}
-          loading={action.busy}
-          error={action.error}
-          onClose={route.back}
-          onSubmit={(reason, notes, endDate) =>
-            void action.generate(reason, notes, endDate)
-          }
-          onDirtyChange={setDirty}
-          onChange={action.markChanged}
-        />
-      ) : null}
-      {action.busy ? (
-        <GenerationCancelButton cancellation={action.cancellation} />
-      ) : null}
+      <View className="gap-6 px-0.5 pt-4">
+        {route.data ? (
+          <View
+            testID="workout-adjustment-context"
+            className="gap-2 rounded-card border border-border bg-surface p-4"
+          >
+            <AppText variant="caption" className="text-secondary">
+              本次调整的课程
+            </AppText>
+            <AppText variant="section">
+              {route.data.title || "骑行训练"}
+            </AppText>
+            <AppText variant="caption" className="text-secondary">
+              {route.data.scheduledDate}
+              {route.data.timeTargetMinutes
+                ? ` · ${route.data.timeTargetMinutes} 分钟`
+                : ""}{" "}
+              · 正式计划 v{route.data.planVersion}
+            </AppText>
+          </View>
+        ) : null}
+        {ftp.available === false ? (
+          <FtpRequiredState />
+        ) : unavailable ? (
+          <AppText>当前课程已记录或不可调整，请返回刷新计划。</AppText>
+        ) : route.data ? (
+          <WorkoutAdjustmentForm
+            form={form}
+            loading={action.busy}
+            error={action.error}
+            onSubmit={(reason, notes, endDate) =>
+              void action.generate(reason, notes, endDate)
+            }
+          />
+        ) : null}
+        {action.busy ? (
+          <GenerationCancelButton cancellation={action.cancellation} />
+        ) : null}
+      </View>
     </TrainingPage>
   );
 }

@@ -1,182 +1,156 @@
-import { addDays, isTrainingDate } from "../model/training";
-import React from "react";
 import { Pressable, View } from "react-native";
+import { Check } from "lucide-react-native";
+import { AppText, Button, Input, Dialog } from "../../../components/ui";
+import { colors } from "../../../theme/colors";
 import type { AdjustmentReason as Reason } from "../hooks/useWorkoutAdjustment";
+import type {
+  WorkoutAdjustmentFormState,
+  SubmitWorkoutAdjustment,
+} from "../hooks/useWorkoutAdjustmentForm";
+import { WorkoutAdjustmentScope } from "./WorkoutAdjustmentScope";
 
-import { AppText, Button, Card, Input, Dialog } from "../../../components/ui";
-
-const reasons: [Reason, string][] = [
-  ["TIME_SHORT", "可用时间不够"],
-  ["FATIGUE", "疲劳或睡眠不足"],
-  ["WEATHER", "天气不适合"],
-  ["SCHEDULE", "临时有事"],
-  ["TOO_HARD", "课程太难"],
-  ["MISSED", "之前漏练"],
+const reasons: { value: Reason; label: string; accessibleLabel: string }[] = [
+  { value: "TIME_SHORT", label: "时间不足", accessibleLabel: "可用时间不够" },
+  {
+    value: "FATIGUE",
+    label: "疲劳或睡眠差",
+    accessibleLabel: "疲劳或睡眠不足",
+  },
+  { value: "WEATHER", label: "天气影响", accessibleLabel: "天气不适合" },
+  { value: "SCHEDULE", label: "临时有事", accessibleLabel: "临时有事" },
+  { value: "TOO_HARD", label: "课程太难", accessibleLabel: "课程太难" },
+  { value: "MISSED", label: "之前漏练", accessibleLabel: "之前漏练" },
 ];
 
 export function WorkoutAdjustmentForm({
-  scheduledDate,
+  form,
   loading,
   error,
-  onClose,
   onSubmit,
-  onDirtyChange,
-  onChange,
 }: {
-  scheduledDate: string;
+  form: WorkoutAdjustmentFormState;
   loading: boolean;
   error: string | null;
-  onClose: () => void;
-  onSubmit: (reason: Reason, notes: string, endDate?: string) => void;
-  onDirtyChange: (dirty: boolean) => void;
-  onChange: () => void;
+  onSubmit: SubmitWorkoutAdjustment;
 }) {
-  const [reason, setReason] = React.useState<Reason>("TIME_SHORT");
-  const [scope, setScope] = React.useState<"SINGLE" | "FUTURE">("SINGLE");
-  const [endDate, setEndDate] = React.useState(addDays(scheduledDate, 6));
-  const [confirm, setConfirm] = React.useState(false);
-  const validRange =
-    isTrainingDate(endDate) &&
-    endDate >= scheduledDate &&
-    endDate <= addDays(scheduledDate, 83);
-  const [notes, setNotes] = React.useState("");
-
-  React.useEffect(() => {
-    onDirtyChange(
-      reason !== "TIME_SHORT" || notes !== "" || scope !== "SINGLE",
-    );
-  }, [reason, notes, scope, onDirtyChange]);
+  const {
+    reason,
+    setReason,
+    scope,
+    setScope,
+    scheduledDate,
+    endDate,
+    setEndDate,
+    notes,
+    setNotes,
+    validRange,
+    confirm,
+  } = form;
 
   return (
-    <View>
-      <AppText className="mt-2 text-secondary">
-        AI 会保留训练目的，先给出一份可预览的替代课程。
-      </AppText>
-      <Card className="mt-4">
-        <AppText variant="card">调整范围</AppText>
-        <View className="mt-3 flex-row flex-wrap gap-2">
-          <Button
-            variant={scope === "SINGLE" ? "primary" : "secondary"}
-            disabled={loading}
-            onPress={() => {
-              setScope("SINGLE");
-              onChange();
-            }}
-          >
-            仅此课程
-          </Button>
-          <Button
-            variant={scope === "FUTURE" ? "primary" : "secondary"}
-            disabled={loading}
-            onPress={() => {
-              setScope("FUTURE");
-              onChange();
-            }}
-          >
-            联动后续课程
-          </Button>
+    <View className="gap-6" testID="workout-adjustment-form">
+      <View testID="workout-adjustment-reasons">
+        <AppText variant="section">发生了什么</AppText>
+        <AppText variant="caption" className="mb-3 mt-2 text-secondary">
+          选择最主要的原因，再补充具体变化。
+        </AppText>
+        <View className="flex-row flex-wrap gap-2">
+          {reasons.map(({ value, label, accessibleLabel }) => {
+            const selected = reason === value;
+            return (
+              <Pressable
+                key={value}
+                disabled={loading}
+                accessibilityRole="radio"
+                accessibilityLabel={accessibleLabel}
+                accessibilityState={{ checked: selected, disabled: loading }}
+                aria-checked={selected}
+                onPress={() => {
+                  setReason(value);
+                }}
+                className={`min-h-12 min-w-[120px] flex-1 basis-[45%] flex-row items-center gap-2 rounded-xl border px-3 py-3 ${selected ? "border-brand bg-brand-subtle" : "border-border bg-surface"} ${loading ? "opacity-50" : "active:opacity-70"}`}
+              >
+                <AppText
+                  variant="caption"
+                  className={`flex-1 ${selected ? "text-brand" : "text-secondary"}`}
+                >
+                  {label}
+                </AppText>
+                <View
+                  className={`h-4 w-4 items-center justify-center rounded-full border ${selected ? "border-brand bg-brand" : "border-border"}`}
+                >
+                  {selected ? <Check size={11} color={colors.brandOn} /> : null}
+                </View>
+              </Pressable>
+            );
+          })}
         </View>
-        {scope === "FUTURE" ? (
-          <>
-            <AppText muted className="mt-3">
-              从 {scheduledDate} 起重排至以下日期（最多 84
-              天）。已记录课程保留；阶段、测试与补给需另行确认。
-            </AppText>
-            <Input
-              accessibilityLabel="后续联动结束日期"
-              value={endDate}
-              editable={!loading}
-              onChangeText={(value) => {
-                setEndDate(value);
-                onChange();
-              }}
-              placeholder="YYYY-MM-DD"
-            />
-            {!validRange ? (
-              <AppText className="text-negative">
-                请选择有效结束日期，范围不得超过 84 天
-              </AppText>
-            ) : null}
-          </>
-        ) : null}
-      </Card>
-      <Card className="mt-5">
-        <AppText variant="card">发生了什么？</AppText>
-        <View className="mt-3 flex-row flex-wrap gap-2">
-          {reasons.map(([value, label]) => (
-            <Pressable
-              key={value}
-              disabled={loading}
-              accessibilityRole="radio"
-              accessibilityState={{ selected: reason === value }}
-              className={`min-h-11 rounded-[13px] border px-3 py-3 ${reason === value ? "border-brand bg-brand-subtle" : "border-border bg-surface-2"}`}
-              onPress={() => {
-                setReason(value);
-                onChange();
-              }}
-            >
-              <AppText className={reason === value ? "text-brand" : undefined}>
-                {label}
-              </AppText>
-            </Pressable>
-          ))}
+      </View>
+      <WorkoutAdjustmentScope
+        value={scope}
+        onChange={(value) => {
+          setScope(value);
+        }}
+        scheduledDate={scheduledDate}
+        endDate={endDate}
+        onEndDateChange={(value) => {
+          setEndDate(value);
+        }}
+        disabled={loading}
+        validRange={validRange}
+      />
+      <View testID="workout-adjustment-notes">
+        <View className="mb-3 flex-row items-center justify-between">
+          <AppText variant="section">补充说明</AppText>
+          <AppText variant="caption" className="text-secondary">
+            选填
+          </AppText>
         </View>
-      </Card>
-      <Card className="mt-4">
-        <AppText variant="card">补充说明（选填）</AppText>
         <Input
           editable={!loading}
-          className="mt-3"
           accessibilityLabel="调整原因补充说明"
           value={notes}
           onChangeText={(value) => {
             setNotes(value);
-            onChange();
           }}
+          multiline
+          textAlignVertical="top"
+          style={{ minHeight: 120 }}
+          className="py-4"
           maxLength={200}
           placeholder="例如：昨晚只睡了 5 小时"
         />
-      </Card>
-      {error ? (
-        <AppText variant="caption" className="mt-3 text-negative">
-          {error}
+        <AppText variant="caption" className="mt-2 text-right text-secondary">
+          {notes.length}/200
         </AppText>
-      ) : null}
+      </View>
+      <View className="gap-3">
+        <AppText variant="caption" className="text-secondary">
+          AI 会结合原训练目的生成草稿，预览并确认后才更新正式计划。
+        </AppText>
+        {error ? (
+          <AppText accessibilityLiveRegion="polite" className="text-negative">
+            {error}
+          </AppText>
+        ) : null}
+      </View>
       <Dialog
         visible={confirm}
         title="确认后续联动范围"
         description={`将为 ${scheduledDate} 至 ${endDate} 的未来未记录课程生成替代草稿。请在差异预览中核对全部受影响课程后再应用。`}
-        onClose={() => setConfirm(false)}
+        onClose={form.closeConfirmation}
+        closeLabel="返回修改"
       >
         <Button
+          className="mt-5"
+          disabled={loading || !validRange}
           onPress={() => {
-            setConfirm(false);
-            onSubmit(reason, notes, endDate);
+            form.confirmSubmit(onSubmit);
           }}
         >
           确认范围并生成草稿
         </Button>
       </Dialog>
-      <View className="mt-6">
-        <Button
-          size="lg"
-          loading={loading}
-          disabled={scope === "FUTURE" && !validRange}
-          onPress={() =>
-            scope === "FUTURE" ? setConfirm(true) : onSubmit(reason, notes)
-          }
-        >
-          生成调整草稿
-        </Button>
-        <Button
-          variant="secondary"
-          className="mt-2"
-          disabled={loading}
-          onPress={onClose}
-        >
-          取消
-        </Button>
-      </View>
     </View>
   );
 }
