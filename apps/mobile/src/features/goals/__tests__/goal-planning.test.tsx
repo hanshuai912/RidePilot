@@ -416,6 +416,9 @@ test.each(["missing FTP", "paused goal"])(
 test("stage planning explanation opens only from its icon and closes without changing inputs or generating", async () => {
   await detail();
   const info = await screen.findByRole("button", { name: "查看阶段安排说明" });
+  expect(screen.queryByText("综合训练规划")).toBeNull();
+  expect(screen.getAllByText("阶段安排")).toHaveLength(1);
+  expect(screen.queryByText(/阶段和课程由全部进行中目标共同规划/)).toBeNull();
   expect(screen.queryByText(stagePlan.summary)).toBeNull();
   expect(screen.getByText("基础耐力阶段")).toBeTruthy();
   await fireEvent.changeText(
@@ -423,6 +426,7 @@ test("stage planning explanation opens only from its icon and closes without cha
     "保留休息日",
   );
   await fireEvent.press(info);
+  expect(screen.getByText(/阶段和课程由全部进行中目标共同规划/)).toBeTruthy();
   expect(screen.getByText(stagePlan.summary)).toBeTruthy();
   expect(screen.getByText("阶段安排说明")).toBeTruthy();
   await fireEvent.press(screen.getByRole("button", { name: "知道了" }));
@@ -436,12 +440,20 @@ test("stage planning explanation opens only from its icon and closes without cha
   expect(api.generateCourses).not.toHaveBeenCalled();
 });
 
-test("missing stage plans do not show an empty explanation entry", async () => {
+test("missing stage plans still explain shared planning without a generated summary", async () => {
   api.activeStages.mockResolvedValue(null);
   await detail();
   await screen.findByText("尚无阶段安排");
-  expect(screen.queryByRole("button", { name: "查看阶段安排说明" })).toBeNull();
+  expect(screen.queryByText("综合训练规划")).toBeNull();
+  await fireEvent.press(
+    screen.getByRole("button", { name: "查看阶段安排说明" }),
+  );
+  expect(screen.getByText(/阶段和课程由全部进行中目标共同规划/)).toBeTruthy();
+  expect(screen.queryByText(stagePlan.summary)).toBeNull();
+  await fireEvent.press(screen.getByRole("button", { name: "知道了" }));
   expect(screen.getByText("规划后续训练")).toBeTruthy();
+  expect(api.generateStages).not.toHaveBeenCalled();
+  expect(api.generateCourses).not.toHaveBeenCalled();
 });
 
 test("course application requires validation and confirmation, retains the proposal after failure and retries apply with the same key", async () => {

@@ -41,24 +41,22 @@ function Profile() {
 }
 beforeEach(() => {
   jest.clearAllMocks();
-  jest
-    .mocked(useAuth)
-    .mockReturnValue({
-      status: "authenticated",
-      session: {
-        user: {
-          id: "00000000-0000-4000-8000-000000000001",
-          phone: "13800000000",
-          phoneVerified: false,
-        },
-        accessToken: "access",
-        expiresAt: Date.now() + 60000,
+  jest.mocked(useAuth).mockReturnValue({
+    status: "authenticated",
+    session: {
+      user: {
+        id: "00000000-0000-4000-8000-000000000001",
+        phone: "13800000000",
+        phoneVerified: false,
       },
-      logout: jest.fn(),
-      login: jest.fn(),
-      register: jest.fn(),
-      retry: jest.fn(),
-    });
+      accessToken: "access",
+      expiresAt: Date.now() + 60000,
+    },
+    logout: jest.fn(),
+    login: jest.fn(),
+    register: jest.fn(),
+    retry: jest.fn(),
+  });
   api.get.mockResolvedValue(stored);
   api.save.mockImplementation(
     async (_token, { expectedVersion, ...values }) => ({
@@ -83,10 +81,22 @@ async function open() {
   await fireEvent.press(screen.getByRole("button", { name: "心率区间" }));
   await waitFor(() => expect(screen.getByLabelText("最大心率")).toBeTruthy());
 }
-const saveButton = () => screen.getByRole("button", { name: "保存心率设置" });
+const saveButton = () => screen.getByRole("button", { name: "保存" });
 test("card opens unified settings and all methods calculate live without dropping hidden inputs", async () => {
   await open();
   expect(screen.getByRole("header", { name: "心率区间" })).toBeTruthy();
+  expect(
+    within(screen.getByRole("header", { name: "心率区间" }).parent!).getByRole(
+      "button",
+      { name: "保存" },
+    ),
+  ).toBeTruthy();
+  expect(screen.getAllByRole("button", { name: "保存" })).toHaveLength(1);
+  expect(
+    within(screen.getByTestId("profile-editor-content")).queryByRole("button", {
+      name: "保存",
+    }),
+  ).toBeNull();
   expect(saveButton()).toBeDisabled();
   expect(
     within(screen.getByTestId("heart-rate-zone-Z2")).getByText("120–139 bpm"),
@@ -242,7 +252,7 @@ test("read failure offers retry without allowing an unversioned overwrite", asyn
   await waitFor(() =>
     expect(screen.getByRole("button", { name: "重新加载" })).toBeTruthy(),
   );
-  expect(screen.queryByRole("button", { name: "保存心率设置" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "保存" })).toBeNull();
   await fireEvent.press(screen.getByRole("button", { name: "重新加载" }));
   await waitFor(() =>
     expect(screen.getByLabelText("最大心率")).toHaveDisplayValue("200"),

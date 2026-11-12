@@ -386,6 +386,9 @@ export function useInitialPlan() {
           ? { targetWorkoutId: scope.targetWorkoutId }
           : {}),
         notes: [
+          task === "RECOVERY"
+            ? "赛后恢复：优先考虑恢复需求，再逐步衔接训练"
+            : "",
           `当前状态：${bodyStatus === "TIRED" ? "有些疲劳" : bodyStatus === "RECOVERY" ? "需要恢复" : "状态正常"}`,
           `计划周期：${cycleWeeks} 周`,
           taskNote.trim(),

@@ -191,13 +191,6 @@ export function CoachSuggestionScreen() {
           </Button>
         </>
       ) : null}
-      <Button
-        variant="secondary"
-        disabled={state.busy}
-        onPress={() => router.replace("/(tabs)/coach/suggestions")}
-      >
-        返回建议列表
-      </Button>
     </TrainingPage>
   );
 }

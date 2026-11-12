@@ -99,7 +99,18 @@ test("FTP card opens its own page, calculations update live and saving refreshes
     "/cycling-power-zones",
   );
   expect(screen.getByRole("header", { name: "骑行功率区间" })).toBeTruthy();
-  expect(screen.getByRole("button", { name: "保存 FTP" })).toBeDisabled();
+  expect(
+    within(
+      screen.getByRole("header", { name: "骑行功率区间" }).parent!,
+    ).getByRole("button", { name: "保存" }),
+  ).toBeTruthy();
+  expect(screen.getAllByRole("button", { name: "保存" })).toHaveLength(1);
+  expect(
+    within(screen.getByTestId("profile-editor-content")).queryByRole("button", {
+      name: "保存",
+    }),
+  ).toBeNull();
+  expect(screen.getByRole("button", { name: "保存" })).toBeDisabled();
   expect(
     within(screen.getByTestId("power-zone-Z7")).getByText("≥301 W"),
   ).toBeTruthy();
@@ -115,10 +126,10 @@ test("FTP card opens its own page, calculations update live and saving refreshes
   ).toBeTruthy();
   expect(api.addFtp).not.toHaveBeenCalled();
   await fireEvent.changeText(screen.getByLabelText("FTP 数值"), "200");
-  expect(screen.getByRole("button", { name: "保存 FTP" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "保存" })).toBeDisabled();
   await fireEvent.changeText(screen.getByLabelText("FTP 数值"), "250");
   api.ftp.mockResolvedValue({ ...ftp, valueWatts: 250 });
-  await fireEvent.press(screen.getByRole("button", { name: "保存 FTP" }));
+  await fireEvent.press(screen.getByRole("button", { name: "保存" }));
   await screen.findByText("FTP 已保存");
   expect(screen.getByText("检查未来训练安排")).toBeTruthy();
   await fireEvent.press(screen.getByText("完成并返回"));
@@ -134,9 +145,9 @@ test("an empty FTP shows no invented wattages and supports first entry", async (
   api.ftp.mockResolvedValue(null);
   await open();
   expect(screen.getAllByText("— W")).toHaveLength(7);
-  expect(screen.getByRole("button", { name: "保存 FTP" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "保存" })).toBeDisabled();
   await fireEvent.changeText(screen.getByLabelText("FTP 数值"), "200");
-  expect(screen.getByRole("button", { name: "保存 FTP" })).toBeEnabled();
+  expect(screen.getByRole("button", { name: "保存" })).toBeEnabled();
   expect(screen.queryByText("— W")).toBeNull();
 });
 
@@ -145,9 +156,9 @@ test.each(["", "49", "801", "200.5", "abc"])(
   async (text) => {
     await open();
     await fireEvent.changeText(screen.getByLabelText("FTP 数值"), text);
-    expect(screen.getByRole("button", { name: "保存 FTP" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "保存" })).toBeDisabled();
     expect(screen.getAllByText("— W")).toHaveLength(7);
-    await fireEvent.press(screen.getByRole("button", { name: "保存 FTP" }));
+    await fireEvent.press(screen.getByRole("button", { name: "保存" }));
     expect(api.addFtp).not.toHaveBeenCalled();
   },
 );
@@ -182,12 +193,12 @@ test("a failed save keeps FTP and zones editable with unsaved protection", async
   await open();
   api.addFtp.mockRejectedValueOnce(new Error("保存失败，请重试"));
   await fireEvent.changeText(screen.getByLabelText("FTP 数值"), "250");
-  await fireEvent.press(screen.getByRole("button", { name: "保存 FTP" }));
+  await fireEvent.press(screen.getByRole("button", { name: "保存" }));
   await waitFor(() =>
     expect(screen.getByText("保存失败，请重试")).toBeTruthy(),
   );
   expect(screen.getByLabelText("FTP 数值")).toHaveDisplayValue("250");
-  expect(screen.getByRole("button", { name: "保存 FTP" })).toBeEnabled();
+  expect(screen.getByRole("button", { name: "保存" })).toBeEnabled();
   await fireEvent.press(screen.getByRole("button", { name: "返回我的" }));
   expect(screen.getByText("有未保存的修改")).toBeTruthy();
 });
@@ -225,7 +236,7 @@ test("saving prevents duplicate requests and route removal", async () => {
   );
   await open();
   await fireEvent.changeText(screen.getByLabelText("FTP 数值"), "250");
-  await fireEvent.press(screen.getByRole("button", { name: "保存 FTP" }));
+  await fireEvent.press(screen.getByRole("button", { name: "保存" }));
   expect(screen.getByLabelText("FTP 数值")).toHaveProp("editable", false);
   expect(screen.getByRole("button", { name: "返回我的" })).toBeDisabled();
   await act(() => router.back());

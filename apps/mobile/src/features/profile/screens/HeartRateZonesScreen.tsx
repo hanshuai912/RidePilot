@@ -19,19 +19,8 @@ export function HeartRateZonesScreen() {
       saving={editor.saving}
       onBack={back}
       overlay={confirmation}
-      footer={
-        editor.loaded ? (
-          <Button
-            accessibilityLabel="保存心率设置"
-            size="lg"
-            disabled={!editor.dirty || !editor.valid || editor.saving}
-            loading={editor.saving}
-            onPress={() => void editor.save()}
-          >
-            保存心率设置
-          </Button>
-        ) : null
-      }
+      onSave={editor.loaded ? () => void editor.save() : undefined}
+      saveDisabled={!editor.dirty || !editor.valid || editor.saving}
     >
       {editor.loading ? (
         <Spinner accessibilityLabel="正在加载心率设置" />

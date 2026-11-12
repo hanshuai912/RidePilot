@@ -23,21 +23,19 @@ export function StagePlanHeading({
       <View className="flex-row flex-wrap items-center justify-between gap-x-2">
         <View className="flex-row items-center">
           <AppText variant="section">阶段安排</AppText>
-          {description ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="查看阶段安排说明"
-              accessibilityHint="打开阶段规划说明弹窗"
-              className="h-11 w-11 items-center justify-center active:opacity-70"
-              onPress={() => setOpen(true)}
-            >
-              <CircleAlert
-                color={colors.textSecondary}
-                size={17}
-                strokeWidth={1.8}
-              />
-            </Pressable>
-          ) : null}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="查看阶段安排说明"
+            accessibilityHint="打开阶段规划说明弹窗"
+            className="h-11 w-11 items-center justify-center active:opacity-70"
+            onPress={() => setOpen(true)}
+          >
+            <CircleAlert
+              color={colors.textSecondary}
+              size={17}
+              strokeWidth={1.8}
+            />
+          </Pressable>
         </View>
         {action ? (
           <Button
@@ -55,7 +53,7 @@ export function StagePlanHeading({
           </Button>
         ) : null}
       </View>
-      {open && description ? (
+      {open ? (
         <Dialog
           visible
           title="阶段安排说明"
@@ -66,7 +64,13 @@ export function StagePlanHeading({
             className="mt-3 max-h-80"
             contentContainerClassName="pb-1"
           >
-            <AppText className="text-secondary">{description}</AppText>
+            <AppText className="text-secondary">
+              阶段和课程由全部进行中目标共同规划，以主目标决定训练重点，兼顾次目标。测试只提供建议时间，不要求录入结果或完成复评。资料变化后，App
+              会提示你是否重新生成课程。
+            </AppText>
+            {description ? (
+              <AppText className="mt-3 text-secondary">{description}</AppText>
+            ) : null}
           </ScrollView>
         </Dialog>
       ) : null}

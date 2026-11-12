@@ -20,18 +20,8 @@ export function CyclingPowerZonesScreen() {
       saving={editor.saving}
       onBack={back}
       overlay={confirmation}
-      footer={
-        editor.loaded ? (
-          <Button
-            size="lg"
-            disabled={!editor.dirty || editor.value === null || editor.saving}
-            loading={editor.saving}
-            onPress={() => void editor.save()}
-          >
-            保存 FTP
-          </Button>
-        ) : null
-      }
+      onSave={editor.loaded ? () => void editor.save() : undefined}
+      saveDisabled={!editor.dirty || editor.value === null || editor.saving}
     >
       {editor.loading ? <Spinner accessibilityLabel="正在加载 FTP" /> : null}
       {editor.error ? (

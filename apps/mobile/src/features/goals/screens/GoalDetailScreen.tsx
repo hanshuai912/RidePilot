@@ -14,7 +14,6 @@ import { GoalSwitcher } from "../components/GoalSwitcher";
 import { GoalCoursePlanner } from "../components/GoalCoursePlanner";
 import { StagePlanHeading } from "../components/StagePlanHeading";
 import { GoalStagePlanner } from "../components/GoalStagePlanner";
-import { GoalInfoButton } from "../components/GoalInfoButton";
 
 export function GoalDetailScreen() {
   const { goalId = "" } = useLocalSearchParams<{
@@ -74,13 +73,6 @@ function GoalDetailContent({ goalId }: { goalId: string }) {
               })
             }
           />
-          <View className="flex-row items-center">
-            <AppText variant="section">综合训练规划</AppText>
-            <GoalInfoButton
-              title="综合训练规划说明"
-              description="阶段和课程由全部进行中目标共同规划，以主目标决定训练重点，兼顾次目标。测试只提供建议时间，不要求录入结果或完成复评。资料变化后，App 会提示你是否重新生成课程。"
-            />
-          </View>
           {!data.goalsError && !planningGoal ? (
             <AppText className="text-warning">
               请先在目标管理中确定一个进行中的主目标。

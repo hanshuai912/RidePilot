@@ -335,7 +335,7 @@ test("a recovery task carries its scope and context into the next draft", async 
     result.current.beginTask("RECOVERY");
     result.current.setPlanningScope("THIS_WEEK");
     result.current.setBodyStatus("RECOVERY");
-    result.current.setTaskNote("上周完成半马，腿部还有些酸");
+    result.current.setTaskNote("周日完成 100 公里公路赛，腿部还有些酸");
   });
   expect(result.current.stage).toBe("planning");
   await act(async () => result.current.submitTask());
@@ -344,11 +344,46 @@ test("a recovery task carries its scope and context into the next draft", async 
     expect.objectContaining({
       mode: "replace_week",
       expectedBaseVersion: 3,
-      notes: expect.stringContaining("上周完成半马，腿部还有些酸"),
+      notes: expect.stringContaining("周日完成 100 公里公路赛，腿部还有些酸"),
+    }),
+    expect.any(String),
+  );
+  expect(api.adjustPlan.mock.calls[0][1].notes).toContain("赛后恢复：");
+  expect(api.adjustPlan.mock.calls[0][1].notes).toContain("当前状态：需要恢复");
+  expect(result.current.stage).toBe("proposals");
+  expect(api.apply).not.toHaveBeenCalled();
+});
+
+test("recovery intent is submitted even without a note, and a calendar failure preserves choices for retry", async () => {
+  api.planStatus.mockResolvedValue({ hasActivePlan: true, planVersion: 3 });
+  api.goals.mockResolvedValue([goal]);
+  api.availability.mockResolvedValue(availability);
+  const { result } = await renderHook(() => useInitialPlan());
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  await act(async () => {
+    result.current.beginTask("RECOVERY");
+    result.current.setPlanningScope("THIS_WEEK");
+    result.current.setBodyStatus("TIRED");
+  });
+  calendarApi.getCalendar.mockRejectedValueOnce(new Error("读取训练日历失败"));
+  await act(async () => result.current.submitTask());
+  expect(result.current.error).toBe("读取训练日历失败");
+  expect(result.current.stage).toBe("planning");
+  expect(result.current.bodyStatus).toBe("TIRED");
+  expect(result.current.planningScope).toBe("THIS_WEEK");
+  expect(api.generate).not.toHaveBeenCalled();
+  expect(api.adjustPlan).not.toHaveBeenCalled();
+  await act(async () => result.current.submitTask());
+  expect(api.generate).toHaveBeenCalledWith(
+    "token",
+    expect.objectContaining({
+      reason: "FATIGUE",
+      notes: expect.stringContaining("赛后恢复："),
     }),
     expect.any(String),
   );
   expect(result.current.stage).toBe("proposals");
+  expect(api.apply).not.toHaveBeenCalled();
 });
 
 test("an empty current week creates a new week draft instead of failing adjustment", async () => {

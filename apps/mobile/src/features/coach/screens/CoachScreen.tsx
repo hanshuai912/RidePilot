@@ -333,7 +333,6 @@ export function CoachScreen() {
       <CoachPage
         eyebrow={`AI 教练 · ${copy.eyebrow}`}
         title={copy.eyebrow}
-        description={task === "REPLAN" ? undefined : copy.description}
         primary={copy.primary}
         actionsInScroll
         onPrimary={() => {
@@ -348,6 +347,7 @@ export function CoachScreen() {
       >
         <PlanningBrief
           task={task}
+          busy={busy}
           planningScope={flow.planningScope}
           setPlanningScope={flow.setPlanningScope}
           taskNote={flow.taskNote}

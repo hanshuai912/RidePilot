@@ -6,6 +6,7 @@ import {
   renderRouter,
   screen,
   waitFor,
+  within,
 } from "expo-router/testing-library";
 import { PersonalInformationScreen } from "../screens/PersonalInformationScreen";
 
@@ -107,7 +108,7 @@ async function openEditor() {
     ),
   );
   await waitFor(() =>
-    expect(screen.getByRole("button", { name: "保存资料" })).toBeTruthy(),
+    expect(screen.getByRole("button", { name: "保存" })).toBeTruthy(),
   );
 }
 
@@ -118,21 +119,33 @@ async function rename(name = "小明") {
 test("the profile card opens personal information; only changed fields enable saving", async () => {
   await openEditor();
   expect(screen.getByRole("header", { name: "个人信息" })).toBeTruthy();
+  expect(
+    within(screen.getByRole("header", { name: "个人信息" }).parent!).getByRole(
+      "button",
+      { name: "保存" },
+    ),
+  ).toBeTruthy();
+  expect(screen.getAllByRole("button", { name: "保存" })).toHaveLength(1);
+  expect(
+    within(screen.getByTestId("profile-editor-content")).queryByRole("button", {
+      name: "保存",
+    }),
+  ).toBeNull();
   expect(screen.queryByText("编辑个人资料")).toBeNull();
-  expect(screen.getByRole("button", { name: "保存资料" })).toBeDisabled();
-  await fireEvent.press(screen.getByRole("button", { name: "保存资料" }));
+  expect(screen.getByRole("button", { name: "保存" })).toBeDisabled();
+  await fireEvent.press(screen.getByRole("button", { name: "保存" }));
   expect(mockedPatchProfile).not.toHaveBeenCalled();
   await rename();
-  expect(screen.getByRole("button", { name: "保存资料" })).toBeEnabled();
+  expect(screen.getByRole("button", { name: "保存" })).toBeEnabled();
   await rename("");
-  expect(screen.getByRole("button", { name: "保存资料" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "保存" })).toBeDisabled();
   await rename();
   mockedGetProfile.mockResolvedValue({
     ...profile,
     displayName: "小明",
     version: 2,
   });
-  await fireEvent.press(screen.getByRole("button", { name: "保存资料" }));
+  await fireEvent.press(screen.getByRole("button", { name: "保存" }));
   await waitFor(() =>
     expect(screen.getByTestId("profile-route")).toHaveTextContent("/profile"),
   );
@@ -153,7 +166,7 @@ test("personal information keeps the six personal fields and the date drawer", a
   await fireEvent.press(screen.getByRole("button", { name: "选择出生日期" }));
   await fireEvent.press(screen.getByRole("radio", { name: "16日" }));
   await fireEvent.press(screen.getByRole("button", { name: "确认日期" }));
-  await fireEvent.press(screen.getByRole("button", { name: "保存资料" }));
+  await fireEvent.press(screen.getByRole("button", { name: "保存" }));
   await waitFor(() =>
     expect(mockedPatchProfile).toHaveBeenCalledWith(
       "access",
@@ -197,7 +210,7 @@ test.each(["header", "system"])(
     await waitFor(() =>
       expect(screen.getByLabelText("页面昵称")).toHaveDisplayValue(""),
     );
-    expect(screen.getByRole("button", { name: "保存资料" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "保存" })).toBeDisabled();
   },
 );
 
@@ -205,12 +218,12 @@ test("a failed save retains the draft and unsaved back protection", async () => 
   mockedPatchProfile.mockRejectedValueOnce(new Error("网络不可用，请重试"));
   await openEditor();
   await rename();
-  await fireEvent.press(screen.getByRole("button", { name: "保存资料" }));
+  await fireEvent.press(screen.getByRole("button", { name: "保存" }));
   await waitFor(() =>
     expect(screen.getByText("网络不可用，请重试")).toBeTruthy(),
   );
   expect(screen.getByLabelText("页面昵称")).toHaveDisplayValue("小明");
-  expect(screen.getByRole("button", { name: "保存资料" })).toBeEnabled();
+  expect(screen.getByRole("button", { name: "保存" })).toBeEnabled();
   await fireEvent.press(screen.getByRole("button", { name: "返回我的" }));
   expect(screen.getByText("有未保存的修改")).toBeTruthy();
 });
@@ -218,7 +231,7 @@ test("a failed save retains the draft and unsaved back protection", async () => 
 test("invalid input stays editable and never calls the API", async () => {
   await openEditor();
   await fireEvent.changeText(screen.getByLabelText("身高（cm）"), ".");
-  await fireEvent.press(screen.getByRole("button", { name: "保存资料" }));
+  await fireEvent.press(screen.getByRole("button", { name: "保存" }));
   expect(screen.getByRole("alert")).toHaveTextContent(/请检查输入/);
   expect(mockedPatchProfile).not.toHaveBeenCalled();
 });
@@ -237,18 +250,18 @@ test("each personal field enables saving and returning to the original value dis
     ["体重（kg）", "66", "65"],
   ]) {
     await fireEvent.changeText(screen.getByLabelText(label), changed);
-    expect(screen.getByRole("button", { name: "保存资料" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "保存" })).toBeEnabled();
     await fireEvent.changeText(screen.getByLabelText(label), original);
-    expect(screen.getByRole("button", { name: "保存资料" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "保存" })).toBeDisabled();
   }
   for (const [changed, original] of [
     ["女性", "男性"],
     ["进阶", "入门"],
   ]) {
     await fireEvent.press(screen.getByRole("radio", { name: changed }));
-    expect(screen.getByRole("button", { name: "保存资料" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "保存" })).toBeEnabled();
     await fireEvent.press(screen.getByRole("radio", { name: original }));
-    expect(screen.getByRole("button", { name: "保存资料" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "保存" })).toBeDisabled();
   }
 });
 
@@ -261,7 +274,7 @@ test("saving blocks duplicate writes and leaving until the request completes", a
   );
   await openEditor();
   await rename();
-  await fireEvent.press(screen.getByRole("button", { name: "保存资料" }));
+  await fireEvent.press(screen.getByRole("button", { name: "保存" }));
   expect(screen.getByLabelText("页面昵称")).toHaveProp("editable", false);
   expect(screen.getByRole("button", { name: "返回我的" })).toBeDisabled();
   await act(() => router.back());
@@ -281,7 +294,7 @@ test("version conflicts keep the edited values visible", async () => {
   );
   await openEditor();
   await rename();
-  await fireEvent.press(screen.getByRole("button", { name: "保存资料" }));
+  await fireEvent.press(screen.getByRole("button", { name: "保存" }));
   await waitFor(() =>
     expect(screen.getByRole("alert")).toHaveTextContent(/资料已在其他设备更新/),
   );
@@ -309,9 +322,9 @@ test("a failed initial load offers retry and does not expose a blank editable fo
   await waitFor(() =>
     expect(screen.getByText("个人信息加载失败")).toBeTruthy(),
   );
-  expect(screen.queryByRole("button", { name: "保存资料" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "保存" })).toBeNull();
   await fireEvent.press(screen.getByRole("button", { name: "重新加载" }));
   await waitFor(() =>
-    expect(screen.getByRole("button", { name: "保存资料" })).toBeDisabled(),
+    expect(screen.getByRole("button", { name: "保存" })).toBeDisabled(),
   );
 });

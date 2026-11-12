@@ -115,6 +115,41 @@ afterEach(() => {
   jest.useRealTimers();
 });
 
+it("shows recovery as one form with one draft action, keeps the error inline and returns to the coach", async () => {
+  mockPathname = "/coach/planning";
+  const recoveryFlow = {
+    ...flow,
+    stage: "planning" as const,
+    task: "RECOVERY" as const,
+    planningScope: "THIS_WEEK" as const,
+    bodyStatus: "TIRED" as const,
+    taskNote: "周日完成公路赛",
+    setPlanningScope: jest.fn(),
+    setBodyStatus: jest.fn(),
+    setTaskNote: jest.fn(),
+    submitTask: jest.fn(),
+    cancelTask: jest.fn(),
+    error: "读取训练日历失败",
+    resources: { ...flow.resources!, goals: [] },
+  };
+  jest.mocked(useCoachFlow).mockReturnValue(recoveryFlow);
+  const ui = await render(<CoachScreen />);
+  expect(
+    ui.getAllByText("选择当前感受和调整范围，再补充比赛情况。"),
+  ).toHaveLength(1);
+  expect(ui.queryByTestId("coach-replan-brief")).toBeNull();
+  expect(ui.getByText("读取训练日历失败")).toBeTruthy();
+  expect(ui.getByLabelText("比赛与恢复情况").props.value).toBe(
+    "周日完成公路赛",
+  );
+  const primary = ui.getByRole("button", { name: "生成恢复草稿" });
+  await fireEvent.press(primary);
+  expect(recoveryFlow.submitTask).toHaveBeenCalledTimes(1);
+  await fireEvent.press(ui.getByRole("button", { name: "返回上一页" }));
+  expect(recoveryFlow.cancelTask).toHaveBeenCalledTimes(1);
+  expect(mockPush).toHaveBeenCalledWith("/(tabs)/coach");
+});
+
 it("exposes recovery and history without expanding a menu, even without pending suggestions", async () => {
   const ui = await render(<CoachScreen />);
   await ui.findByText("调整训练");

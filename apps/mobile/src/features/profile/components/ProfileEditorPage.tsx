@@ -2,12 +2,13 @@ import type { ReactNode } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
-  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Screen } from "../../../components/layout/Screen";
+import { AppText, Spinner } from "../../../components/ui";
 import { colors } from "../../../theme/colors";
 import { layout } from "../../../theme/layout";
 import { spacing } from "../../../theme/spacing";
@@ -18,14 +19,16 @@ export function ProfileEditorPage({
   saving,
   onBack,
   children,
-  footer,
+  onSave,
+  saveDisabled = false,
   overlay,
 }: {
   title: string;
   saving: boolean;
   onBack: () => void;
   children: ReactNode;
-  footer?: ReactNode;
+  onSave?: () => void;
+  saveDisabled?: boolean;
   overlay?: ReactNode;
 }) {
   return (
@@ -35,7 +38,37 @@ export function ProfileEditorPage({
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <SafeAreaView edges={["bottom"]} style={styles.fill}>
-          <ProfilePageHeader title={title} disabled={saving} onBack={onBack} />
+          <ProfilePageHeader
+            title={title}
+            disabled={saving}
+            onBack={onBack}
+            rightAction={
+              onSave ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="保存"
+                  accessibilityState={{
+                    disabled: saveDisabled || saving,
+                    busy: saving,
+                  }}
+                  style={({ pressed }) => [
+                    styles.save,
+                    (saveDisabled || saving || pressed) && styles.dimmed,
+                  ]}
+                  disabled={saveDisabled || saving}
+                  onPress={onSave}
+                >
+                  {saving ? (
+                    <Spinner accessibilityLabel="正在保存" />
+                  ) : (
+                    <AppText numberOfLines={1} style={styles.saveText}>
+                      保存
+                    </AppText>
+                  )}
+                </Pressable>
+              ) : null
+            }
+          />
           <ScrollView
             testID="profile-editor-content"
             style={styles.fill}
@@ -44,11 +77,6 @@ export function ProfileEditorPage({
           >
             {children}
           </ScrollView>
-          {footer ? (
-            <View style={styles.footer}>
-              <View style={styles.footerContent}>{footer}</View>
-            </View>
-          ) : null}
         </SafeAreaView>
       </KeyboardAvoidingView>
       {overlay}
@@ -65,17 +93,17 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
     paddingBottom: spacing.xxl,
   },
-  footer: {
-    backgroundColor: colors.background,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.divider,
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.md,
+  save: {
+    width: layout.tapMin,
+    minHeight: layout.tapMin,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  footerContent: {
-    width: "100%",
-    maxWidth: layout.contentMaxWidth,
-    alignSelf: "center",
+  saveText: {
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: "600",
+    color: colors.brand,
   },
+  dimmed: { opacity: 0.5 },
 });

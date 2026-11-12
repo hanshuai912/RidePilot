@@ -15,7 +15,7 @@
 - 编辑并保存昵称、性别、出生日期、身高、体重和训练经验。
 - 点击“我的”顶部整张个人卡片，跳转独立的“个人信息”页（`/personal-info`），隐藏底部五栏导航。顶部为左侧返回箭头按钮与居中 17 pt 标题，两侧预留相同宽度以保证标题相对页面居中，图标触控区域为 44 pt。下方“我的资料”分组、“账户与页面昵称”和“身体与能力”入口已移除。
 - 点击列表内的“第三方 App”跳转独立页面，原 COROS 数据卡片迁移到该页；新页沿用 FTP 页的固定返回标题栏、黑金布局和滚动安全区，授权回调也返回此页。详见 [第三方 App](third-party-apps.md)。
-- 初次进入或改回原值时“保存资料”禁用；任一可编辑字段发生修改才启用。保存期间禁用表单和返回，防止重复写入及请求中途退出。保存成功返回“我的”，页面重新聚焦后读取最新档案。
+- 初次进入或改回原值时右上角“保存”禁用；任一可编辑字段发生修改才启用。保存期间禁用表单和返回，防止重复写入及请求中途退出。保存成功返回“我的”，页面重新聚焦后读取最新档案。
 - 未修改直接返回；有修改未保存时，顶部返回、系统返回及路由移除均弹出“有未保存的修改”，可“继续编辑”保留输入或“放弃修改”返回。确认日期仅修改表单草稿，同样受未保存保护。
 - 保存前复用共享 `profilePatchSchema` 验证昵称、身高和体重；数字输入保留原始文本。校验失败、网络失败或版本冲突都在个人信息页显示，保留输入供继续处理。
 - 出生日期使用独立 `BirthDateField` 组件：iOS、Android、Web 统一使用黑金底部抽屉，年月日三列上下滚动，停在固定中间选中行的值生效，点击「确认日期」后填入资料草稿。
@@ -27,7 +27,7 @@
 - 后端返回 409 时提示用户重新读取，避免静默覆盖其他设备更新。
 - 退出登录沿用现有认证会话流程。
 - FTP 功率卡片仅展示标题、当前瓦数（未填写时为“去填写”）和进入箭头，不再展示测量时间和录入方式。点击进入独立“骑行功率区间”页，可编辑 50–800 W 的整数 FTP，下方实时计算 Z1–Z7 的百分比及瓦数。保存后仍追加手动测量记录，返回时刷新概览卡片；详情见 `ftp-power-zones.md`。
-- 个人信息和骑行功率区间两页共用 `ProfileEditorPage`、`ProfilePageHeader` 及 `useProfileEditorNavigation`：顶部返回图标和 17 pt 居中标题固定，底部保存操作固定，仅中间内容滚动。页脚尊重底部安全区，iOS 键盘弹出时避让键盘；中间内容沿用石墨灰分组和既有主题 token。
+- 个人信息、骑行功率区间和心率区间共用 `ProfileEditorPage`、`ProfilePageHeader` 及 `useProfileEditorNavigation`：固定顶部左侧返回图标、17 pt 居中标题及右侧金色文字“保存”，按钮触控区域至少 44×44 pt，移除底部保存栏，只有中间内容滚动。保留底部安全区和 iOS 键盘避让，中间内容沿用石墨灰分组和既有主题 token。数据未加载或初次读取失败时隐藏保存，其他禁用条件与保存流程不变。
 
 ## 3. API 契约
 
@@ -42,6 +42,17 @@
 目标和可训练时间在 AI 教练首次建计划流程填写。完整 FTP 测量历史、饮食偏好、隐私导出/删除、设备同步和设置页仍未作为个人资料页面入口实现。
 
 ## 5. 验证
+
+### 2026-11-12：三个编辑页保存移至标题右侧
+
+- 个人信息、骑行功率区间和心率区间的保存统一移到固定标题栏右侧，只显示「保存」，移除底部保存栏。保留标题居中、44×44 pt 点击区域、保存中加载／禁用、无效与未修改禁用、错误重试和未保存返回确认。
+- 修正窄操作区被按钮默认水平内边距挤压导致「保存」换成两行的问题：标题栏使用无内边距的固定宽触控区，文字明确单行显示，左右操作区仍等宽。
+- `ProfileEditorPage` 提供共享保存操作，`ProfilePageHeader` 透传右侧内容；三个页面沿用原 editor hooks 和请求。第三方 App 页共用容器但没有保存操作，保持原行为。无 API、数据库或依赖变化。
+- 在 `apps/mobile` 执行 `./node_modules/.bin/jest --runInBand --runTestsByPath src/features/profile/__tests__/ftp-power-zones.test.tsx src/features/profile/__tests__/heart-rate-zones.test.tsx src/features/profile/__tests__/profile-screen.test.tsx src/features/integrations/__tests__/third-party-apps.test.tsx`：4 组、40 项通过。包括标题栏内唯一保存入口、滚动内容无保存按钮，以及原有保存／校验／失败／并发／返回保护。
+- `./node_modules/.bin/tsc --noEmit`、`./node_modules/.bin/eslint src/features/profile`：通过。
+- `./node_modules/.bin/expo export --platform web --output-dir /tmp/ridepilot-profile-header-save-web --max-workers 2`：成功。
+- `node /tmp/ridepilot-profile-header-save-browser.cjs`：三个页面在 320／390／430 宽度确认「保存」横向单行、点击区域至少 44×44 pt、位于居中标题右侧、滚动后固定；有修改才启用，无横向溢出、脚本错误或业务写请求。截图 `/tmp/ridepilot-header-save-{cycling-power-zones,heart-rate-zones,personal-info}-{320,390,430}.png`。
+- 修改文件 Prettier、主仓库及设计仓库 `git diff --check` 通过；同步 M01 交接说明与设计决策。未执行原生真机、软键盘或系统大字体验证。
 
 ### 2026-11-11：训练历史入口
 

@@ -18,18 +18,8 @@ export function PersonalInformationScreen() {
       saving={editor.saving}
       onBack={back}
       overlay={confirmation}
-      footer={
-        editor.draft ? (
-          <Button
-            size="lg"
-            disabled={!editor.dirty || editor.saving}
-            loading={editor.saving}
-            onPress={() => void editor.save()}
-          >
-            保存资料
-          </Button>
-        ) : null
-      }
+      onSave={editor.draft ? () => void editor.save() : undefined}
+      saveDisabled={!editor.dirty || editor.saving}
     >
       {editor.loading ? (
         <Spinner accessibilityLabel="正在加载个人信息" />

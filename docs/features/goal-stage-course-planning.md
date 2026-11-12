@@ -87,11 +87,23 @@
 
 目标详情的「阶段安排」标题后增加圆形叹号图标，触控区为 44×44，点击后使用既有暗色 `Dialog` 展示阶段规划摘要，点击「知道了」、遮罩或系统返回可关闭。长文案可在弹窗内滚动。
 
-详情时间线默认隐藏这段摘要，阶段卡片、测试、复评和失效警告继续展示。无阶段安排或摘要为空时不显示提示入口；阶段草稿预览仍完整展示摘要，确认流程不变。查看说明不修改输入、不调用生成 API。
+详情时间线默认隐藏这段摘要，阶段卡片、测试、复评和失效警告继续展示。2026-11-12 移除「综合训练规划」标题层后，共享规划规则合并到此弹窗，无阶段安排或摘要为空时也保留说明入口；有摘要时追加展示。阶段草稿预览仍完整展示摘要，确认流程不变。查看说明不修改输入、不调用生成 API。
 
-实现为独立 `StagePlanHeading`，`StageTimeline` 的 `showSummary` 默认为 true，仅详情页设为 false。补充交互测试覆盖默认隐藏、打开/关闭/再次打开、输入保留、无阶段入口隐藏及预览摘要保留。
+实现为独立 `StagePlanHeading`，`StageTimeline` 的 `showSummary` 默认为 true，仅详情页设为 false。交互测试覆盖默认隐藏、打开/关闭/再次打开、输入保留、无阶段时查看共享规则及预览摘要保留。
 
 本次执行 `pnpm --filter @ridepilot/mobile typecheck`、`pnpm --filter @ridepilot/mobile lint` 均通过；`pnpm --filter @ridepilot/mobile test -- --runTestsByPath src/features/goals/__tests__/goal-planning.test.tsx src/features/goals/__tests__/goal-lifecycle.test.tsx`：2 组、23 项通过。修改文件的 Prettier 检查和 `git diff --check` 通过。本次未重新导出 Web 或执行真机验证；无 API、契约或数据库变更。
+
+#### 2026-11-12：移除综合训练规划标题层
+
+目标概览下直接显示「阶段安排」和「规划后续训练」。原共享规划说明并入阶段说明弹窗，保留原有摘要、规划操作、空态与错误处理。无 API、契约、依赖或数据库变更，无需迁移。
+
+实际验证（以下命令在 `apps/mobile` 执行）：
+
+- `./node_modules/.bin/tsc --noEmit`：通过。
+- `./node_modules/.bin/eslint src app`：0 错误；原有 `CoachNextWorkoutCard.tsx` 未使用导入警告 1 条。最初执行 `eslint .` 还扫描了生成的 `dist` 和测试配置，产生既有错误；因此明确检查 App 源码范围。
+- `./node_modules/.bin/jest --runInBand --runTestsByPath src/features/goals/__tests__/goal-planning.test.tsx --testNamePattern 'stage planning explanation|missing stage plans still|missing FTP hides|paused goal hides'`：4 项通过，覆盖标题移除、说明打开关闭、输入保留、空阶段及缺少规划条件。
+- 同一测试文件完整执行：23 项通过、3 项失败。将 `HEAD` 中未修改的移动端代码导出到 `/tmp/ridepilot-goal-heading-baseline`，以 `jest --watchman=false --runInBand --runTestsByPath src/features/goals/__tests__/goal-planning.test.tsx --testNamePattern 'switching goal details retains|browsing the timeline|the inline stage picker changes'` 复现相同 3 项失败，分别涉及旧测试读取断言、时间线默认展开与展开按钮，不是本轮引入。未将该测试文件宣称全部通过。
+- 修改的源码与功能文档执行 Prettier 检查及 `git diff --check`。本次未重新导出 Web 或执行真机验证。
 
 ### 阶段测试操作与后续训练规划
 
@@ -118,7 +130,7 @@
 
 按用户确认移除下方「阶段规划与重新生成」折叠区及独立的「重新生成课程草稿」按钮，课程规划统一使用「生成课程草稿」，继续支持按日期或所选阶段生成、预览、校验和确认。
 
-「阶段安排」标题右侧增加「重新规划阶段」，无阶段时显示「规划阶段」。点击只展开就地日期表单，不提交请求；可以收起并保留日期。说明叹号仍只展示已有规划摘要。缺少 FTP 或目标非活跃时隐藏阶段规划入口。
+「阶段安排」标题右侧增加「重新规划阶段」，无阶段时显示「规划阶段」。点击只展开就地日期表单，不提交请求；可以收起并保留日期。说明叹号展示共享规划规则及已有规划摘要。缺少 FTP 或目标非活跃时隐藏阶段规划入口。
 
 新增 `GoalStagePlanner` 负责阶段表单，复用日期滚轮。阶段和课程分别维护日期，调整阶段不会改变课程日期、阶段选择或备注。阶段默认从用户时区今天到已有阶段结束日或目标日期，最长 365 天。用户点击「生成阶段草稿」后才调用现有接口；已有安排时带 `forceRegenerate`，首次规划不强制重新生成。阶段替换仍须草稿预览和确认，现有课程不会随阶段生成自动修改。失败保留日期，不确定响应重试继续使用同一请求和幂等键。
 
