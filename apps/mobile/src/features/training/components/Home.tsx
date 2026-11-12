@@ -1,15 +1,19 @@
+import type { ReactNode } from "react";
 import type { CalendarResponse } from "@ridepilot/contracts";
 import type { CalendarView } from "../model/calendar-period";
 import { TrainingCalendarGrid } from "./TrainingCalendarGrid";
 import { Pressable, View } from "react-native";
-import { Bike, ChevronRight, Plus, RefreshCw } from "lucide-react-native";
-import { AppText, Button, Card, Spinner } from "../../../components/ui";
+import { Plus, RefreshCw } from "lucide-react-native";
+import { AppText } from "../../../components/ui";
 import { AppHeader } from "../../../components/layout/AppHeader";
 import { colors } from "../../../theme/tokens";
 import type { Workout } from "../model/training";
 import { dateLabel, weekday } from "../model/training";
-import { styles } from "./training.styles";
-import { WorkoutProfileChart } from "./WorkoutProfileChart";
+import { styles as sharedStyles } from "./training.styles";
+import { styles } from "./training-home.styles";
+import { ScheduledWorkoutCard } from "./ScheduledWorkoutCard";
+import { TrainingDayState } from "./TrainingDayState";
+import { calendarDayActivity } from "../model/calendar-day";
 
 export function Home({
   days,
@@ -17,7 +21,6 @@ export function Home({
   view = "WEEK",
   onView = () => undefined,
   today,
-  onReschedule,
   assessmentDates = [],
   raceDates = [],
   selectedDate,
@@ -33,13 +36,16 @@ export function Home({
   onDetail,
   onAdjust,
   onEdit,
+  calendarFooter,
+  dayEvents,
 }: {
+  calendarFooter?: ReactNode;
+  dayEvents?: ReactNode;
   days: string[];
   today: string;
   view?: CalendarView;
   events?: NonNullable<CalendarResponse["events"]>;
   onView?: (view: CalendarView) => void;
-  onReschedule: (workout: Workout) => void;
   assessmentDates?: string[];
   raceDates?: string[];
   selectedDate: string;
@@ -56,16 +62,24 @@ export function Home({
   onAdjust: (workout: Workout) => void;
   onEdit: (workout: Workout) => void;
 }) {
+  const dayActivity = calendarDayActivity(selectedDate, {
+    workouts,
+    events,
+    raceDates,
+    assessmentDates,
+  });
+  const past = selectedDate < today;
   return (
     <View style={styles.page}>
       <AppHeader
+        className="!mb-0"
         eyebrow="骑行训练计划"
         title="训练"
         right={
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="刷新训练日历"
-            style={styles.iconButton}
+            style={sharedStyles.iconButton}
             onPress={onRefresh}
           >
             <RefreshCw size={18} color={colors.brand} strokeWidth={1.8} />
@@ -84,133 +98,70 @@ export function Home({
         onView={onView}
         onPrev={onPrev}
         onNext={onNext}
+        footer={calendarFooter}
+        today={today}
+        scheduleReady={!loading && !feedback}
       />
-      <View style={styles.dateRow}>
-        <AppText variant="section">
-          {dateLabel(selectedDate)} · {weekday(selectedDate)}
-        </AppText>
-        <AppText variant="caption" muted>
-          {selectedWorkouts.length} 节课程
-        </AppText>
-      </View>
-      {feedback ? (
-        <AppText variant="caption" style={styles.error}>
-          {feedback}
-        </AppText>
-      ) : null}
-      {!loading && !feedback
-        ? events
-            .filter((e) => e.date === selectedDate)
-            .map((e) => (
-              <Card key={e.id}>
-                <AppText variant="card">
-                  {e.kind === "REST" ? "休息" : "恢复"} · {e.title}
-                </AppText>
-              </Card>
-            ))
-        : null}
-      {!loading &&
-      !feedback &&
-      !selectedWorkouts.length &&
-      !events.some((e) => e.date === selectedDate) ? (
-        <AppText muted>当天未安排课程；请同时查看下方测试与赛事。</AppText>
-      ) : null}
-      {loading ? (
-        <Spinner accessibilityLabel="正在加载训练日历" />
-      ) : (
-        selectedWorkouts.map((item) => (
-          <Card key={item.id} style={styles.workout}>
-            <View style={styles.workoutTop}>
-              <View style={styles.source}>
-                <Bike size={14} color={colors.positive} />
-                <AppText variant="label" style={styles.positive}>
-                  {item.source === "ai" ? "AI 教练 · 正式" : "手动创建 · 正式"}
-                </AppText>
-              </View>
-              <AppText variant="caption" muted>
-                第 {item.dayOrder} 节
-              </AppText>
-            </View>
-            <AppText variant="card">{item.title || "骑行训练"}</AppText>
-            <AppText variant="caption" muted>
-              {item.purpose || "结构化骑行课程"}
+      <View testID="training-day-section" style={styles.daySection}>
+        <View style={styles.dateRow}>
+          <View style={styles.dayHeading}>
+            <AppText variant="section">
+              {selectedDate === today ? "今日安排" : "训练安排"}
             </AppText>
-            <View style={styles.chips}>
-              <AppText variant="label" style={styles.chip}>
-                {item.timeTargetMinutes
-                  ? `${item.timeTargetMinutes} 分钟`
-                  : "无时间目标"}
+            <AppText variant="caption" muted>
+              {dateLabel(selectedDate)} · {weekday(selectedDate)}
+              {!loading && !feedback && selectedWorkouts.length
+                ? ` · ${selectedWorkouts.length} 节课程`
+                : ""}
+            </AppText>
+          </View>
+          {selectedDate !== today ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="回到今天"
+              onPress={() => setSelectedDate(today)}
+              style={styles.todayButton}
+            >
+              <AppText variant="label" style={styles.brand}>
+                回到今天
               </AppText>
-              {item.distanceTargetKm ? (
-                <AppText variant="label" style={styles.chip}>
-                  {item.distanceTargetKm} 公里
-                </AppText>
-              ) : null}
-              <AppText variant="label" style={styles.chip}>
-                {item.segments.length} 个动作
-              </AppText>
-            </View>
-            <WorkoutProfileChart segments={item.segments} />
-            <View style={styles.buttonRow}>
-              <Button
-                variant="secondary"
-                size="sm"
-                onPress={() => onDetail(item)}
-              >
-                查看课程
-              </Button>
-              {item.scheduledDate >= today &&
-              item.editable !== false &&
-              !item.activity ? (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onPress={() => onAdjust(item)}
-                >
-                  {item.scheduledDate === today ? "调整今天" : "AI 调整"}
-                </Button>
-              ) : null}
-              {item.scheduledDate >= today &&
-              item.editable !== false &&
-              !item.activity ? (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onPress={() => onReschedule(item)}
-                >
-                  课程改期
-                </Button>
-              ) : null}
-              <Button
-                disabled={
-                  item.editable === false ||
-                  !!item.activity ||
-                  item.scheduledDate < today
-                }
-                variant="ghost"
-                size="sm"
-                onPress={() => onEdit(item)}
-              >
-                编辑动作
-              </Button>
-            </View>
-          </Card>
-        ))
-      )}
-      <Pressable style={styles.addCard} onPress={onAdd}>
-        <View style={styles.plus}>
-          <Plus size={20} color={colors.brand} />
+            </Pressable>
+          ) : null}
         </View>
-        <View style={styles.addCopy}>
-          <AppText variant="card" style={styles.brand}>
-            添加计划
-          </AppText>
-          <AppText variant="caption" muted>
-            手动创建新的骑行课程
-          </AppText>
-        </View>
-        <ChevronRight size={19} color={colors.brand} />
-      </Pressable>
+        {dayEvents}
+        {loading || feedback || !selectedWorkouts.length ? (
+          <TrainingDayState
+            loading={loading}
+            error={feedback}
+            activity={dayActivity}
+            onRetry={onRefresh}
+          />
+        ) : (
+          selectedWorkouts.map((item) => (
+            <ScheduledWorkoutCard
+              key={item.id}
+              item={item}
+              today={today}
+              onDetail={() => onDetail(item)}
+              onAdjust={() => onAdjust(item)}
+              onEdit={() => onEdit(item)}
+            />
+          ))
+        )}
+        {!loading && !feedback && !past ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="添加计划"
+            style={styles.addRow}
+            onPress={onAdd}
+          >
+            <Plus size={18} color={colors.brand} />
+            <AppText variant="label" style={styles.brand}>
+              添加计划
+            </AppText>
+          </Pressable>
+        ) : null}
+      </View>
     </View>
   );
 }

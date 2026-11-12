@@ -117,7 +117,7 @@ test("future scope needs a valid date and explicit range confirmation, while can
   await fireEvent.press(screen.getByText("确认范围并生成草稿"));
   expect(submit).toHaveBeenCalledWith("TIME_SHORT", "", "2030-01-20");
 });
-test("month calendar crosses years and clamps month navigation, exposing rest separately from unknown dates", async () => {
+test("month calendar crosses years and clamps month navigation, showing rest for every date without scheduled training", async () => {
   expect(calendarDays("2030-01-15", "MONTH")).toHaveLength(42);
   expect(calendarDays("2030-01-15", "MONTH")[0]).toBe("2029-12-31");
   expect(moveCalendar("2030-01-31", "MONTH", 1)).toBe("2030-02-28");
@@ -137,8 +137,8 @@ test("month calendar crosses years and clamps month navigation, exposing rest se
           title: "休息",
         },
       ]}
-      assessmentDates={[]}
-      raceDates={[]}
+      assessmentDates={["2030-01-10"]}
+      raceDates={["2030-01-09"]}
       onSelect={select}
       onView={jest.fn()}
       onPrev={jest.fn()}
@@ -146,6 +146,9 @@ test("month calendar crosses years and clamps month navigation, exposing rest se
     />,
   );
   expect(screen.getByLabelText("2030-01-07，休息")).toBeTruthy();
-  await fireEvent.press(screen.getByLabelText("2030-01-08，未安排"));
+  expect(screen.getByLabelText("2030-01-09，有比赛")).toBeTruthy();
+  expect(screen.getByLabelText("2030-01-10，有阶段测试")).toBeTruthy();
+  expect(screen.queryByLabelText("2030-01-09，有比赛，休息")).toBeNull();
+  await fireEvent.press(screen.getByLabelText("2030-01-08，休息"));
   expect(select).toHaveBeenCalledWith("2030-01-08");
 });

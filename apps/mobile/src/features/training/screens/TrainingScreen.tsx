@@ -125,17 +125,22 @@ function TrainingCalendar({
         </AppText>
       ) : null}
       <Home
+        calendarFooter={<PlanImpactEntryCard refreshKey={attempt} />}
+        dayEvents={
+          <>
+            {raceError ? (
+              <AppText className="text-negative">{raceError}</AppText>
+            ) : null}
+            <RaceDayEvents
+              races={races.filter((race) => race.localDate === selectedDate)}
+            />
+          </>
+        }
         days={days}
         today={today}
         view={view}
         onView={setView}
         events={calendar?.events ?? []}
-        onReschedule={(workout) =>
-          router.push({
-            pathname: "/workouts/reschedule",
-            params: { workoutId: workout.id },
-          })
-        }
         assessmentDates={assessments
           .filter((item) => ["SCHEDULED", "POSTPONED"].includes(item.status))
           .map((item) => item.localDate)}
@@ -172,13 +177,6 @@ function TrainingCalendar({
           })
         }
         onEdit={edit}
-      />
-      <PlanImpactEntryCard />
-      {raceError ? (
-        <AppText className="text-negative">{raceError}</AppText>
-      ) : null}
-      <RaceDayEvents
-        races={races.filter((race) => race.localDate === selectedDate)}
       />
       {assessmentError ? (
         <>

@@ -375,15 +375,21 @@ test("changing calendar week also moves the selected date", async () => {
         : [],
   }));
   await open();
-  await fireEvent.press(screen.getByText("›"));
+  await fireEvent.press(screen.getByRole("button", { name: "下一周" }));
   await waitFor(() => expect(screen.getByText("AI 教练 · 正式")).toBeTruthy());
 });
 
 test("calendar opens independent detail and edit routes; native back returns to detail", async () => {
   await open();
-  await waitFor(() => expect(screen.getByText("查看课程")).toBeTruthy());
+  await waitFor(() =>
+    expect(
+      screen.getByRole("button", { name: "查看耐力骑行详情" }),
+    ).toBeTruthy(),
+  );
   expect(screen.getByRole("image", { name: /平均强度 125 W/ })).toBeTruthy();
-  await fireEvent.press(screen.getByText("查看课程"));
+  await fireEvent.press(
+    screen.getByRole("button", { name: "查看耐力骑行详情" }),
+  );
   await waitFor(() =>
     expect(screen.getByTestId("current-path").props.children).toBe(
       `/workouts/${workout.id}`,
@@ -418,8 +424,14 @@ test("calendar opens independent detail and edit routes; native back returns to 
 
 test("workout detail generates, previews, validates and applies an AI adjustment", async () => {
   await open(`/training?date=${today}`);
-  await waitFor(() => expect(screen.getByText("查看课程")).toBeTruthy());
-  await fireEvent.press(screen.getByText("查看课程"));
+  await waitFor(() =>
+    expect(
+      screen.getByRole("button", { name: "查看耐力骑行详情" }),
+    ).toBeTruthy(),
+  );
+  await fireEvent.press(
+    screen.getByRole("button", { name: "查看耐力骑行详情" }),
+  );
   await waitFor(() =>
     expect(screen.getByText("让 AI 调整这节课")).toBeTruthy(),
   );
@@ -460,8 +472,14 @@ test("workout detail generates, previews, validates and applies an AI adjustment
 
 test("workout detail records partial completion feedback", async () => {
   await open(`/training?date=${today}`);
-  await waitFor(() => expect(screen.getByText("查看课程")).toBeTruthy());
-  await fireEvent.press(screen.getByText("查看课程"));
+  await waitFor(() =>
+    expect(
+      screen.getByRole("button", { name: "查看耐力骑行详情" }),
+    ).toBeTruthy(),
+  );
+  await fireEvent.press(
+    screen.getByRole("button", { name: "查看耐力骑行详情" }),
+  );
   await waitFor(() => expect(screen.getByText("记录训练反馈")).toBeTruthy());
   await fireEvent.press(screen.getByText("记录训练反馈"));
   await waitFor(() => expect(screen.getByText("保存训练反馈")).toBeTruthy());
@@ -531,13 +549,17 @@ test("distance-only calendar cards keep distance information and actions without
   await open();
   await waitFor(() => expect(screen.getByText("8 公里")).toBeTruthy());
   expect(screen.queryByText(/强度均值/)).toBeNull();
-  expect(screen.getByText("查看课程")).toBeTruthy();
+  expect(screen.getByRole("button", { name: "查看耐力骑行详情" })).toBeTruthy();
   expect(screen.getByText("编辑动作")).toBeTruthy();
 });
 
 test("new course saves to the formal plan in one action after returning from segment editing", async () => {
   await open();
-  await waitFor(() => expect(screen.getByText("查看课程")).toBeTruthy());
+  await waitFor(() =>
+    expect(
+      screen.getByRole("button", { name: "查看耐力骑行详情" }),
+    ).toBeTruthy(),
+  );
   await fireEvent.press(screen.getByText("添加计划"));
   await waitFor(() =>
     expect(screen.getByTestId("current-path").props.children).toBe(
