@@ -1,10 +1,5 @@
 import { Pressable, View } from "react-native";
-import {
-  CalendarDays,
-  ClipboardCheck,
-  Flag,
-  RefreshCw,
-} from "lucide-react-native";
+import { CalendarDays, RefreshCw } from "lucide-react-native";
 import { AppText, Button } from "../../../components/ui";
 import { colors } from "../../../theme/colors";
 import type { CoachTask } from "../hooks/useInitialPlan";
@@ -29,12 +24,14 @@ function QuickAction({
       accessibilityHint={description}
       accessibilityState={{ disabled }}
       disabled={disabled}
-      className={`min-h-[76px] min-w-0 flex-1 rounded-card border border-border bg-surface p-4 active:bg-surface-2 ${disabled ? "opacity-50" : ""}`}
+      className={`min-h-[132px] min-w-0 flex-1 rounded-xl bg-surface p-4 active:bg-surface-2 ${disabled ? "opacity-50" : ""}`}
       onPress={onPress}
     >
-      <View className="flex-row items-center gap-2">
+      <View className="mb-3 h-8 w-8 items-center justify-center rounded-lg bg-surface-2">
         {icon}
-        <AppText variant="card" className="min-w-0 flex-1">
+      </View>
+      <View>
+        <AppText variant="body" className="font-medium">
           {label}
         </AppText>
       </View>
@@ -49,7 +46,6 @@ export function CoachHome({
   missingData,
   busy = false,
   onTask,
-  onFeedback,
   onCurrentWeek,
   onCompleteProfile,
 }: {
@@ -57,14 +53,13 @@ export function CoachHome({
   missingData: string;
   busy?: boolean;
   onTask: (task: CoachTask) => void;
-  onFeedback: () => void;
   onCurrentWeek: () => void;
   onCompleteProfile: () => void;
 }) {
   return (
     <View className="gap-3" testID="coach-quick-tasks">
       <AppText variant="section" className="mb-1">
-        AI 快捷调整
+        训练调整
       </AppText>
       {!ready ? (
         <View className="rounded-xl bg-surface-2 px-3 py-2">
@@ -79,32 +74,16 @@ export function CoachHome({
       <View className="flex-row gap-3">
         <QuickAction
           icon={<RefreshCw color={colors.brand} size={18} />}
-          label="重新规划"
-          description="目标、时间有变化"
+          label="调整训练"
+          description="选择范围与调整原因"
           onPress={() => onTask("REPLAN")}
           disabled={busy}
         />
         <QuickAction
           icon={<CalendarDays color={colors.brand} size={18} />}
           label="调整本周"
-          description="修改近期训练安排"
+          description="快速生成本周草稿"
           onPress={onCurrentWeek}
-          disabled={busy}
-        />
-      </View>
-      <View className="flex-row gap-3">
-        <QuickAction
-          icon={<ClipboardCheck color={colors.brand} size={18} />}
-          label="训练反馈"
-          description="完成情况与疲劳"
-          onPress={onFeedback}
-          disabled={busy}
-        />
-        <QuickAction
-          icon={<Flag color={colors.brand} size={18} />}
-          label="比赛安排"
-          description="围绕赛事调整备赛"
-          onPress={() => onTask("RACE")}
           disabled={busy}
         />
       </View>

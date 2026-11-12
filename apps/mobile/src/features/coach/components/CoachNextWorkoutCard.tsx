@@ -1,6 +1,6 @@
 import { useCallback } from "react";
-import { View } from "react-native";
-import { Bike, CircleCheck } from "lucide-react-native";
+import { Pressable, View } from "react-native";
+import { ArrowRight, Bike, CircleCheck } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import type { CoachOverview, ProposalResponse } from "@ridepilot/contracts";
 import { AppText, Button, Card } from "../../../components/ui";
@@ -70,7 +70,10 @@ export function CoachNextWorkoutContent({
     );
   const minutes = workout?.timeTargetMinutes ?? next.minutes;
   return (
-    <Card testID="coach-next-workout" className="p-5">
+    <Card
+      testID="coach-next-workout"
+      className="overflow-hidden border-brand-subtle p-5"
+    >
       <View className="flex-row flex-wrap items-center justify-between gap-2">
         <View className="flex-row items-center gap-2">
           <View className="h-8 w-8 items-center justify-center rounded-lg bg-brand-subtle">
@@ -84,11 +87,11 @@ export function CoachNextWorkoutContent({
           {dateLabel(next.date)}
         </AppText>
       </View>
-      <AppText variant="card" className="mt-4">
+      <AppText variant="section" className="mt-4">
         {next.title}
       </AppText>
-      <View className="mt-4 flex-row flex-wrap gap-y-4 rounded-xl bg-surface-2 p-3">
-        <View className="min-w-[96px] flex-1 pr-3">
+      <View className="my-5 flex-row flex-wrap gap-y-4">
+        <View className="min-w-[96px] flex-1 pr-4">
           <AppText variant="label" className="text-secondary">
             {minutes !== null
               ? "计划时长"
@@ -114,24 +117,14 @@ export function CoachNextWorkoutContent({
             ) : null}
           </View>
         </View>
-        <View className="min-w-[96px] flex-1 border-l border-border pl-3">
+        <View className="min-w-[96px] flex-1 border-l border-border pl-4">
           <AppText variant="label" className="text-secondary">
             工作段强度
           </AppText>
-          <AppText variant="card" className="mt-2 tabular-nums">
+          <AppText variant="card" className="mt-3 tabular-nums">
             {intensity ?? (detail.loading ? "读取中" : "待查看")}
           </AppText>
         </View>
-      </View>
-      <View className="mt-4 flex-row items-start gap-1.5">
-        {!changed ? (
-          <CircleCheck color={colors.positive} size={15} strokeWidth={1.8} />
-        ) : null}
-        <AppText variant="label" className="min-w-0 flex-1 text-secondary">
-          {changed
-            ? "计划版本待刷新"
-            : `正式计划 v${data.planVersion} · 已生效`}
-        </AppText>
       </View>
       {changed ? (
         <AppText variant="caption" className="mt-2 text-warning">
@@ -148,21 +141,40 @@ export function CoachNextWorkoutContent({
           </Button>
         </View>
       ) : null}
-      <Button
-        variant="secondary"
-        size="lg"
-        className="mt-4"
-        onPress={() =>
-          changed
-            ? router.push("/(tabs)/training")
-            : router.push({
-                pathname: "/workouts/[workoutId]",
-                params: { workoutId: next.id },
-              })
-        }
-      >
-        {changed ? "查看训练日历" : "查看训练详情"}
-      </Button>
+      <View className="mt-4 border-t border-divider pt-2">
+        <WorkoutDetailLink changed={changed} workoutId={next.id} />
+      </View>
     </Card>
+  );
+}
+
+function WorkoutDetailLink({
+  changed,
+  workoutId,
+}: {
+  changed: boolean;
+  workoutId: string;
+}) {
+  const router = useRouter();
+  const label = changed ? "查看训练日历" : "查看训练详情";
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={() =>
+        changed
+          ? router.push("/(tabs)/training")
+          : router.push({
+              pathname: "/workouts/[workoutId]",
+              params: { workoutId },
+            })
+      }
+      className="min-h-11 flex-row items-center justify-between gap-3 active:opacity-70"
+    >
+      <AppText variant="body" className="font-medium text-brand">
+        {label}
+      </AppText>
+      <ArrowRight color={colors.brand} size={18} />
+    </Pressable>
   );
 }

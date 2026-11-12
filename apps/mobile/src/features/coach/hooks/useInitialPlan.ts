@@ -39,7 +39,7 @@ export type InitialPlanStage =
   | "preview"
   | "success";
 
-export type CoachTask = "REPLAN" | "RECOVERY" | "RACE";
+export type CoachTask = "REPLAN" | "RECOVERY";
 
 type Resources = {
   profile: ProfileResponse;

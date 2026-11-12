@@ -236,8 +236,10 @@ function openSuggestion(
 
 export function CoachSuggestionSummary({
   resource,
+  showHistoryLink = true,
 }: {
   resource: CoachResource<CoachSuggestions>;
+  showHistoryLink?: boolean;
 }) {
   const router = useRouter();
 
@@ -261,6 +263,7 @@ export function CoachSuggestionSummary({
       item={item}
       status={statusLabels[item.status] ?? item.status}
       count={resource.data?.pending.length ?? 0}
+      showHistoryLink={showHistoryLink}
       onOpen={() => openSuggestion(router, item)}
       onAll={() => router.push("/(tabs)/coach/suggestions")}
     />

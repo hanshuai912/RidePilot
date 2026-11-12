@@ -3,6 +3,7 @@ import { Pressable, View } from "react-native";
 import { AppText, Card, Input } from "../../../components/ui";
 import type { CoachTask, PlanningScope } from "../hooks/useInitialPlan";
 import type { CoachPlanStatus } from "../services/coach.api";
+import { ReplanBrief } from "./ReplanBrief";
 import { ChoicePill } from "./CoachPage";
 
 const taskCopy: Record<
@@ -10,11 +11,11 @@ const taskCopy: Record<
   { eyebrow: string; title: string; description: string; primary: string }
 > = {
   REPLAN: {
-    eyebrow: "重新规划",
-    title: "告诉我接下来要怎么变",
+    eyebrow: "调整训练",
+    title: "让训练适应最近的变化",
     description:
       "调整目标、日期或近期训练重点，AI 会保留已完成记录并重新整理未来草稿。",
-    primary: "生成重规划草稿",
+    primary: "生成训练调整草稿",
   },
   RECOVERY: {
     eyebrow: "赛后恢复",
@@ -22,12 +23,6 @@ const taskCopy: Record<
     description:
       "告诉我最近完成的比赛和身体状态，AI 会先安排恢复周，再衔接正式训练。",
     primary: "生成恢复建议",
-  },
-  RACE: {
-    eyebrow: "准备比赛",
-    title: "围绕比赛安排训练",
-    description: "输入比赛日期和目标，AI 会把备赛重点加入下一份训练草稿。",
-    primary: "生成备赛草稿",
   },
 };
 
@@ -63,6 +58,19 @@ export function PlanningBrief({
   goalDate: string;
   onEditGoal: () => void;
 }) {
+  if (task === "REPLAN")
+    return (
+      <ReplanBrief
+        planningScope={planningScope}
+        setPlanningScope={setPlanningScope}
+        taskNote={taskNote}
+        setTaskNote={setTaskNote}
+        planStatus={planStatus}
+        goalLabel={goalLabel}
+        goalDate={goalDate}
+        onEditGoal={onEditGoal}
+      />
+    );
   const copy = taskCopy[task];
   return (
     <>
@@ -133,15 +141,6 @@ export function PlanningBrief({
           <ContextRow label="正式计划" value={`v${planStatus.planVersion}`} />
           <ContextRow label="历史记录" value="已完成训练会保留" last />
         </View>
-        {task === "REPLAN" ? (
-          <Pressable
-            accessibilityRole="button"
-            className="mt-3 rounded-xl border border-border bg-surface-2 px-3 py-3"
-            onPress={onEditGoal}
-          >
-            <AppText className="text-brand">修改当前目标与日期 →</AppText>
-          </Pressable>
-        ) : null}
       </Card>
 
       {task === "RECOVERY" ? (
@@ -171,16 +170,14 @@ export function PlanningBrief({
 
       <Card>
         <AppText variant="label" className="text-muted">
-          {task === "RACE" ? "比赛信息" : "补充说明"}
+          补充说明
         </AppText>
         <AppText variant="caption" muted className="mt-1">
-          {task === "RACE"
-            ? "比赛信息会作为本次备赛草稿的上下文。"
-            : "告诉 AI 最近发生的变化，生成结果会更贴近你的实际状态。"}
+          告诉 AI 最近发生的变化，生成结果会更贴近你的实际状态。
         </AppText>
         <Input
           className="mt-3 min-h-[92px] py-3"
-          accessibilityLabel={task === "RACE" ? "比赛信息" : "训练调整说明"}
+          accessibilityLabel="训练调整说明"
           multiline
           textAlignVertical="top"
           value={taskNote}
@@ -189,9 +186,7 @@ export function PlanningBrief({
           placeholder={
             task === "RECOVERY"
               ? "例如：上周完成半马，腿部还有些酸，希望这周先恢复，下周开始正式训练"
-              : task === "RACE"
-                ? "例如：12 月 15 日有一场 100 km 骑行，希望稳妥完赛"
-                : "例如：最近工作变忙，目标日期想延后两周"
+              : "例如：最近工作变忙，目标日期想延后两周"
           }
         />
       </Card>

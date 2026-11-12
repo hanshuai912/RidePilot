@@ -656,17 +656,24 @@ test("existing plan task cards open the planning route without a render loop", a
       <CoachScreen />
     </CoachFlowProvider>,
   );
-  await waitFor(() => expect(view.getByText("重新规划")).toBeTruthy());
+  await waitFor(() => expect(view.getByText("调整训练")).toBeTruthy());
   await act(async () => {
-    fireEvent.press(view.getByText("重新规划"));
+    fireEvent.press(view.getByText("调整训练"));
   });
   await waitFor(() =>
-    expect(view.getByRole("header", { name: "重新规划" })).toBeTruthy(),
+    expect(view.getByRole("header", { name: "调整训练" })).toBeTruthy(),
   );
   expect(
     within(view.getByTestId("coach-page-content")).queryByRole("header"),
   ).toBeNull();
-  expect(view.getByText("告诉我接下来要怎么变")).toBeTruthy();
+  expect(view.getByText("让训练适应最近的变化")).toBeTruthy();
+  await fireEvent.press(view.getByRole("radio", { name: /从下周开始/ }));
+  expect(
+    view.getByRole("radio", { name: /从下周开始/ }).props.accessibilityState
+      .checked,
+  ).toBe(true);
+  expect(api.generate).not.toHaveBeenCalled();
+  expect(api.apply).not.toHaveBeenCalled();
 });
 
 test("a failed AI task keeps the formal plan unchanged and offers a retry state", async () => {

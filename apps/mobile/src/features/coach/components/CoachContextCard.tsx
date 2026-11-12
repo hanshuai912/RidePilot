@@ -16,7 +16,7 @@ export function CoachContextCard({ data }: { data: CoachOverview }) {
         ? colors.textSecondary
         : colors.warning;
   return (
-    <View className="border-b border-divider pb-3" testID="coach-context">
+    <View testID="coach-context">
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="查看目标与阶段"
@@ -28,14 +28,17 @@ export function CoachContextCard({ data }: { data: CoachOverview }) {
               })
             : router.push("/goals")
         }
-        className="min-h-11 flex-row items-center justify-between gap-3 active:opacity-70"
+        className="min-h-11 flex-row items-center justify-between gap-4 active:opacity-70"
       >
         <View className="min-w-0 flex-1">
-          <AppText variant="caption" className="mb-1 text-secondary">
-            {data.stage?.upcoming ? "下一阶段" : "当前阶段"}
-          </AppText>
-          <AppText variant="card">{data.stage?.title ?? "阶段待规划"}</AppText>
-          <AppText variant="body" className="mt-1 text-secondary">
+          <View className="mb-2 flex-row items-center gap-2">
+            <View className="h-1 w-4 rounded-full bg-brand" />
+            <AppText variant="caption" className="text-secondary">
+              {data.stage?.upcoming ? "下一阶段" : "当前阶段"}
+            </AppText>
+          </View>
+          <AppText variant="title">{data.stage?.title ?? "阶段待规划"}</AppText>
+          <AppText variant="body" className="mt-2 text-secondary">
             {data.goal
               ? `目标：${goalTitle(data.goal.title)}`
               : (data.stage?.purpose ?? "先设置目标，再规划训练阶段")}
@@ -47,7 +50,7 @@ export function CoachContextCard({ data }: { data: CoachOverview }) {
         accessibilityRole="button"
         accessibilityLabel="查看状态依据"
         onPress={() => router.push("/(tabs)/coach/status")}
-        className="mt-1 min-h-11 flex-row items-center gap-2 active:opacity-70"
+        className="mt-4 min-h-11 flex-row items-center gap-2 rounded-xl bg-surface px-3 py-2 active:bg-surface-2"
       >
         <Activity color={statusColor} size={16} />
         <AppText

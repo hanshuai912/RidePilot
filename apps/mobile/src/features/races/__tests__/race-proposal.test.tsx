@@ -123,7 +123,11 @@ beforeEach(() => {
   } as ReturnType<typeof useAuth>);
   coach.race.mockResolvedValue({
     id: "race-1",
+    name: "夏季公路挑战赛",
     localDate: "2030-06-09",
+    distanceKm: 100,
+    priority: "A",
+    intent: "FINISH",
   } as Awaited<ReturnType<typeof coachApi.race>>);
   coach.goals.mockResolvedValue([
     {
@@ -177,6 +181,9 @@ async function startRaceDraft() {
 test("进入页面和重新聚焦只读取资料，不自动生成", async () => {
   const view = await render(<RaceProposalScreen />);
   await waitFor(() => expect(view.getByText("生成备赛计划草稿")).toBeTruthy());
+  expect(view.getByText("夏季公路挑战赛")).toBeTruthy();
+  expect(view.getByText("2030-06-09 · 100 km")).toBeTruthy();
+  expect(view.getByText("比赛目标：稳妥完赛")).toBeTruthy();
   mockFocused = false;
   await view.rerender(<RaceProposalScreen />);
   mockFocused = true;

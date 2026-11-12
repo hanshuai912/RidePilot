@@ -11,6 +11,7 @@ import { PlanPreview } from "../../coach/components/PlanPreview";
 import { missingTrainingData } from "../../coach/model/readiness";
 import { useRaceTrainingDraft } from "../hooks/useRaceTrainingDraft";
 import { RaceImpactCard } from "../components/RaceImpactCard";
+import { RaceTrainingContext } from "../components/RaceTrainingContext";
 
 const key = () => `race-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
@@ -98,6 +99,7 @@ export function RaceProposalScreen() {
       {draft.message ? (
         <AppText className="text-warning">{draft.message}</AppText>
       ) : null}
+      {draft.race ? <RaceTrainingContext race={draft.race} /> : null}
       {missingFields.length ? (
         <Card>
           <AppText variant="card">补全资料后生成{label}计划</AppText>

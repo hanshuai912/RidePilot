@@ -175,3 +175,90 @@ Provider 检测到 `finish_reason=length` 返回可重试的 `AI_PROVIDER_OUTPUT
 ## 2026-11-12：聊天布局与持久化历史
 
 「问 AI 教练」更新为左右气泡、固定输入栏与键盘避让，按账号持久化连续对话并支持历史分页、处理中恢复和失败同消息重试。此前关于“问答仅保存在当前页面”和“历史尚未接入”的说明由本次实现取代。原无状态问答接口保留兼容，移动端切换到持久化接口；仍为只读训练建议。迁移、接口及验证见 [聊天布局与历史记录](coach-chat-history.md)。
+
+## 2026-11-12：更多操作去重
+
+按用户要求核对全部入口，更多操作只保留「赛后恢复」和「全部建议与历史」。移除项与保留的访问路径如下：
+
+| 移除的重复入口           | 可继续使用的入口                                                          |
+| ------------------------ | ------------------------------------------------------------------------- |
+| 规划下周                 | AI 快捷调整 → 重新规划 → 从下周开始；也可在目标详情按日期范围规划下周课程 |
+| 目标阶段与按范围生成课程 | 当前阶段卡片 → 目标详情，或我的 → 目标                                    |
+| 赛事管理与新增比赛       | 我的 → 我的赛事，或训练页赛事管理入口                                     |
+| 最近计划版本             | 首页状态文字 → 状态依据页 → 近期计划版本                                  |
+
+赛后恢复保留独立引导，可以不先登记具体赛事；已完成的赛事也有专属恢复入口，两者上下文不同。全部建议入口虽然在有待处理建议时会出现在建议区，但无待处理建议时整个建议区隐藏，因此菜单中的历史入口仍需保留。
+
+本次仅修改移动端入口、对应测试及设计/功能文档，没有 API 或数据库变更。菜单仍默认折叠，操作中禁用。已同步设计页面、五栏原型、交接 Markdown 和设计决策。
+
+实际验证：
+
+- 在 `apps/mobile` 执行 `./node_modules/.bin/jest --runInBand --runTestsByPath src/features/coach/__tests__/coach-center.test.tsx src/features/coach/__tests__/coach-home-loading.test.tsx src/features/coach/__tests__/initial-plan-flow.test.tsx src/features/coach/__tests__/adjustment-scope.test.ts src/features/integrations/__tests__/third-party-apps.test.tsx`：5 组、65 项通过。覆盖菜单移除重复入口、折叠及禁用、无待处理时仍可访问历史、重新规划选择下周范围，以及个人页的目标/赛事导航。
+- 在 `apps/mobile` 执行 `./node_modules/.bin/tsc --noEmit` 与针对 `CoachMoreActions.tsx`、`CoachScreen.tsx` 和本次三个测试文件的 ESLint：通过。
+- 本次修改文件 Prettier 检查、主仓库与设计仓库的 `git diff --check`：通过。
+
+本次没有运行真机或真实模型验证；没有改动生成和应用服务。
+
+## 2026-11-12：常驻入口与首页重设计
+
+本节取代上述「更多操作默认折叠」的布局说明。将「赛后恢复」「全部建议与历史」移出菜单，放为快捷调整下方的两条常驻整行入口；没有待处理建议或概览读取失败时仍可访问。操作忙碌时禁用，赛后恢复点击后进入既有引导，不提前生成或应用。这里的历史指结构化建议记录，聊天历史仍从右上角消息图标进入。
+
+首页从上到下为当前阶段与状态、今日／下一次训练、单条待处理建议、四格快捷调整、两个常驻入口：
+
+- `CoachDashboardPage` 独立负责已有计划首页的标题、滚动和错误展示；首次建计划及各引导页保留原布局。
+- 阶段取消外层卡片，以 24 号标题和目标说明突出当前进度；状态依据作为独立的轻量条目，触控至少 44。
+- 训练卡保留真实课程、日期、时长／距离、工作段强度及正式版本状态，以 20 号课程标题、32 号关键数字、分列指标和底部文字链接建立层级。缺失强度、详情失败、版本变化及重试继续沿用原有处理。
+- 有待处理建议时，分区标题旁只显示数量，完整历史统一从下方入口进入；无建议仍隐藏摘要区。
+- 快捷调整保持重新规划、调整本周、训练反馈、比赛安排四项，2×2 卡片最小高度 92、内边距 16，文案在小屏自然换行。`CoachSupportActions` 展示两条最小高度 80 的常驻入口，移除 `CoachMoreActions`。
+- 使用黑金 Token、左右留白 20、区块间距 24；保留右上角唯一聊天入口与原五栏导航。未新增依赖，未修改 API、数据库或迁移；草稿、预览、校验和确认应用流程沿用。
+
+新增首页回归覆盖有／无待处理建议时的唯一历史入口、直接进入恢复引导、概览失败仍保留入口，以及原有加载、轮询与错误恢复。设计资产同步 A01 HTML、五栏联动原型、交接 Markdown 和设计决策。
+
+本次实际执行（移动端命令工作目录均为 `apps/mobile`）：
+
+- `./node_modules/.bin/jest --runInBand --runTestsByPath src/features/coach/__tests__/coach-center.test.tsx src/features/coach/__tests__/coach-home-loading.test.tsx src/features/coach/__tests__/initial-plan-flow.test.tsx src/features/coach/__tests__/coach-home.test.ts src/features/coach/__tests__/coach-chat.test.tsx`：5 组、60 项通过。
+- `./node_modules/.bin/tsc --noEmit`、`./node_modules/.bin/eslint src/features/coach`：通过。
+- `./node_modules/.bin/expo export --platform web --output-dir /tmp/ridepilot-coach-redesign-web --max-workers 2`：成功导出，3863 个模块。
+- `node /tmp/ridepilot-coach-redesign-browser.cjs`：合成 API 验证 320／390／430 宽度、首页区块顺序、唯一历史和聊天入口、聊天触控区域、恢复与历史导航、空建议／缺阶段及课程／概览错误；未触发生成或应用等业务写请求，无页面脚本错误。截图 `/tmp/ridepilot-coach-redesign-*.png`。
+- `node /tmp/ridepilot-coach-redesign-design-check.cjs`：设计稿 320／390／430 宽度、常驻入口、四格布局、底栏避让及五栏导航通过。
+- 本次修改文件的 Prettier 检查、主仓库与设计仓库的 `git diff --check`：通过。
+
+浏览器验证使用合成数据。本次未执行 iOS／Android 真机、系统大字体或真实模型端到端验证。
+
+## 2026-11-12：训练调整与赛事备赛分流
+
+本节取代此前四格快捷操作与通用比赛表单说明。用户希望移除只跳转训练日历的反馈入口，并区分重新规划和比赛安排，按专业 UI/UX 重新整理层级。
+
+- 移除「训练反馈」，原课程反馈继续从训练详情进入。「重新规划」更名为「调整训练」，与「调整本周」组成两列卡片；图标、标题与说明纵向排列，最小高度 132、内边距 16，继续使用黑金 Token 和 24 的区块间距。「调整本周」沿用快捷生成本周草稿，说明明确提示该行为。
+- 常驻列表改为「赛事备赛」「赛后恢复」「全部建议与历史」，使用统一的右向箭头表达导航。聊天入口、阶段与正式课程摘要保留。
+- 新增 `ReplanBrief`，训练调整页聚焦三个真实支持的范围（下一节、本周剩余、下周）、选填说明、当前目标及修改入口。去掉重复标题卡、重复说明、不可用的整个周期选项与底部重复返回按钮；生成仍进入草稿预览、校验及确认应用。
+- 新增 `coach/races` 赛事选择页，读取已确认且比赛日期不早于赛事所在时区今天的赛事，按日期、同日优先级排序；使用日期块、名称、距离与比赛目标组织列表。无赛事提供添加入口，读取失败重试，未登录不请求；已完成、取消或过去赛事仍可在全部赛事查看。
+- 选择赛事携带 `raceId`、`phase=PREPARATION` 进入已有 `races/proposal`。计划页补充赛事摘要，明确当前比赛名称、日期、距离与目标，再使用原日期范围、影响预览、版本校验、幂等生成和确认应用流程。移除教练 `RACE` 通用任务，避免仅把比赛文本混进普通训练备注；不新增 API 或数据库迁移。
+- 拆分 `useCoachRaces`、`CoachRaceCard`、`CoachRacePreparationScreen`、`RaceTrainingContext`，沿用既有 API、鉴权与草稿服务；不在前端直接更新正式计划。首次建计划和独立赛后恢复路径沿用。
+
+设计同步：A01 首页、A03 训练调整、A04 赛事选择、五栏联动原型、交接 Markdown 与设计决策。A03 的范围选择与输入可交互，其余深层操作链接至交接说明；设计稿使用合成示例，业务以 App 为准。
+
+本次实际验证（移动端命令工作目录为 `apps/mobile`）：
+
+- `./node_modules/.bin/jest --runInBand --runTestsByPath src/features/coach/__tests__/coach-center.test.tsx src/features/coach/__tests__/coach-home-loading.test.tsx src/features/coach/__tests__/initial-plan-flow.test.tsx src/features/coach/__tests__/coach-planning-entry.test.tsx src/features/races/__tests__/race-proposal.test.tsx src/features/races/__tests__/race-training-setup-routes.test.tsx src/features/coach/__tests__/adjustment-scope.test.ts`：7 组、95 项通过。之后修正新范围单选的原生／Web 读屏状态，重跑 `initial-plan-flow.test.tsx` 23 项及 `coach-planning-entry.test.tsx` 6 项通过；变更单选的最终复测 6 项通过。
+- `./node_modules/.bin/tsc --noEmit`：通过；`./node_modules/.bin/eslint src/features/coach src/features/races/hooks/useRaceTrainingDraft.ts src/features/races/screens/RaceProposalScreen.tsx src/features/races/components/RaceTrainingContext.tsx src/features/races/__tests__/race-proposal.test.tsx 'app/(tabs)/coach/races.tsx'`：通过。单选最终修改后额外检查其组件及测试的 ESLint 通过。
+- `./node_modules/.bin/expo export --platform web --output-dir /tmp/ridepilot-coach-workflows-web --max-workers 2`：最终导出成功，3869 个模块。
+- `node /tmp/ridepilot-coach-workflows-design-check.cjs`：设计首页、训练调整及赛事选择在 320／390／430 宽度无横向溢出；两列训练操作、三条常驻入口、底栏避让、范围切换与五栏导航检查通过。
+- 本次修改文件 Prettier 检查、主仓库及设计仓库 `git diff --check`：通过。
+- `node /tmp/ridepilot-coach-workflows-browser.cjs`：以合成 API 验证实际 Web 导出在 320／390／430 宽度的首页、训练调整和赛事选择；覆盖两个训练操作、移除入口、区块顺序、单选切换与 Web 读屏状态、输入、赛事导航及赛事摘要、无赛事添加、失败重试、首页无建议／缺数据／概览失败。未触发业务写请求，无页面脚本错误；截图 `/tmp/ridepilot-coach-workflows-*.png`。
+
+本次没有后端或数据库改动；未执行 iOS／Android 真机、系统大字体或真实模型联调。浏览器结果不能替代这些验证。
+
+### 顶部阶段外链的过渡页面修复
+
+用户反馈从教练首页点击当前阶段时，会先出现训练调整页，再进入正确的目标与阶段页面。`CoachScreen` 使用全局 `usePathname` 识别展示步骤；打开教练外部路由后，仍挂载在下层的教练页读到目标页路径，原逻辑回退到共享流程的上次步骤（例如 planning），从而在页面切换时闪出旧任务。
+
+现改为保留最后一个匹配的教练路由展示步骤，外部路径不再使用任务状态切换下层页面。阶段入口继续直接携带目标 ID 进入目标与阶段，不新增中间跳转，也不清空原任务输入。新增回归覆盖：流程残留在 planning 时，首页点击阶段只导航一次，外部路径切换和返回后仍保持首页，不渲染训练调整表单。
+
+修复实际验证：
+
+- 在 `apps/mobile` 执行 `./node_modules/.bin/jest --runInBand --runTestsByPath src/features/coach/__tests__/coach-home-loading.test.tsx src/features/coach/__tests__/initial-plan-flow.test.tsx src/features/coach/__tests__/coach-planning-entry.test.tsx`：3 组、37 项通过。
+- `./node_modules/.bin/tsc --noEmit`、针对 `CoachScreen.tsx` 与 `coach-home-loading.test.tsx` 的 ESLint、Prettier 检查和 `git diff --check`：通过。
+- Web 重新导出成功；`node /tmp/ridepilot-coach-goal-navigation-browser.cjs`：保留同一页面提供器，先打开训练调整、通过浏览器返回保留旧任务、点击顶部阶段，再返回首页；目标路由切换期间用 DOM 观察器确认未出现调整表单。并复测原 320／390／430 布局、训练与赛事路径及空／错误状态；无脚本错误或业务写请求。
+
+验证使用合成 API，未执行原生页面切换动画的真机测试。

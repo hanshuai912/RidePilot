@@ -1,7 +1,7 @@
 import { GenerationCancelButton } from "../components/GenerationCancelButton";
 import { goalTypeLabels } from "../../goals/model/goal-lifecycle";
 import { TrainingNutritionLinkCard } from "../../nutrition/components/TrainingNutritionLinkCard";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "expo-router";
 import { Modal, View } from "react-native";
 
@@ -16,7 +16,8 @@ import {
 } from "../components/InitialPlanSteps";
 import { CoachHome } from "../components/CoachHome";
 import { CoachChatEntry } from "../components/CoachChatEntry";
-import { CoachMoreActions } from "../components/CoachMoreActions";
+import { CoachSupportActions } from "../components/CoachSupportActions";
+import { CoachDashboardPage } from "../components/CoachDashboardPage";
 import { CoachOverviewContent } from "../components/CoachOverviewPanel";
 import { CoachSuggestionSummary } from "../components/CoachSuggestionsPanel";
 import {
@@ -79,7 +80,15 @@ export function CoachScreen() {
                       : visiblePath === "/coach/success"
                         ? "success"
                         : null;
-  const stage = routeStage ?? flowStage;
+  // usePathname follows the top route while this screen remains mounted below
+  // it. Keep the last coach page during external navigation rather than showing
+  // a task that was previously opened in the shared flow.
+  const [lastRouteStage, setLastRouteStage] = useState<InitialPlanStage>(
+    routeStage ?? "entry",
+  );
+  if (routeStage !== null && routeStage !== lastRouteStage)
+    setLastRouteStage(routeStage);
+  const stage = routeStage ?? lastRouteStage;
   const dashboard = useCoachDashboard({
     token: flow.token,
     enabled: stage === "entry" && !!resources,
@@ -235,21 +244,15 @@ export function CoachScreen() {
 
   if (hasActivePlan && stage === "entry")
     return (
-      <CoachPage
-        eyebrow=""
-        title="AI 教练"
-        contentClassName="gap-6"
-        description=""
-        headerAction={<CoachChatEntry />}
-        actionsInScroll
-        busy={busy}
-        error={error}
-      >
+      <CoachDashboardPage error={error}>
         <CoachOverviewContent
           resource={dashboard.overview}
           detail={dashboard.detail}
         >
-          <CoachSuggestionSummary resource={dashboard.suggestions} />
+          <CoachSuggestionSummary
+            resource={dashboard.suggestions}
+            showHistoryLink={false}
+          />
           <CoachHome
             ready={ready}
             busy={busy}
@@ -260,16 +263,14 @@ export function CoachScreen() {
               router.push(coachRoute(next));
             }}
             onTask={startTask}
-            onFeedback={() => router.push("/(tabs)/training")}
             onCurrentWeek={() => startWeekGeneration("current")}
           />
-          <CoachMoreActions
+          <CoachSupportActions
             busy={busy}
             onRecovery={() => startTask("RECOVERY")}
-            onNextWeek={() => startWeekGeneration("next")}
           />
         </CoachOverviewContent>
-      </CoachPage>
+      </CoachDashboardPage>
     );
 
   if (stage === "entry")
@@ -332,16 +333,11 @@ export function CoachScreen() {
       <CoachPage
         eyebrow={`AI 教练 · ${copy.eyebrow}`}
         title={copy.eyebrow}
-        description={copy.description}
+        description={task === "REPLAN" ? undefined : copy.description}
         primary={copy.primary}
         actionsInScroll
         onPrimary={() => {
           void flow.submitTask();
-        }}
-        secondary="返回 AI 教练"
-        onSecondary={() => {
-          flow.cancelTask();
-          router.replace("/(tabs)/coach");
         }}
         onBack={() => {
           flow.cancelTask();

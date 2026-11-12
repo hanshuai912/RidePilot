@@ -7,7 +7,7 @@ import type {
 } from "@ridepilot/contracts";
 import { CoachOverviewPanel } from "../components/CoachOverviewPanel";
 import { CoachStatusScreen } from "../screens/CoachStatusScreen";
-import { CoachMoreActions } from "../components/CoachMoreActions";
+import { CoachSupportActions } from "../components/CoachSupportActions";
 import { CoachChatEntry } from "../components/CoachChatEntry";
 import { trainingApi } from "../../training/services/training.api";
 import { CoachHome } from "../components/CoachHome";
@@ -242,7 +242,6 @@ it("keeps tasks and existing suggestions available when the overview fails", asy
         ready
         missingData=""
         onTask={onTask}
-        onFeedback={jest.fn()}
         onCurrentWeek={jest.fn()}
         onCompleteProfile={jest.fn()}
       />
@@ -251,32 +250,26 @@ it("keeps tasks and existing suggestions available when the overview fails", asy
   );
   await screen.findByText("概览网络错误");
   await screen.findByText("恢复训练安排");
-  await fireEvent.press(screen.getByRole("button", { name: "重新规划" }));
+  await fireEvent.press(screen.getByRole("button", { name: "调整训练" }));
   expect(onTask).toHaveBeenCalledWith("REPLAN");
   expect(training.generate).not.toHaveBeenCalled();
   expect(training.apply).not.toHaveBeenCalled();
 });
 
-it("uses four core tasks and keeps lower frequency actions in the collapsed menu", async () => {
+it("uses two training tasks and exposes race preparation, recovery and history", async () => {
   const actions = {
     onTask: jest.fn(),
-    onFeedback: jest.fn(),
     onCurrentWeek: jest.fn(),
     onCompleteProfile: jest.fn(),
   };
   const screen = await render(
     <CoachHome ready={false} missingData="训练目标" {...actions} />,
   );
-  for (const name of [
-    "重新规划",
-    "比赛安排",
-    "训练反馈",
-    "调整本周",
-    "补全训练资料",
-  ])
+  for (const name of ["调整训练", "调整本周", "补全训练资料"])
     await fireEvent.press(screen.getByRole("button", { name }));
-  expect(actions.onTask.mock.calls).toEqual([["REPLAN"], ["RACE"]]);
-  expect(actions.onFeedback).toHaveBeenCalledTimes(1);
+  expect(actions.onTask.mock.calls).toEqual([["REPLAN"]]);
+  expect(screen.queryByRole("button", { name: "训练反馈" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "比赛安排" })).toBeNull();
   expect(actions.onCurrentWeek).toHaveBeenCalledTimes(1);
   expect(actions.onCompleteProfile).toHaveBeenCalledTimes(1);
   expect(screen.queryByText("赛后恢复")).toBeNull();
@@ -285,31 +278,33 @@ it("uses four core tasks and keeps lower frequency actions in the collapsed menu
   );
   for (const button of screen.getAllByRole("button"))
     expect(button.props.accessibilityState.disabled).toBe(true);
-  await fireEvent.press(screen.getByRole("button", { name: "重新规划" }));
-  expect(actions.onTask).toHaveBeenCalledTimes(2);
+  await fireEvent.press(screen.getByRole("button", { name: "调整训练" }));
+  expect(actions.onTask).toHaveBeenCalledTimes(1);
   await screen.unmount();
   const recovery = jest.fn();
-  const next = jest.fn();
   const menu = await render(
-    <CoachMoreActions busy={false} onRecovery={recovery} onNextWeek={next} />,
+    <CoachSupportActions busy={false} onRecovery={recovery} />,
   );
-  expect(menu.queryByText("赛后恢复")).toBeNull();
-  await fireEvent.press(menu.getByRole("button", { name: "更多操作" }));
+  expect(menu.queryByRole("button", { name: "更多操作" })).toBeNull();
+  expect(menu.getByRole("button", { name: "赛后恢复" })).toBeTruthy();
+  await fireEvent.press(menu.getByRole("button", { name: "赛事备赛" }));
+  expect(mockPush).toHaveBeenLastCalledWith("/(tabs)/coach/races");
   await fireEvent.press(menu.getByText("赛后恢复"));
-  await fireEvent.press(menu.getByText("规划下周"));
   expect(recovery).toHaveBeenCalledTimes(1);
-  expect(next).toHaveBeenCalledTimes(1);
   expect(menu.queryByText("训练执行与周期复盘")).toBeNull();
   expect(menu.queryByText("训练历史")).toBeNull();
-  for (const [name, route] of [
-    ["目标阶段与按范围生成课程", "/goals"],
-    ["赛事管理与新增比赛", "/races"],
-    ["最近计划版本", "/(tabs)/coach/status"],
-    ["全部建议与历史", "/(tabs)/coach/suggestions"],
-  ]) {
-    await fireEvent.press(menu.getByText(name));
-    expect(mockPush).toHaveBeenLastCalledWith(route);
-  }
+  for (const name of [
+    "规划下周",
+    "目标阶段与按范围生成课程",
+    "赛事管理与新增比赛",
+    "最近计划版本",
+  ])
+    expect(menu.queryByText(name)).toBeNull();
+  await fireEvent.press(menu.getByText("全部建议与历史"));
+  expect(mockPush).toHaveBeenLastCalledWith("/(tabs)/coach/suggestions");
+  await menu.rerender(<CoachSupportActions busy onRecovery={recovery} />);
+  for (const button of menu.getAllByRole("button"))
+    expect(button.props.accessibilityState.disabled).toBe(true);
 });
 
 it("shows only the most actionable suggestion and hides the module when none exist", async () => {

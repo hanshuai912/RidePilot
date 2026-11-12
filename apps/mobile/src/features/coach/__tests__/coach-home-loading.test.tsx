@@ -6,10 +6,11 @@ import { coachCenterApi } from "../services/coach-center.api";
 import { trainingApi } from "../../training/services/training.api";
 
 const mockPush = jest.fn();
+let mockPathname = "/coach";
 jest.mock("expo-router", () => ({
   useFocusEffect: (effect: () => void) =>
     jest.requireActual("react").useEffect(effect, [effect]),
-  usePathname: () => "/coach",
+  usePathname: () => mockPathname,
   useRouter: () => ({ push: mockPush, replace: mockPush }),
 }));
 jest.mock("../hooks/CoachFlowContext", () => ({ useCoachFlow: jest.fn() }));
@@ -53,6 +54,7 @@ const flow = {
   loading: false,
   busy: false,
   error: null,
+  beginTask: jest.fn(),
   resources: {
     profile: { timezone: "Asia/Shanghai" },
     readiness: { ready: true, missingFields: [] },
@@ -77,13 +79,59 @@ async function settle(action: () => void) {
 
 beforeEach(() => {
   jest.resetAllMocks();
+  mockPathname = "/coach";
   jest.mocked(useCoachFlow).mockReturnValue(flow);
   api.overview.mockResolvedValue(overview);
   api.suggestions.mockResolvedValue(emptySuggestions);
   workoutApi.getWorkout.mockRejectedValue(new Error("详情离线"));
 });
+
+it("keeps the homepage when opening a goal after a previous adjustment task", async () => {
+  jest
+    .mocked(useCoachFlow)
+    .mockReturnValue({ ...flow, stage: "planning", task: "REPLAN" });
+  api.overview.mockResolvedValue({
+    ...overview,
+    goal: { id: "goal-id", title: "提升耐力", targetDate: "2030-05-01" },
+  });
+  const ui = await render(<CoachScreen />);
+  await ui.findByText("今日耐力训练");
+  await fireEvent.press(ui.getByRole("button", { name: "查看目标与阶段" }));
+  expect(mockPush).toHaveBeenCalledTimes(1);
+  expect(mockPush).toHaveBeenLastCalledWith({
+    pathname: "/goals/[goalId]",
+    params: { goalId: "goal-id" },
+  });
+  mockPathname = "/goals/goal-id";
+  await ui.rerender(<CoachScreen />);
+  expect(ui.getByTestId("coach-dashboard-sections")).toBeTruthy();
+  expect(ui.queryByTestId("coach-replan-brief")).toBeNull();
+  expect(mockPush).toHaveBeenCalledTimes(1);
+  mockPathname = "/coach";
+  await ui.rerender(<CoachScreen />);
+  expect(ui.getByTestId("coach-dashboard-sections")).toBeTruthy();
+});
 afterEach(() => {
   jest.useRealTimers();
+});
+
+it("exposes recovery and history without expanding a menu, even without pending suggestions", async () => {
+  const ui = await render(<CoachScreen />);
+  await ui.findByText("调整训练");
+  expect(ui.queryByTestId("coach-pending-suggestions")).toBeNull();
+  expect(ui.queryByRole("button", { name: "更多操作" })).toBeNull();
+  for (const name of [
+    "规划下周",
+    "目标阶段与按范围生成课程",
+    "赛事管理与新增比赛",
+    "最近计划版本",
+  ])
+    expect(ui.queryByRole("button", { name })).toBeNull();
+  await fireEvent.press(ui.getByRole("button", { name: "赛后恢复" }));
+  expect(flow.beginTask).toHaveBeenCalledWith("RECOVERY");
+  expect(mockPush).toHaveBeenLastCalledWith("/(tabs)/coach/planning");
+  await fireEvent.press(ui.getByRole("button", { name: "全部建议与历史" }));
+  expect(mockPush).toHaveBeenLastCalledWith("/(tabs)/coach/suggestions");
 });
 
 it("uses one loader across profile, overview, suggestions and workout detail, then shows content", async () => {
@@ -110,7 +158,7 @@ it("uses one loader across profile, overview, suggestions and workout detail, th
   expect(ui.queryAllByLabelText(/读取/)).toHaveLength(0);
   expect(ui.getByText("今日耐力训练")).toBeTruthy();
   expect(ui.getByText("强度详情暂不可用")).toBeTruthy();
-  expect(ui.getByText("重新规划")).toBeTruthy();
+  expect(ui.getByText("调整训练")).toBeTruthy();
   expect(ui.getAllByRole("button", { name: "问 AI 教练" })).toHaveLength(1);
   expect(ui.queryByText("问 AI 教练")).toBeNull();
   expect(ui.queryByText("训练日历")).toBeNull();
@@ -118,6 +166,32 @@ it("uses one loader across profile, overview, suggestions and workout detail, th
   expect(mockPush).toHaveBeenCalledWith("/(tabs)/coach/chat");
   expect(api.overview).toHaveBeenCalledTimes(1);
   expect(api.suggestions).toHaveBeenCalledTimes(1);
+});
+
+it("keeps one history entry alongside a pending suggestion", async () => {
+  api.suggestions.mockResolvedValue({
+    pending: [
+      {
+        id: "draft",
+        kind: "TRAINING",
+        title: "调整恢复训练",
+        summary: "待核对训练安排",
+        status: "READY",
+        version: 1,
+        createdAt: "2030-01-09T00:00:00Z",
+        goalId: null,
+        staleReason: null,
+      },
+    ],
+    recent: [],
+  });
+  const ui = await render(<CoachScreen />);
+  await ui.findByText("调整恢复训练");
+  expect(ui.getByText("1 条待处理")).toBeTruthy();
+  expect(ui.getAllByRole("button", { name: "全部建议与历史" })).toHaveLength(1);
+  expect(ui.queryByRole("button", { name: "查看全部建议与历史" })).toBeNull();
+  await fireEvent.press(ui.getByRole("button", { name: "全部建议与历史" }));
+  expect(mockPush).toHaveBeenLastCalledWith("/(tabs)/coach/suggestions");
 });
 
 it("waits for all requests after partial failure and retries only the failed suggestions", async () => {
@@ -144,6 +218,8 @@ it("keeps overview errors recoverable after the single loader ends", async () =>
   const ui = await render(<CoachScreen />);
   expect(ui.getByText("暂时无法读取训练概览")).toBeTruthy();
   expect(ui.queryAllByLabelText(/读取/)).toHaveLength(0);
+  expect(ui.getByRole("button", { name: "赛后恢复" })).toBeTruthy();
+  expect(ui.getByRole("button", { name: "全部建议与历史" })).toBeTruthy();
   await fireEvent.press(ui.getByText("重新读取概览"));
   expect(ui.getByText("今日耐力训练")).toBeTruthy();
   expect(api.overview).toHaveBeenCalledTimes(2);

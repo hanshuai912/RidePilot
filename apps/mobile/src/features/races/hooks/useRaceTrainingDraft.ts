@@ -29,6 +29,9 @@ export function useRaceTrainingDraft(
   const [phase, setPhase] = useState<RacePlanningPhase>(
     phaseRequest ?? "PREPARATION",
   );
+  const [race, setRace] = useState<Awaited<
+    ReturnType<typeof coachApi.race>
+  > | null>(null);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [impact, setImpact] = useState<Awaited<
@@ -69,6 +72,7 @@ export function useRaceTrainingDraft(
           coachApi.race(token, raceId),
         ]);
         if (!active()) return;
+        setRace(race);
         const selectionScope = `${scope}:${state.phase}:${race.version}`;
         const range =
           selection.current?.scope === selectionScope &&
@@ -187,6 +191,7 @@ export function useRaceTrainingDraft(
 
   useFocusEffect(
     useCallback(() => {
+      setRace(null);
       setProposal(null);
       setImpact(null);
       void run(false);
@@ -229,6 +234,7 @@ export function useRaceTrainingDraft(
     }
   };
   return {
+    race,
     cancellation,
     proposal,
     rangeChanged:
