@@ -79,6 +79,15 @@ function GoalDetailContent({ goalId }: { goalId: string }) {
             </AppText>
           ) : null}
           <View className="gap-4">
+            <View className="gap-2 border-t border-divider pt-4">
+              <AppText variant="section">综合训练规划</AppText>
+              <AppText variant="caption" className="text-secondary">
+                {planningGoal
+                  ? `以下阶段和课程综合全部进行中目标规划，以「${planningGoal.description || "主目标"}」为优先。`
+                  : "确定进行中的主目标后，可综合全部目标规划阶段和课程。"}
+                上方切换仅用于查看单个目标，不会改变规划范围。
+              </AppText>
+            </View>
             {canPlan ? (
               <GoalStagePlanner flow={flow} onEdit={() => setDirty(true)} />
             ) : (

@@ -363,7 +363,8 @@ it("does not treat missing training or stale stages as a new valid plan", async 
   expect(
     screen.getByText("目标、FTP 或训练资料已变化，请检查阶段安排"),
   ).toBeTruthy();
-  expect(screen.getByText("正式计划 v2 · 已生效")).toBeTruthy();
+  await screen.findByRole("button", { name: "查看训练详情" });
+  expect(training.generate).not.toHaveBeenCalled();
   await screen.unmount();
   api.overview.mockResolvedValue({ ...overview, nextWorkout: null });
   const empty = await render(<CoachOverviewPanel />);
@@ -396,7 +397,8 @@ it("keeps the published summary if workout enrichment fails and avoids mixing pl
   await screen.findByText("训练版本已变化，请查看最新训练日历。");
   expect(screen.queryByText("90")).toBeNull();
   expect(screen.queryByText("正式计划 v2 · 已生效")).toBeNull();
-  expect(screen.getByText("计划版本待刷新")).toBeTruthy();
+  expect(screen.queryByText("新版课程")).toBeNull();
+  expect(screen.getByText("耐力训练")).toBeTruthy();
   await fireEvent.press(screen.getByText("查看训练日历"));
   expect(mockPush).toHaveBeenCalledWith("/(tabs)/training");
 });

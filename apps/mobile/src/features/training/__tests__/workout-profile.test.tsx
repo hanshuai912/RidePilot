@@ -1,7 +1,10 @@
 import { render, screen } from "@testing-library/react-native";
 import type { WorkoutSegment } from "@ridepilot/contracts";
 import { WorkoutProfileChart } from "../components/WorkoutProfileChart";
-import { buildWorkoutProfile } from "../model/workout-profile";
+import {
+  buildWorkoutProfile,
+  comparisonMaximums,
+} from "../model/workout-profile";
 
 const segments: WorkoutSegment[] = [
   {
@@ -84,7 +87,9 @@ test("mixed intensity units keep independent scales and share the same time posi
 
 test("renders an accessible chart and readable phase totals", async () => {
   await render(<WorkoutProfileChart segments={segments} />);
-  expect(screen.getByRole("image", { name: /平均强度 200 W/ })).toBeTruthy();
+  expect(
+    screen.getByRole("image", { name: /计划强度区间中值 200 W/ }),
+  ).toBeTruthy();
   expect(screen.getByText("10 分钟 热身")).toBeTruthy();
   expect(screen.getByText("45 分钟 训练")).toBeTruthy();
   expect(screen.getByText("5 分钟 放松")).toBeTruthy();
@@ -104,9 +109,13 @@ test("mixed units render separate labelled lanes without dropping time actions",
     />,
   );
   expect(screen.getAllByRole("image")).toHaveLength(2);
-  expect(screen.getByText("强度均值 · W")).toBeTruthy();
-  expect(screen.getByText("强度均值 · %FTP")).toBeTruthy();
-  expect(screen.getByRole("image", { name: /训练结构（W）.*平均强度 60 %FTP/ })).toBeTruthy();
+  expect(screen.getByText("计划区间中值 · W")).toBeTruthy();
+  expect(screen.getByText("计划区间中值 · %FTP")).toBeTruthy();
+  expect(
+    screen.getByRole("image", {
+      name: /训练结构（W）.*计划强度区间中值 60 %FTP/,
+    }),
+  ).toBeTruthy();
 });
 
 const hiddenChartCases: WorkoutSegment[][] = [
@@ -121,6 +130,34 @@ test.each(hiddenChartCases.map((items) => ({ items })))(
   async ({ items }) => {
     await render(<WorkoutProfileChart segments={items} />);
     expect(screen.queryByRole("image")).toBeNull();
-    expect(screen.queryByText(/强度均值/)).toBeNull();
+    expect(screen.queryByText(/计划区间中值/)).toBeNull();
   },
 );
+
+test("before and after use one scale per unit, so a power increase remains visible", () => {
+  const before = [segments[0]];
+  const after = [
+    segments[1],
+    {
+      ...segments[2],
+      intensity: { kind: "ftp_percent" as const, min: 60, max: 80 },
+    },
+  ];
+  const maximums = comparisonMaximums(before, after);
+  expect(buildWorkoutProfile(before, maximums)!.lanes[0].maximum).toBe(240);
+  expect(buildWorkoutProfile(after, maximums)!.lanes).toEqual([
+    { kind: "power_watt", unit: "W", maximum: 240 },
+    { kind: "ftp_percent", unit: "%FTP", maximum: 90 },
+  ]);
+});
+
+test("mixed and distance-only courses explicitly disclose the omitted distance", async () => {
+  const view = await render(
+    <WorkoutProfileChart segments={[segments[0], distance]} />,
+  );
+  expect(view.getByText(/另含 24 公里距离动作/)).toBeTruthy();
+  expect(view.getByText("10 分钟")).toBeTruthy();
+  await view.rerender(<WorkoutProfileChart segments={[distance]} />);
+  expect(view.queryByRole("image")).toBeNull();
+  expect(view.getByText(/距离目标共 24 公里/)).toBeTruthy();
+});

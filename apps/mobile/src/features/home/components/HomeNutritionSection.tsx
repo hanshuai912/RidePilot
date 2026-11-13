@@ -1,6 +1,12 @@
 import { View } from "react-native";
 import type { NutritionPlanResponse } from "@ridepilot/contracts";
-import { AppText, Badge, Button, Card } from "../../../components/ui";
+import {
+  AppText,
+  Badge,
+  Button,
+  Card,
+  Disclosure,
+} from "../../../components/ui";
 import {
   mealTypeLabels,
   formatNutrient,
@@ -52,51 +58,70 @@ export function HomeNutritionSection({
               <AppText variant="label" muted>
                 正式饮食建议 · 未作为实际摄入记录
               </AppText>
-              {resource.data.items.map((item) => (
-                <View
-                  key={item.id}
-                  className="gap-2 rounded-xl bg-surface-2 p-3"
-                >
-                  <View className="flex-row flex-wrap items-center gap-2">
-                    <Badge
-                      variant={
-                        item.mealType.includes("WORKOUT") ? "brand" : "neutral"
-                      }
-                    >
-                      {mealTypeLabels[item.mealType]}
-                    </Badge>
+              <AppText variant="card">
+                已安排 {resource.data.items.length} 个餐次
+              </AppText>
+              <AppText variant="caption" muted>
+                餐食与骑行补给的时间、份量可在饮食页查看和调整。
+              </AppText>
+              {resource.data.items.some(
+                (item) =>
+                  item.warnings.length ||
+                  item.foods.some((food) => food.ingredientStatus !== "KNOWN"),
+              ) ? (
+                <AppText variant="caption" className="text-warning">
+                  部分餐次有注意事项或成分待确认，用餐前请核对。
+                </AppText>
+              ) : null}
+              <Disclosure title="展开今日餐次">
+                {resource.data.items.map((item) => (
+                  <View
+                    key={item.id}
+                    className="gap-2 rounded-xl bg-surface-2 p-3"
+                  >
+                    <View className="flex-row flex-wrap items-center gap-2">
+                      <Badge
+                        variant={
+                          item.mealType.includes("WORKOUT")
+                            ? "brand"
+                            : "neutral"
+                        }
+                      >
+                        {mealTypeLabels[item.mealType]}
+                      </Badge>
+                      <AppText variant="caption" muted>
+                        {item.scheduledLocalTime}
+                      </AppText>
+                    </View>
+                    <AppText variant="card">{item.title}</AppText>
                     <AppText variant="caption" muted>
-                      {item.scheduledLocalTime}
+                      能量 {formatNutrient(item.nutrients.energyKcal, "kcal")} ·
+                      碳水 {formatNutrient(item.nutrients.carbohydrateG, "g")}
                     </AppText>
+                    <AppText variant="label" muted>
+                      {item.nutritionSource === "AI_ESTIMATE"
+                        ? "AI 估算 · 请核对食品标签"
+                        : "依已记录来源提供"}
+                    </AppText>
+                    {item.warnings.map((warning) => (
+                      <AppText
+                        key={warning}
+                        variant="caption"
+                        className="text-warning"
+                      >
+                        {warning}
+                      </AppText>
+                    ))}
+                    {item.foods.some(
+                      (food) => food.ingredientStatus !== "KNOWN",
+                    ) ? (
+                      <AppText variant="caption" className="text-warning">
+                        部分成分尚未确认，请核对过敏原与饮食禁忌。
+                      </AppText>
+                    ) : null}
                   </View>
-                  <AppText variant="card">{item.title}</AppText>
-                  <AppText variant="caption" muted>
-                    能量 {formatNutrient(item.nutrients.energyKcal, "kcal")} ·
-                    碳水 {formatNutrient(item.nutrients.carbohydrateG, "g")}
-                  </AppText>
-                  <AppText variant="label" muted>
-                    {item.nutritionSource === "AI_ESTIMATE"
-                      ? "AI 估算 · 请核对食品标签"
-                      : "依已记录来源提供"}
-                  </AppText>
-                  {item.warnings.map((warning) => (
-                    <AppText
-                      key={warning}
-                      variant="caption"
-                      className="text-warning"
-                    >
-                      {warning}
-                    </AppText>
-                  ))}
-                  {item.foods.some(
-                    (food) => food.ingredientStatus !== "KNOWN",
-                  ) ? (
-                    <AppText variant="caption" className="text-warning">
-                      部分成分尚未确认，请核对过敏原与饮食禁忌。
-                    </AppText>
-                  ) : null}
-                </View>
-              ))}
+                ))}
+              </Disclosure>
               <Button variant="secondary" onPress={onOpen}>
                 查看与调整餐食 / 补给
               </Button>

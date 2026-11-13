@@ -1,3 +1,4 @@
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useState } from "react";
 import { Modal, Pressable, ScrollView, View } from "react-native";
 import type { NutritionProfileInput } from "@ridepilot/contracts";
@@ -22,23 +23,33 @@ function Choice<T extends string>({
   selected,
   label,
   onPress,
+  multiple = false,
+  disabled = false,
 }: {
   value: T;
   selected: boolean;
   label: string;
   onPress: (value: T) => void;
+  multiple?: boolean;
+  disabled?: boolean;
 }) {
   return (
     <Pressable
-      accessibilityRole="radio"
-      accessibilityState={{ selected }}
-      className={`rounded-full border px-3 py-2 ${selected ? "border-brand bg-brand-subtle" : "border-border bg-surface-2"}`}
+      accessibilityRole={multiple ? "checkbox" : "radio"}
+      accessibilityState={
+        multiple
+          ? { checked: selected, disabled }
+          : { checked: selected, selected, disabled }
+      }
+      disabled={disabled}
+      className={`min-h-12 justify-center rounded-full border px-3 py-2 active:opacity-70 ${selected ? "border-brand bg-brand-subtle" : "border-border bg-surface-2"}`}
       onPress={() => onPress(value)}
     >
       <AppText
         variant="caption"
         className={selected ? "text-brand" : "text-secondary"}
       >
+        {selected ? "已选 · " : ""}
         {label}
       </AppText>
     </Pressable>
@@ -60,6 +71,7 @@ function NutritionProfileEditor({
   onClose: () => void;
   onSave: (input: NutritionProfileInput) => Promise<void>;
 }) {
+  const insets = useSafeAreaInsets();
   const [form, setForm] = useState<NutritionProfileInput>(
     profile ?? defaultNutritionProfile,
   );
@@ -79,7 +91,10 @@ function NutritionProfileEditor({
       }}
     >
       <View className="flex-1 justify-end bg-black/70">
-        <View className="max-h-[92%] rounded-t-[24px] border-t border-border bg-background px-5 pb-5 pt-4">
+        <View
+          style={{ paddingBottom: Math.max(20, insets.bottom) }}
+          className="max-h-[92%] rounded-t-[24px] border-t border-border bg-background px-5 pb-5 pt-4"
+        >
           <View className="mb-4 flex-row items-center justify-between">
             <View>
               <AppText variant="section">饮食档案</AppText>
@@ -91,6 +106,7 @@ function NutritionProfileEditor({
               accessibilityRole="button"
               accessibilityLabel="关闭饮食档案"
               disabled={saving}
+              className="min-h-12 min-w-12 items-center justify-center"
               onPress={onClose}
             >
               <AppText className="text-brand">关闭</AppText>
@@ -115,6 +131,7 @@ function NutritionProfileEditor({
                     key={value}
                     value={value}
                     label={label}
+                    disabled={saving}
                     selected={form.dietStyle === value}
                     onPress={(next) => set("dietStyle", next)}
                   />
@@ -136,6 +153,8 @@ function NutritionProfileEditor({
                     key={value}
                     value={value}
                     label={label}
+                    multiple
+                    disabled={saving}
                     selected={form.habits.includes(value)}
                     onPress={(next) => set("habits", toggle(form.habits, next))}
                   />
@@ -157,6 +176,8 @@ function NutritionProfileEditor({
                     key={value}
                     value={value}
                     label={label}
+                    multiple
+                    disabled={saving}
                     selected={form.allergens.includes(value)}
                     onPress={(next) =>
                       set("allergens", toggle(form.allergens, next))
@@ -180,6 +201,8 @@ function NutritionProfileEditor({
                     key={value}
                     value={value}
                     label={label}
+                    multiple
+                    disabled={saving}
                     selected={form.restrictions.includes(value)}
                     onPress={(next) =>
                       set("restrictions", toggle(form.restrictions, next))
@@ -190,6 +213,8 @@ function NutritionProfileEditor({
               {form.restrictions.includes("OTHER") ? (
                 <Input
                   className="mt-3"
+                  accessibilityLabel="其他饮食限制"
+                  editable={!saving}
                   value={form.restrictionNote ?? ""}
                   placeholder="请说明具体限制"
                   onChangeText={(value) => set("restrictionNote", value)}
@@ -203,7 +228,11 @@ function NutritionProfileEditor({
             </Card>
           </ScrollView>
           {error ? (
-            <AppText variant="caption" className="mb-3 text-negative">
+            <AppText
+              accessibilityRole="alert"
+              variant="caption"
+              className="mb-3 text-negative"
+            >
               {error}
             </AppText>
           ) : null}

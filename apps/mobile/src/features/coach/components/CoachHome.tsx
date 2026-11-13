@@ -24,20 +24,23 @@ function QuickAction({
       accessibilityHint={description}
       accessibilityState={{ disabled }}
       disabled={disabled}
-      className={`min-h-[132px] min-w-0 flex-1 rounded-xl bg-surface p-4 active:bg-surface-2 ${disabled ? "opacity-50" : ""}`}
+      className={`min-h-12 min-w-0 flex-row items-center gap-3 rounded-xl bg-surface p-4 active:bg-surface-2 ${disabled ? "opacity-50" : ""}`}
       onPress={onPress}
     >
-      <View className="mb-3 h-8 w-8 items-center justify-center rounded-lg bg-surface-2">
+      <View
+        className="h-8 w-8 items-center justify-center rounded-lg bg-surface-2"
+        accessible={false}
+      >
         {icon}
       </View>
-      <View>
+      <View className="min-w-0 flex-1">
         <AppText variant="body" className="font-medium">
           {label}
         </AppText>
+        <AppText variant="caption" className="mt-1 text-secondary">
+          {description}
+        </AppText>
       </View>
-      <AppText variant="caption" className="mt-2 text-secondary">
-        {description}
-      </AppText>
     </Pressable>
   );
 }
@@ -71,18 +74,18 @@ export function CoachHome({
           </Button>
         </View>
       ) : null}
-      <View className="flex-row gap-3">
+      <View className="gap-3">
         <QuickAction
           icon={<RefreshCw color={colors.brand} size={18} />}
           label="调整训练"
-          description="选择范围与调整原因"
+          description="先选择范围与调整原因"
           onPress={() => onTask("REPLAN")}
           disabled={busy}
         />
         <QuickAction
           icon={<CalendarDays color={colors.brand} size={18} />}
           label="调整本周"
-          description="快速生成本周草稿"
+          description="立即生成本周调整草稿，随后预览"
           onPress={onCurrentWeek}
           disabled={busy}
         />

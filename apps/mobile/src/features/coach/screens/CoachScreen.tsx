@@ -204,7 +204,7 @@ export function CoachScreen() {
     return (
       <CoachPage
         eyebrow={`正式计划 v${resources.planStatus.planVersion}`}
-        title="计划已建立"
+        title="训练安排已更新"
         onBack={backToCoach}
         compactHeader
         description=""
@@ -220,7 +220,7 @@ export function CoachScreen() {
             </AppText>
           </View>
           <AppText variant="title" className="mt-5 text-center">
-            你的训练计划已准备好
+            本次训练安排已应用
           </AppText>
           <AppText variant="caption" muted className="mt-2 text-center">
             首页和训练日历现在会展示正式安排。后续变化仍会先生成草稿，确认后才会应用。
@@ -231,10 +231,10 @@ export function CoachScreen() {
             正式计划 v{resources.planStatus.planVersion}
           </AppText>
           <AppText variant="card" className="mt-2">
-            首个训练周期
+            已更新 {flow.appliedDates.length} 个训练日
           </AppText>
           <AppText variant="caption" muted className="mt-1">
-            本次只应用骑行训练计划；饮食与禁忌信息已保留在本次引导，未提交后端。
+            本次更新涉及骑行训练。可在下方核对补给是否需要随训练调整。
           </AppText>
         </View>
         <TrainingNutritionLinkCard dates={flow.appliedDates} />
@@ -403,6 +403,7 @@ export function CoachScreen() {
           ftpWatts={resources.ftpWatts}
           profile={resources.profile}
           onFtp={() => router.push("/cycling-power-zones")}
+          onProfile={() => router.push("/personal-info")}
           bodyStatus={flow.bodyStatus}
           setBodyStatus={flow.setBodyStatus}
           bodyNote={flow.bodyNote}
@@ -591,9 +592,9 @@ export function CoachScreen() {
     return (
       <CoachPage
         eyebrow="候选草稿 · 尚未应用"
-        title="选择方案"
-        description="选择草稿并预览，确认后才会应用。"
-        primary="预览所选方案"
+        title="训练草稿概览"
+        description="先了解训练量，再核对课程变化与限制。"
+        primary="预览课程与变化"
         onPrimary={() => {
           flow.goTo("diff");
           router.push(coachRoute("diff"));
@@ -613,11 +614,7 @@ export function CoachScreen() {
       >
         {flow.proposal ? (
           <>
-            <PlanCandidates
-              proposal={flow.proposal}
-              selected
-              onSelect={() => undefined}
-            />
+            <PlanCandidates proposal={flow.proposal} />
             <Button
               variant="secondary"
               onPress={() => {

@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import { router, useFocusEffect } from "expo-router";
 import { View } from "react-native";
-import { AppText, Button, Card } from "../../../components/ui";
+import { AppText, Button, Card, Disclosure } from "../../../components/ui";
 import { GoalListCard } from "../components/GoalListCard";
 import { AddGoalButton } from "../components/AddGoalButton";
 import { useAuth } from "../../auth/hooks/AuthProvider";
@@ -94,10 +94,12 @@ export function GoalsScreen() {
           </View>
         ) : null}
         {history.length ? (
-          <View className="gap-3">
-            <AppText variant="section">历史目标</AppText>
+          <Disclosure
+            title="历史目标"
+            summary={`${history.length} 个已关闭目标`}
+          >
             {history.map(renderGoal)}
-          </View>
+          </Disclosure>
         ) : null}
         {goals && !goals.length ? (
           <Card className="gap-2 p-5">

@@ -21,8 +21,10 @@ export function Editor({
   onDelete,
   onSave,
   saveLabel = "保存当天课程",
+  metadataRequired = false,
 }: {
   saveLabel?: string;
+  metadataRequired?: boolean;
   draft: Draft;
   setDraft: (draft: Draft) => void;
   hasFtp: boolean;
@@ -49,7 +51,7 @@ export function Editor({
         <Card style={styles.fields}>
           <View style={styles.field}>
             <AppText variant="caption" muted>
-              课程名称（选填）
+              课程名称（{metadataRequired ? "必填" : "选填"}）
             </AppText>
             <TextInput
               accessibilityLabel="课程名称"
@@ -63,7 +65,7 @@ export function Editor({
           </View>
           <View style={styles.field}>
             <AppText variant="caption" muted>
-              训练目的（选填）
+              训练目的（{metadataRequired ? "必填" : "选填"}）
             </AppText>
             <TextInput
               accessibilityLabel="训练目的"
@@ -81,22 +83,26 @@ export function Editor({
         <AppText variant="section">课程概览</AppText>
         <Card style={styles.overview}>
           <View style={styles.totals}>
-            <View style={styles.metric}>
-              <AppText variant="caption" muted>
-                时间目标
-              </AppText>
-              <AppText variant="title" style={styles.value}>
-                {totals.minutes ? `${totals.minutes} 分钟` : "—"}
-              </AppText>
-            </View>
-            <View style={styles.metric}>
-              <AppText variant="caption" muted>
-                距离目标
-              </AppText>
-              <AppText variant="title" style={styles.value}>
-                {totals.kilometers ? `${totals.kilometers} 公里` : "—"}
-              </AppText>
-            </View>
+            {totals.minutes > 0 ? (
+              <View style={styles.metric}>
+                <AppText variant="caption" muted>
+                  时间目标
+                </AppText>
+                <AppText variant="card" style={styles.value}>
+                  {totals.minutes ? `${totals.minutes} 分钟` : "—"}
+                </AppText>
+              </View>
+            ) : null}
+            {totals.kilometers > 0 ? (
+              <View style={styles.metric}>
+                <AppText variant="caption" muted>
+                  距离目标
+                </AppText>
+                <AppText variant="card" style={styles.value}>
+                  {totals.kilometers ? `${totals.kilometers} 公里` : "—"}
+                </AppText>
+              </View>
+            ) : null}
           </View>
           <WorkoutProfileChart segments={draft.segments} />
           {totals.kilometers > 0 ? (

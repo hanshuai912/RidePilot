@@ -41,6 +41,11 @@ export function HeartRateZonesScreen() {
             saving={editor.saving}
             errors={editor.errors}
           />
+          {editor.dirty ? (
+            <AppText variant="caption" className="text-warning">
+              以下区间为未保存预览，保存后才更新心率设置。
+            </AppText>
+          ) : null}
           <HeartRateZones values={editor.values} />
         </>
       ) : null}

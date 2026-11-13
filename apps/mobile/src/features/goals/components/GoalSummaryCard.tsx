@@ -39,6 +39,11 @@ export function GoalSummaryCard({
         <View className="mt-4 flex-row flex-wrap gap-x-6 gap-y-3">
           {goal.targetFtpWatts ? (
             <View>
+              <AppText variant="caption" className="text-secondary">
+                {currentFtp
+                  ? `当前 FTP ${currentFtp} W → 目标`
+                  : "当前 FTP 未设置"}
+              </AppText>
               <AppText variant="label" className="text-secondary">
                 目标 FTP
               </AppText>
@@ -73,9 +78,11 @@ export function GoalSummaryCard({
         <AppText variant="caption" className="tabular-nums text-secondary">
           目标日期 · {goalDateLabel(goal.targetDate)}
         </AppText>
-        <AppText variant="caption" className="tabular-nums text-secondary">
-          {currentFtp ? `当前 FTP ${currentFtp} W` : "尚未设置 FTP"}
-        </AppText>
+        {!goal.targetFtpWatts ? (
+          <AppText variant="caption" className="tabular-nums text-secondary">
+            {currentFtp ? `当前 FTP ${currentFtp} W` : "尚未设置 FTP"}
+          </AppText>
+        ) : null}
       </View>
       {goal.successCriteria ? (
         <View className="mt-4 rounded-xl bg-surface-2 p-3">

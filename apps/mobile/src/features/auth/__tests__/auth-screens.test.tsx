@@ -113,6 +113,20 @@ test("register requires matching passwords and a six-digit test code", async () 
   );
 });
 
+test("register previews special symbols using the same character rule as validation", async () => {
+  const screen = await render(<RegisterScreen />);
+  await fireEvent.changeText(
+    screen.getByPlaceholderText("请设置密码"),
+    "中文中文AB ",
+  );
+  expect(screen.getByText("未满足 · 特殊符号")).toBeTruthy();
+  await fireEvent.changeText(
+    screen.getByPlaceholderText("请设置密码"),
+    "中文中文AB!",
+  );
+  expect(screen.getByText("已满足 · 特殊符号")).toBeTruthy();
+});
+
 test("login failure keeps the form and shows a safe credential error", async () => {
   login.mockRejectedValueOnce(
     new AuthApiError("手机号或密码错误", 401, "INVALID_CREDENTIALS"),

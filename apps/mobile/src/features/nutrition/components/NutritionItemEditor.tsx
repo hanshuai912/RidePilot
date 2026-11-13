@@ -1,3 +1,4 @@
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useState } from "react";
 import { Modal, ScrollView, View } from "react-native";
 import {
@@ -11,18 +12,22 @@ export function NutritionItemEditor({
   busy,
   onSave,
   onClose,
+  saveError,
 }: {
   item: NutritionItemDraft;
   busy: boolean;
   onSave: (item: NutritionItemDraft) => Promise<boolean | undefined>;
   onClose: () => void;
+  saveError?: string | null;
 }) {
+  const insets = useSafeAreaInsets();
   const [time, setTime] = useState(item.scheduledLocalTime);
   const [amounts, setAmounts] = useState(
     item.foods.map((food) => String(food.amount)),
   );
   const [error, setError] = useState<string | null>(null);
   const save = async () => {
+    setError(null);
     const changed = amounts.some(
       (value, index) => Number(value) !== item.foods[index].amount,
     );
@@ -52,8 +57,16 @@ export function NutritionItemEditor({
       setError("请输入有效时间（HH:mm）及大于 0、不超过 10000 的份量");
       return;
     }
-    if (await onSave(parsed.data)) onClose();
-    else setError("保存未成功，请重试；可取消编辑后查看页面提示");
+    try {
+      if (await onSave(parsed.data)) onClose();
+      else setError("保存未成功，请重试。输入内容已保留。");
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "保存失败，请重试。输入内容已保留。",
+      );
+    }
   };
   return (
     <Modal
@@ -67,6 +80,7 @@ export function NutritionItemEditor({
       <View className="flex-1 justify-end bg-black/70">
         <ScrollView
           className="max-h-[85%] rounded-t-[24px] border-t border-border bg-background p-5"
+          contentContainerStyle={{ paddingBottom: insets.bottom }}
           keyboardShouldPersistTaps="handled"
         >
           <AppText variant="section">编辑{item.title}</AppText>
@@ -74,6 +88,7 @@ export function NutritionItemEditor({
             用餐时间（HH:mm）
           </AppText>
           <Input
+            editable={!busy}
             accessibilityLabel="用餐时间"
             value={time}
             onChangeText={setTime}
@@ -86,6 +101,7 @@ export function NutritionItemEditor({
                 {food.name}（{food.unit}）
               </AppText>
               <Input
+                editable={!busy}
                 placeholder={`${food.name}（${food.unit}）`}
                 accessibilityLabel={`${food.name}份量`}
                 keyboardType="decimal-pad"
@@ -104,8 +120,10 @@ export function NutritionItemEditor({
           <AppText variant="caption" muted className="mt-3">
             修改份量后营养值将标为待估算。食材、单位和过敏原信息保留，保存后需重新校验并确认应用。
           </AppText>
-          {error ? (
-            <AppText className="mt-3 text-negative">{error}</AppText>
+          {saveError || error ? (
+            <AppText accessibilityRole="alert" className="mt-3 text-negative">
+              {saveError || error}
+            </AppText>
           ) : null}
           <Button className="mt-4" loading={busy} onPress={() => void save()}>
             保存为草稿

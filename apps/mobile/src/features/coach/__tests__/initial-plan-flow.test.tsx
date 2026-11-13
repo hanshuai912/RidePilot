@@ -835,7 +835,7 @@ test("a changed plan version blocks generation and preserves the selected scope 
 
 test.each([
   ["loading", "生成草稿", "/(tabs)/coach/nutrition"],
-  ["success", "计划已建立", "/(tabs)/coach"],
+  ["success", "训练安排已更新", "/(tabs)/coach"],
 ] as const)(
   "%s route keeps the short navigation title fixed and supports back",
   async (stage, title, destination) => {

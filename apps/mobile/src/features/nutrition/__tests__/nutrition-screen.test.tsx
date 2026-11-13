@@ -149,7 +149,7 @@ test("shows meals and nutrition linking while profile editing stays in the heade
   expect(screen.getByRole("button", { name: "替换早餐" })).toBeTruthy();
   await fireEvent.press(screen.getByRole("button", { name: "编辑饮食档案" }));
   expect(screen.getByText("饮食方式")).toBeTruthy();
-  expect(screen.getByText("均衡饮食")).toBeTruthy();
+  expect(screen.getByText("已选 · 均衡饮食")).toBeTruthy();
   await fireEvent.press(screen.getByRole("button", { name: "关闭饮食档案" }));
   expect(screen.queryByText("饮食方式")).toBeNull();
   expect(screen.queryByText("均衡饮食")).toBeNull();
@@ -247,4 +247,27 @@ test("keeps an AI result as a draft until the user applies it", async () => {
       0,
     ),
   );
+});
+
+test("profile save failure remains inside the open sheet and preserves selected restrictions", async () => {
+  mockedApi.getProfile.mockResolvedValue(profile);
+  mockedApi.saveProfile.mockRejectedValueOnce(
+    new Error("饮食档案版本已变化，请重新读取"),
+  );
+  const view = await render(<NutritionScreen />);
+  await waitFor(() =>
+    expect(view.getByRole("button", { name: "生成今日营养草稿" })).toBeTruthy(),
+  );
+  await fireEvent.press(view.getByRole("button", { name: "编辑饮食档案" }));
+  const allergen = view.getByRole("checkbox", { name: "花生" });
+  await fireEvent.press(allergen);
+  expect(view.getByRole("checkbox", { name: "已选 · 花生" })).toBeChecked();
+  await fireEvent.press(view.getByRole("button", { name: "保存饮食档案" }));
+  await view.findByRole("alert");
+  expect(view.getByRole("alert").props.children).toBe(
+    "饮食档案版本已变化，请重新读取",
+  );
+  expect(view.getByRole("button", { name: "关闭饮食档案" })).toBeTruthy();
+  expect(view.getByRole("checkbox", { name: "已选 · 花生" })).toBeChecked();
+  expect(mockedApi.saveProfile.mock.calls[0][1].allergens).toContain("PEANUT");
 });

@@ -24,6 +24,7 @@ export function NutritionEditableMeals({
 }) {
   const [editing, setEditing] = useState<Item | null>(null);
   const [busy, setBusy] = useState(false);
+  const [editorError, setEditorError] = useState<string | null>(null);
   return (
     <View className="gap-3">
       {plan.items.map((item) => (
@@ -31,7 +32,10 @@ export function NutritionEditableMeals({
           key={item.id}
           item={item}
           onSwap={onSwap}
-          onEdit={setEditing}
+          onEdit={(item) => {
+            setEditorError(null);
+            setEditing(item);
+          }}
         />
       ))}
       {editing ? (
@@ -50,9 +54,11 @@ export function NutritionEditableMeals({
             notes: editing.notes,
           }}
           busy={busy}
+          saveError={editorError}
           onClose={() => setEditing(null)}
           onSave={async (item) => {
             setBusy(true);
+            setEditorError(null);
             try {
               onProposal(
                 await nutritionApi.createItemEdit(token, {
@@ -64,6 +70,11 @@ export function NutritionEditableMeals({
               );
               return true;
             } catch (cause) {
+              setEditorError(
+                cause instanceof Error
+                  ? cause.message
+                  : "保存餐次草稿失败，请重试",
+              );
               onError(
                 cause instanceof Error
                   ? cause.message

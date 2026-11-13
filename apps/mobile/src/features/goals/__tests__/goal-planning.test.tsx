@@ -416,7 +416,7 @@ test.each(["missing FTP", "paused goal"])(
 test("stage planning explanation opens only from its icon and closes without changing inputs or generating", async () => {
   await detail();
   const info = await screen.findByRole("button", { name: "查看阶段安排说明" });
-  expect(screen.queryByText("综合训练规划")).toBeNull();
+  expect(screen.getByText("综合训练规划")).toBeTruthy();
   expect(screen.getAllByText("阶段安排")).toHaveLength(1);
   expect(screen.queryByText(/阶段和课程由全部进行中目标共同规划/)).toBeNull();
   expect(screen.queryByText(stagePlan.summary)).toBeNull();
@@ -444,7 +444,7 @@ test("missing stage plans still explain shared planning without a generated summ
   api.activeStages.mockResolvedValue(null);
   await detail();
   await screen.findByText("尚无阶段安排");
-  expect(screen.queryByText("综合训练规划")).toBeNull();
+  expect(screen.getByText("综合训练规划")).toBeTruthy();
   await fireEvent.press(
     screen.getByRole("button", { name: "查看阶段安排说明" }),
   );
@@ -544,6 +544,8 @@ test("goals are grouped by current primary, other and historical goals and cards
   await screen.findByText("当前主目标");
   expect(screen.getByText("其他目标")).toBeTruthy();
   expect(screen.getByText("历史目标")).toBeTruthy();
+  expect(screen.queryByText("已完成 · 次目标")).toBeNull();
+  await fireEvent.press(screen.getByRole("button", { name: "历史目标" }));
   expect(screen.getByText("已完成 · 次目标")).toBeTruthy();
   expect(
     screen
@@ -613,11 +615,14 @@ test("switching goal details retains the shared stages and tests without reloadi
     planningGoals: [goal, secondary],
   });
   await detail();
-  const target = await screen.findByRole("button", {
+  await fireEvent.press(
+    await screen.findByRole("button", { name: "切换查看目标" }),
+  );
+  const target = await screen.findByRole("radio", {
     name: "切换目标：完成百公里路线",
   });
   expect(
-    screen.getByRole("button", { name: "切换目标：提升耐力" }).props
+    screen.getByRole("radio", { name: "切换目标：提升耐力" }).props
       .accessibilityState.selected,
   ).toBe(true);
   await fireEvent.press(target);
@@ -625,16 +630,17 @@ test("switching goal details retains the shared stages and tests without reloadi
   expect(coach.goal).toHaveBeenCalledTimes(1);
   expect(api.activeStages).toHaveBeenCalledTimes(1);
   expect(
-    screen.getByRole("button", { name: "切换目标：完成百公里路线" }).props
+    screen.getByRole("radio", { name: "切换目标：完成百公里路线" }).props
       .accessibilityState.selected,
   ).toBe(true);
   expect(screen.getByText("基础耐力阶段")).toBeTruthy();
-  expect(jest.mocked(assessmentsApi.list)).toHaveBeenLastCalledWith("token");
+  // Goal browsing no longer depends on legacy assessment scheduling.
+  expect(jest.mocked(assessmentsApi.list)).not.toHaveBeenCalled();
   await fireEvent.press(
-    screen.getByRole("button", { name: "切换目标：暂停的爬坡目标" }),
+    screen.getByRole("radio", { name: "切换目标：暂停的爬坡目标" }),
   );
   expect(
-    screen.getByRole("button", { name: "切换目标：暂停的爬坡目标" }).props
+    screen.getByRole("radio", { name: "切换目标：暂停的爬坡目标" }).props
       .accessibilityState.selected,
   ).toBe(true);
   expect(screen.getByText("基础耐力阶段")).toBeTruthy();
@@ -679,8 +685,9 @@ test("switching inspected goals preserves the shared planning inputs and editing
     await screen.findByLabelText("课程补充要求"),
     "综合训练保留休息日",
   );
+  await fireEvent.press(screen.getByRole("button", { name: "切换查看目标" }));
   await fireEvent.press(
-    await screen.findByRole("button", { name: "切换目标：另一目标" }),
+    await screen.findByRole("radio", { name: "切换目标：另一目标" }),
   );
   expect(screen.queryByText("返回将放弃当前生成条件，确认离开？")).toBeNull();
   expect(screen.getByLabelText("课程补充要求").props.value).toBe(
@@ -707,7 +714,10 @@ test("failure to load other goals can retry without hiding the current goal", as
     },
   ]);
   await fireEvent.press(screen.getByText("重试读取其他目标"));
-  await screen.findByRole("button", { name: "切换目标：重试后可见的次目标" });
+  await fireEvent.press(
+    await screen.findByRole("button", { name: "切换查看目标" }),
+  );
+  await screen.findByRole("radio", { name: "切换目标：重试后可见的次目标" });
   expect(screen.queryByText("其他目标读取失败")).toBeNull();
 });
 

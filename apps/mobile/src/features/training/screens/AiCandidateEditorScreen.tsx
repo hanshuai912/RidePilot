@@ -163,6 +163,7 @@ function CandidateEditor({
           }
           onSave={() => void save()}
           saveLabel="保存草稿并预览"
+          metadataRequired
         />
       ) : null}
       {error ? (

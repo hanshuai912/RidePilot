@@ -22,7 +22,6 @@ export function StageTimeline({
   showSummary?: boolean;
 }) {
   const [expandedId, setExpandedId] = useState<string>();
-  const interactive = !!onReview;
   const defaultStage =
     plan.stages.find(
       (stage) => today && stage.startDate <= today && stage.endDate >= today,
@@ -49,7 +48,7 @@ export function StageTimeline({
           const current =
             !!today && stage.startDate <= today && stage.endDate >= today;
           const ended = !!today && stage.endDate < today;
-          const expanded = !interactive || openId === stage.id;
+          const expanded = openId === stage.id;
           const status =
             plan.status === "DRAFT"
               ? "待确认"
@@ -74,13 +73,11 @@ export function StageTimeline({
                     {status}
                   </Badge>
                 ) : null}
-                {interactive ? (
-                  expanded ? (
-                    <ChevronUp color={colors.textSecondary} size={18} />
-                  ) : (
-                    <ChevronDown color={colors.textSecondary} size={18} />
-                  )
-                ) : null}
+                {expanded ? (
+                  <ChevronUp color={colors.textSecondary} size={18} />
+                ) : (
+                  <ChevronDown color={colors.textSecondary} size={18} />
+                )}
               </View>
               <AppText variant="card" className="mt-3">
                 {stage.title}
@@ -114,19 +111,15 @@ export function StageTimeline({
                 ) : null}
               </View>
               <Card className="mb-4 min-w-0 flex-1">
-                {interactive ? (
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={`${expanded ? "收起" : "展开"}阶段：${stage.title}`}
-                    accessibilityState={{ expanded }}
-                    onPress={() => setExpandedId(expanded ? "" : stage.id)}
-                    className="min-h-11 active:opacity-70"
-                  >
-                    {content}
-                  </Pressable>
-                ) : (
-                  content
-                )}
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`${expanded ? "收起" : "展开"}阶段：${stage.title}`}
+                  accessibilityState={{ expanded }}
+                  onPress={() => setExpandedId(expanded ? "" : stage.id)}
+                  className="min-h-11 active:opacity-70"
+                >
+                  {content}
+                </Pressable>
                 {expanded ? (
                   <View className="mt-3 gap-3">
                     <AppText>{stage.purpose}</AppText>

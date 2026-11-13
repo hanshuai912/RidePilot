@@ -106,10 +106,13 @@ export function ProfileScreen() {
   const [profile, setProfile] = useState<ProfileResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
 
   useFocusEffect(
     useCallback(() => {
+      void attempt;
       if (!token) return;
+      setLoading(true);
       let active = true;
       void getProfile(token)
         .then((next) => {
@@ -126,7 +129,7 @@ export function ProfileScreen() {
       return () => {
         active = false;
       };
-    }, [token]),
+    }, [token, attempt]),
   );
 
   return (
@@ -140,9 +143,21 @@ export function ProfileScreen() {
 
       {loading ? <Spinner accessibilityLabel="正在加载个人资料" /> : null}
       {error ? (
-        <AppText variant="caption" className="mb-3 text-warning">
-          {error}
-        </AppText>
+        <View className="mb-3 gap-3">
+          <AppText
+            accessibilityRole="alert"
+            variant="caption"
+            className="text-negative"
+          >
+            {error}
+          </AppText>
+          <Button
+            variant="secondary"
+            onPress={() => setAttempt((value) => value + 1)}
+          >
+            重新读取个人资料
+          </Button>
+        </View>
       ) : null}
       {profile ? (
         <>
@@ -168,7 +183,7 @@ export function ProfileScreen() {
                 <View className="min-w-0 flex-1">
                   <View className="flex-row items-center gap-1.5">
                     <View className="h-1.5 w-1.5 rounded-full bg-positive" />
-                    <AppText style={styles.statusText}>档案已建立</AppText>
+                    <AppText style={styles.statusText}>个人档案</AppText>
                   </View>
                   <AppText style={styles.profileName}>
                     {profile.displayName}

@@ -1,6 +1,12 @@
 import { useCallback, useRef, useState } from "react";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { AppText, Badge, Button, Card } from "../../../components/ui";
+import {
+  AppText,
+  Badge,
+  Button,
+  Card,
+  Disclosure,
+} from "../../../components/ui";
 import { TrainingPage } from "../../training/components/TrainingPage";
 import { useAuth } from "../../auth/hooks/AuthProvider";
 import { coachApi } from "../../coach/services/coach.api";
@@ -21,12 +27,14 @@ export function RaceDetailScreen() {
   const [result, setResult] =
     useState<Awaited<ReturnType<typeof coachApi.raceResult>>>(null);
   const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
   const [busy, setBusy] = useState(false);
   const pending = useRef(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [nutrition, setNutrition] = useState<RaceNutritionState | null>(null);
   useFocusEffect(
     useCallback(() => {
+      void attempt;
       if (!token || !raceId) return;
       let active = true;
       Promise.all([
@@ -50,7 +58,7 @@ export function RaceDetailScreen() {
       return () => {
         active = false;
       };
-    }, [token, raceId]),
+    }, [token, raceId, attempt]),
   );
   const saveResult = async (input: RaceResultInput) => {
     if (!token || !race || pending.current) return;
@@ -103,6 +111,7 @@ export function RaceDetailScreen() {
       title="赛事详情"
       loading={!race && !error}
       error={!race ? error : undefined}
+      retry={() => setAttempt((value) => value + 1)}
     >
       {race && error ? (
         <AppText className="text-negative">{error}</AppText>
@@ -124,44 +133,7 @@ export function RaceDetailScreen() {
                   ? "已完成"
                   : "已取消"}
             </AppText>
-            {race.status !== "COMPLETED" ? (
-              <Button
-                className="mt-4"
-                variant="secondary"
-                onPress={() =>
-                  router.push({
-                    pathname: "/races/edit",
-                    params: { raceId: race.id },
-                  } as never)
-                }
-              >
-                编辑赛事
-              </Button>
-            ) : null}
-            {race.status === "CONFIRMED" ? (
-              <Button
-                className="mt-2"
-                variant="ghost"
-                disabled={busy}
-                onPress={() => void cancelRace()}
-              >
-                {confirmCancel ? "确认取消赛事" : "取消赛事"}
-              </Button>
-            ) : null}
           </Card>
-          {confirmCancel ? (
-            <Card>
-              <AppText>
-                取消只更新赛事状态。原训练与补给会保留，请随后手动生成回归目标的计划。
-              </AppText>
-              <Button
-                variant="secondary"
-                onPress={() => setConfirmCancel(false)}
-              >
-                保留赛事
-              </Button>
-            </Card>
-          ) : null}
           {impact ? (
             <Card>
               <AppText variant="card">当前影响预览</AppText>
@@ -203,14 +175,20 @@ export function RaceDetailScreen() {
             </Card>
           ) : null}
           {race.status !== "CANCELLED" ? (
-            <RaceResultCard
-              key={result?.version ?? 0}
-              raceId={race.id}
-              raceDate={race.localDate}
-              result={result}
-              busy={busy}
-              onSave={saveResult}
-            />
+            <Disclosure
+              title={result ? "比赛结果" : "记录比赛结果"}
+              defaultExpanded={!!result || race.status === "COMPLETED"}
+              keepMounted
+            >
+              <RaceResultCard
+                key={result?.version ?? 0}
+                raceId={race.id}
+                raceDate={race.localDate}
+                result={result}
+                busy={busy}
+                onSave={saveResult}
+              />
+            </Disclosure>
           ) : null}
           <Card>
             <AppText variant="card">比赛补给</AppText>
@@ -240,6 +218,47 @@ export function RaceDetailScreen() {
                       : "生成赛事补给草稿"}
             </Button>
           </Card>
+          {race.status !== "COMPLETED" ? (
+            <Disclosure title="管理赛事">
+              {confirmCancel ? (
+                <Card>
+                  <AppText>
+                    取消只更新赛事状态。原训练与补给会保留，请随后手动生成回归目标的计划。
+                  </AppText>
+                  <Button
+                    variant="secondary"
+                    onPress={() => setConfirmCancel(false)}
+                  >
+                    保留赛事
+                  </Button>
+                </Card>
+              ) : null}
+
+              <Button
+                className="mt-4"
+                variant="secondary"
+                disabled={busy}
+                onPress={() =>
+                  router.push({
+                    pathname: "/races/edit",
+                    params: { raceId: race.id },
+                  } as never)
+                }
+              >
+                编辑赛事
+              </Button>
+              {race.status === "CONFIRMED" ? (
+                <Button
+                  className="mt-2"
+                  variant="ghost"
+                  disabled={busy}
+                  onPress={() => void cancelRace()}
+                >
+                  {confirmCancel ? "确认取消赛事" : "取消赛事"}
+                </Button>
+              ) : null}
+            </Disclosure>
+          ) : null}
         </>
       ) : null}
     </TrainingPage>

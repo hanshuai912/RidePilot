@@ -27,16 +27,25 @@ export function TrainingHistoryScreen() {
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         refreshing={state.loading && state.items.length > 0}
         onRefresh={state.retry}
-        renderItem={({ item }) => (
-          <TrainingHistoryRow
-            workout={item}
-            onPress={() =>
-              router.push({
-                pathname: "/workouts/[workoutId]",
-                params: { workoutId: item.id, source: "history" },
-              })
-            }
-          />
+        renderItem={({ item, index }) => (
+          <View className="gap-2">
+            {index === 0 ||
+            state.items[index - 1].scheduledDate !== item.scheduledDate ? (
+              <AppText variant="card" className="mt-3">
+                {item.scheduledDate}
+              </AppText>
+            ) : null}
+            <TrainingHistoryRow
+              workout={item}
+              showDate={false}
+              onPress={() =>
+                router.push({
+                  pathname: "/workouts/[workoutId]",
+                  params: { workoutId: item.id, source: "history" },
+                })
+              }
+            />
+          </View>
         )}
         ListEmptyComponent={
           state.loading ? (

@@ -167,10 +167,13 @@ afterEach(() => {
 
 test("one home request shows real meals and training, with detail, adjustment and feedback routes", async () => {
   const screen = await render(<HomeScreen />);
-  await waitFor(() => expect(screen.getByText("燕麦香蕉早餐")).toBeTruthy());
+  await waitFor(() => expect(screen.getByText("已安排 1 个餐次")).toBeTruthy());
+  expect(screen.queryByText("燕麦香蕉早餐")).toBeNull();
+  await fireEvent.press(screen.getByRole("button", { name: "展开今日餐次" }));
+  expect(screen.getByText("燕麦香蕉早餐")).toBeTruthy();
   expect(api.today).toHaveBeenCalledTimes(1);
   expect(api.today).toHaveBeenCalledWith("token");
-  expect(screen.getByText("40 分钟")).toBeTruthy();
+  expect(screen.getByText("40 分钟 · 1 个动作")).toBeTruthy();
   expect(screen.queryByText("正式计划 v3")).toBeNull();
   expect(screen.queryByText("刷新今日安排")).toBeNull();
   expect(screen.getAllByLabelText("刷新首页")).toHaveLength(1);
@@ -202,7 +205,7 @@ test("a day without training still shows meals, calendar/create entries and the 
   await waitFor(() =>
     expect(screen.getByText("今天暂无训练安排")).toBeTruthy(),
   );
-  expect(screen.getByText("燕麦香蕉早餐")).toBeTruthy();
+  expect(screen.getByText("已安排 1 个餐次")).toBeTruthy();
   expect(screen.getByText(/下次训练：11 月 3 日/)).toBeTruthy();
   expect(screen.queryByText("调整训练")).toBeNull();
   await fireEvent.press(screen.getByText("手动添加今天的训练"));
@@ -269,6 +272,7 @@ test("multiple courses keep independent completion states and actions", async ()
   const screen = await render(<HomeScreen />);
   await waitFor(() => expect(screen.getByText("恢复骑行")).toBeTruthy());
   expect(screen.getByText(/实际 20 分钟/)).toBeTruthy();
+  expect(screen.getAllByText("计划区间中值 · W")).toHaveLength(1);
   expect(screen.getAllByText("记录完成")).toHaveLength(1);
   await fireEvent.press(screen.getByText("记录完成"));
   expect(router.push).toHaveBeenLastCalledWith({
@@ -281,7 +285,7 @@ test("training partial failure leaves meals visible and retry uses one aggregate
   api.today.mockResolvedValueOnce(response({ trainingError: "训练服务离线" }));
   const screen = await render(<HomeScreen />);
   await waitFor(() => expect(screen.getByText(/训练服务离线/)).toBeTruthy());
-  expect(screen.getByText("燕麦香蕉早餐")).toBeTruthy();
+  expect(screen.getByText("已安排 1 个餐次")).toBeTruthy();
   await fireEvent.press(screen.getByText("重试今日训练"));
   await waitFor(() => expect(screen.getByText("耐力训练")).toBeTruthy());
   expect(api.today).toHaveBeenCalledTimes(2);
@@ -388,7 +392,7 @@ test("a failed aggregate request retains same-day content and exposes retry", as
   await fireEvent(screen.getByLabelText("刷新首页"), "refresh");
   await waitFor(() => expect(screen.getByText(/首页请求超时/)).toBeTruthy());
   expect(screen.getByText("耐力训练")).toBeTruthy();
-  expect(screen.getByText("燕麦香蕉早餐")).toBeTruthy();
+  expect(screen.getByText("已安排 1 个餐次")).toBeTruthy();
   expect(screen.queryByText("记录完成")).toBeNull();
   jest.useRealTimers();
 });
@@ -453,6 +457,8 @@ test("home shows explainable status, next test/race and pending suggestions with
   api.today.mockResolvedValue(payload);
   const view = await render(<HomeScreen />);
   await view.findByText("优先恢复");
+  expect(view.queryByText(/疲劳 8\/10/)).toBeNull();
+  await fireEvent.press(view.getByRole("button", { name: "展开状态依据" }));
   expect(view.getByText(/疲劳 8\/10/)).toBeTruthy();
   await fireEvent.press(view.getByText(/下一比赛 ·/));
   expect(router.push).toHaveBeenLastCalledWith({

@@ -27,11 +27,15 @@ export function WorkoutAdjustmentForm({
   loading,
   error,
   onSubmit,
+  onRequestSubmit,
+  disabled = false,
 }: {
   form: WorkoutAdjustmentFormState;
   loading: boolean;
   error: string | null;
   onSubmit: SubmitWorkoutAdjustment;
+  onRequestSubmit?: () => void;
+  disabled?: boolean;
 }) {
   const {
     reason,
@@ -151,6 +155,14 @@ export function WorkoutAdjustmentForm({
           确认范围并生成草稿
         </Button>
       </Dialog>
+      <Button
+        size="lg"
+        loading={loading}
+        disabled={disabled || !form.canSubmit}
+        onPress={onRequestSubmit ?? (() => form.requestSubmit(onSubmit))}
+      >
+        生成调整草稿
+      </Button>
     </View>
   );
 }

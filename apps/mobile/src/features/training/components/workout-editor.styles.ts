@@ -2,7 +2,7 @@ import { StyleSheet } from "react-native";
 import { colors } from "../../../theme/colors";
 
 export const editorStyles = StyleSheet.create({
-  page: { gap: 24, paddingTop: 12 },
+  page: { gap: 16, paddingTop: 12 },
   context: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -11,9 +11,9 @@ export const editorStyles = StyleSheet.create({
     gap: 8,
   },
   section: { gap: 12 },
-  fields: { gap: 16 },
+  fields: { gap: 12 },
   field: { gap: 8 },
-  overview: { gap: 16 },
+  overview: { gap: 8 },
   totals: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   metric: { flex: 1, minWidth: 96, gap: 4 },
   value: { color: colors.brand, fontVariant: ["tabular-nums"] },

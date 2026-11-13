@@ -1,4 +1,3 @@
-import { NavigationHeaderAction } from "../../../components/layout/NavigationHeaderAction";
 import { GenerationCancelButton } from "../../coach/components/GenerationCancelButton";
 import { useState } from "react";
 import { View } from "react-native";
@@ -39,22 +38,6 @@ export function WorkoutAdjustmentScreen() {
       title="调整训练"
       onBack={route.back}
       busy={action.busy}
-      headerAction={
-        route.data &&
-        !route.loading &&
-        !route.error &&
-        !ftp.error &&
-        ftp.available === true &&
-        !unavailable ? (
-          <NavigationHeaderAction
-            label="生成"
-            hint="生成调整草稿，联动后续课程时先确认范围"
-            loading={action.busy}
-            disabled={!form.canSubmit}
-            onPress={submit}
-          />
-        ) : null
-      }
       loading={route.loading || (ftp.available === null && !ftp.error)}
       error={route.error ?? ftp.error}
       retry={() => {
@@ -93,6 +76,13 @@ export function WorkoutAdjustmentScreen() {
             form={form}
             loading={action.busy}
             error={action.error}
+            onRequestSubmit={submit}
+            disabled={
+              !!route.error ||
+              !!ftp.error ||
+              ftp.available !== true ||
+              !form.canSubmit
+            }
             onSubmit={(reason, notes, endDate) =>
               void action.generate(reason, notes, endDate)
             }

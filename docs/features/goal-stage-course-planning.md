@@ -143,3 +143,7 @@
 - `pnpm --filter @ridepilot/mobile exec expo export --platform web --output-dir /tmp/ridepilot-stage-entry-web --max-workers 2`：成功，3843 个模块。
 - `node /tmp/ridepilot-stage-entry-browser.cjs`：合成 API 数据下通过 320/390/430 宽度的标题入口、44pt 触控区、展开布局、课程入口去重、独立日期、收起保留、说明弹窗、无 FTP/已关闭目标及首次阶段规划入口验证，无写请求或脚本异常。截图 `/tmp/ridepilot-stage-heading-*.png`、`/tmp/ridepilot-stage-form-*.png`、`/tmp/ridepilot-course-entry-*.png`。
 - 修改文件 Prettier 检查与 `git diff --check` 通过；未执行真机或真实模型端到端验证。
+
+## 2026-11-13：查看目标与综合规划范围
+
+详情明确区分单目标查看和全部进行中目标的综合规划；目标切换与历史列表按需展开，阶段默认仅展开当前或最近项，展开不改变生成范围。完整范围、验证命令与验收边界见 [全局页面结构优化](global-ui-ux-structure.md)。

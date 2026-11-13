@@ -25,7 +25,7 @@ function targetLabel(segment: WorkoutSegment) {
 
 function intensityLabel(segment: WorkoutSegment, ftpWatts?: number | null) {
   return segment.intensity.kind === "ftp_percent"
-    ? `FTP ${segment.intensity.min}–${segment.intensity.max}%${ftpWatts ? ` · ${Math.round((ftpWatts * segment.intensity.min) / 100)}–${Math.round((ftpWatts * segment.intensity.max) / 100)} W` : ""}`
+    ? `${ftpWatts ? `${Math.round((ftpWatts * segment.intensity.min) / 100)}–${Math.round((ftpWatts * segment.intensity.max) / 100)} W · ` : ""}FTP ${segment.intensity.min}–${segment.intensity.max}%`
     : `${segment.intensity.min}–${segment.intensity.max} W`;
 }
 

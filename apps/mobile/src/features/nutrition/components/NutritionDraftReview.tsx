@@ -3,7 +3,7 @@ import type {
   NutritionItemDraft,
   NutritionProposalResponse,
 } from "@ridepilot/contracts";
-import { AppText, Button } from "../../../components/ui";
+import { AppText, Button, Disclosure } from "../../../components/ui";
 import { mealTypeLabels, formatNutrient } from "../model/nutrition";
 
 function Meal({ item }: { item: NutritionItemDraft }) {
@@ -58,19 +58,23 @@ export function NutritionDraftReview({
           <AppText variant="card" className="text-brand">
             {date}
           </AppText>
-          <AppText variant="caption" muted className="mt-3">
-            原安排
-          </AppText>
-          {proposal.original?.items
-            .filter((item) => item.localDate === date)
-            .map((item, index) => (
-              <Meal key={index} item={item} />
-            ))}
-          {!proposal.original?.items.some((item) => item.localDate === date) ? (
-            <AppText variant="caption" muted>
-              无已记录餐次
-            </AppText>
-          ) : null}
+          <Disclosure
+            title={`查看 ${date} 原安排`}
+            summary={`${proposal.original?.items.filter((item) => item.localDate === date).length ?? 0} 个餐次`}
+          >
+            {proposal.original?.items
+              .filter((item) => item.localDate === date)
+              .map((item, index) => (
+                <Meal key={index} item={item} />
+              ))}
+            {!proposal.original?.items.some(
+              (item) => item.localDate === date,
+            ) ? (
+              <AppText variant="caption" muted>
+                无已记录餐次
+              </AppText>
+            ) : null}
+          </Disclosure>
           <AppText variant="caption" className="mt-4 text-brand">
             {proposal.status === "APPLIED" ? "已应用安排" : "建议安排"}
           </AppText>

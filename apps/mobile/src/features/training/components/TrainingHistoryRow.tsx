@@ -1,15 +1,17 @@
 import { Pressable, View } from "react-native";
 import { ChevronRight } from "lucide-react-native";
-import { AppText, Card } from "../../../components/ui";
+import { AppText } from "../../../components/ui";
 import { colors } from "../../../theme/colors";
 import type { Workout } from "../model/training";
 
 export function TrainingHistoryRow({
   workout,
   onPress,
+  showDate = true,
 }: {
   workout: Workout;
   onPress: () => void;
+  showDate?: boolean;
 }) {
   const status = workout.activity
     ? { COMPLETED: "已完成", PARTIAL: "部分完成", SKIPPED: "已跳过" }[
@@ -28,11 +30,13 @@ export function TrainingHistoryRow({
       accessibilityLabel={`${workout.scheduledDate} ${workout.title || "骑行训练"}`}
       accessibilityHint="查看该次训练详情"
       onPress={onPress}
+      className="active:opacity-70"
     >
-      <Card className="flex-row items-center gap-3 p-4">
+      <View className="flex-row items-center gap-3 border-b border-divider px-1 py-3">
         <View className="flex-1 gap-2">
           <AppText variant="caption" className="text-brand">
-            {workout.scheduledDate} · 第 {workout.dayOrder} 节
+            {showDate ? `${workout.scheduledDate} · ` : ""}第 {workout.dayOrder}{" "}
+            节
           </AppText>
           <AppText variant="card">{workout.title || "骑行训练"}</AppText>
           <AppText variant="caption" muted>
@@ -40,7 +44,7 @@ export function TrainingHistoryRow({
           </AppText>
         </View>
         <ChevronRight color={colors.textMuted} size={18} />
-      </Card>
+      </View>
     </Pressable>
   );
 }

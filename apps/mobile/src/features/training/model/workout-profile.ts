@@ -7,7 +7,14 @@ export const segmentTypeLabels = {
   cooldown: "放松",
 } as const;
 
-export function buildWorkoutProfile(segments: WorkoutSegment[]) {
+export type ProfileMaximums = Partial<
+  Record<WorkoutSegment["intensity"]["kind"], number>
+>;
+
+export function buildWorkoutProfile(
+  segments: WorkoutSegment[],
+  maximums: ProfileMaximums = {},
+) {
   const timed = segments.filter(
     (segment) => segment.target.kind === "duration",
   );
@@ -51,6 +58,11 @@ export function buildWorkoutProfile(segments: WorkoutSegment[]) {
           10,
       ) * 10,
   }));
+  for (const lane of lanes) {
+    const sharedMaximum = maximums[lane.kind];
+    if (sharedMaximum && Number.isFinite(sharedMaximum))
+      lane.maximum = Math.max(lane.maximum, sharedMaximum);
+  }
 
   let elapsed = 0;
   const blocks = timed.map((segment) => {
@@ -77,6 +89,18 @@ export function buildWorkoutProfile(segments: WorkoutSegment[]) {
   );
 
   return { blocks, lanes, legend, totalMinutes };
+}
+
+/** Before/after charts use the same scale for each intensity unit. */
+export function comparisonMaximums(
+  ...workouts: WorkoutSegment[][]
+): ProfileMaximums {
+  const maximums: ProfileMaximums = {};
+  for (const segments of workouts) {
+    for (const lane of buildWorkoutProfile(segments)?.lanes ?? [])
+      maximums[lane.kind] = Math.max(maximums[lane.kind] ?? 0, lane.maximum);
+  }
+  return maximums;
 }
 
 export function formatProfileNumber(value: number) {

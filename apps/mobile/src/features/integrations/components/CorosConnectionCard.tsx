@@ -94,10 +94,10 @@ export function CorosConnectionCard() {
       const message =
         cause instanceof IntegrationsApiError &&
         cause.code === "INTEGRATION_NOT_CONFIGURED"
-          ? "后端尚未配置有效的 COROS MCP 地址，请检查服务端配置"
+          ? "COROS 连接服务暂未开放，请稍后重试或联系维护人员"
           : cause instanceof IntegrationsApiError &&
               cause.code === "COROS_OAUTH_REGISTRATION_FAILED"
-            ? "COROS MCP 动态授权注册失败，请检查回调地址和网络"
+            ? "COROS 授权暂时无法完成，请稍后重新绑定"
             : cause instanceof Error
               ? cause.message
               : "无法打开 COROS 授权页";
@@ -146,11 +146,19 @@ export function CorosConnectionCard() {
           </AppText>
         </View>
         {connection ? (
-          <CheckCircle2
-            color={statusColor[connection.status]}
-            size={19}
-            strokeWidth={1.8}
-          />
+          connection.status === "CONNECTED" ? (
+            <CheckCircle2
+              color={statusColor[connection.status]}
+              size={19}
+              strokeWidth={1.8}
+            />
+          ) : (
+            <ShieldAlert
+              color={statusColor[connection.status]}
+              size={19}
+              accessible={false}
+            />
+          )
         ) : null}
       </View>
       {loading ? (

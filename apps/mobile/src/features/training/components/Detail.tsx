@@ -42,32 +42,14 @@ export function Detail({
           {workout.purpose || "按每个动作的强度范围执行。"}
         </AppText>
         <View style={styles.totalGrid}>
-          <Total
-            label="时间目标"
-            value={totals.minutes ? `${totals.minutes} 分钟` : "—"}
-          />
-          <Total
-            label="距离目标"
-            value={totals.kilometers ? `${totals.kilometers} 公里` : "—"}
-          />
+          {totals.minutes > 0 ? (
+            <Total label="时间目标" value={`${totals.minutes} 分钟`} />
+          ) : null}
+          {totals.kilometers > 0 ? (
+            <Total label="距离目标" value={`${totals.kilometers} 公里`} />
+          ) : null}
         </View>
-        <WorkoutProfileChart segments={workout.segments} />
       </Card>
-      <View style={styles.sectionRow}>
-        <AppText variant="card">动作列表</AppText>
-        <AppText variant="caption" muted>
-          {workout.segments.length} 个动作
-        </AppText>
-      </View>
-      <AppText muted variant="caption">
-        {workout.ftpSnapshotWatts
-          ? `执行功率依据：FTP ${workout.ftpSnapshotWatts} W 快照`
-          : "旧课程未保存 FTP 快照，无法确定当时的执行瓦数。"}
-      </AppText>
-      <WorkoutSegmentList
-        segments={workout.segments}
-        ftpWatts={workout.ftpSnapshotWatts}
-      />
       {workout.activity ? (
         <Card>
           <AppText variant="card">
@@ -95,17 +77,34 @@ export function Detail({
           </AppText>
         </Card>
       ) : null}
+      <WorkoutProfileChart segments={workout.segments} />
+      <View style={styles.sectionRow}>
+        <AppText variant="card">动作列表</AppText>
+        <AppText variant="caption" muted>
+          {workout.segments.length} 个动作
+        </AppText>
+      </View>
+      <AppText muted variant="caption">
+        {workout.ftpSnapshotWatts
+          ? `执行功率依据：FTP ${workout.ftpSnapshotWatts} W 快照`
+          : "旧课程未保存 FTP 快照，无法确定当时的执行瓦数。"}
+      </AppText>
+      <WorkoutSegmentList
+        segments={workout.segments}
+        ftpWatts={workout.ftpSnapshotWatts}
+      />
       {!readOnly ? (
         <>
           <Button
             onPress={onFeedback}
-            variant="secondary"
+            variant="primary"
             disabled={recorded || busy}
           >
             {recorded ? "已记录训练反馈" : "记录训练反馈"}
           </Button>
           <Button
             onPress={onAdjust}
+            variant="secondary"
             className="mt-2"
             disabled={!canAdjust || busy}
           >

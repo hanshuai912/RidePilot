@@ -34,6 +34,9 @@ import { WorkoutPreviewScreen } from "../screens/WorkoutPreviewScreen";
 import { WorkoutSegmentScreen } from "../screens/WorkoutSegmentScreen";
 import { addDays, iso } from "../model/training";
 
+// These flows mount real navigation stacks and span several screen transitions.
+jest.setTimeout(15000);
+
 jest.mock("../../goals/services/goals.api", () => ({
   goalsApi: { generateCourses: jest.fn() },
 }));
@@ -313,9 +316,11 @@ test("manual creation without FTP resumes the selected date after setting FTP", 
   await fireEvent.press(await screen.findByText("设置 FTP"));
   expect(api.createManual).not.toHaveBeenCalled();
   await fireEvent.press(screen.getByText("保存 FTP 并返回"));
-  expect((await screen.findByPlaceholderText("YYYY-MM-DD")).props.value).toBe(
-    selected,
-  );
+  const [year, month, day] = selected.split("-").map(Number);
+  expect(
+    (await screen.findByRole("button", { name: "训练日期" })).props
+      .accessibilityValue.text,
+  ).toBe(`${year}年${month}月${day}日`);
 });
 
 test("manual editing without FTP keeps the existing local course while visiting settings", async () => {
@@ -386,7 +391,9 @@ test("calendar opens independent detail and edit routes; native back returns to 
       screen.getByRole("button", { name: "查看耐力骑行详情" }),
     ).toBeTruthy(),
   );
-  expect(screen.getByRole("image", { name: /平均强度 125 W/ })).toBeTruthy();
+  expect(
+    screen.getByRole("image", { name: /计划强度区间中值 125 W/ }),
+  ).toBeTruthy();
   await fireEvent.press(
     screen.getByRole("button", { name: "查看耐力骑行详情" }),
   );
@@ -442,8 +449,8 @@ test("workout detail generates, previews, validates and applies an AI adjustment
   expect(screen.getByTestId("current-path").props.children).toBe(
     "/workouts/adjust",
   );
-  await waitFor(() => expect(screen.getByText("生成")).toBeTruthy());
-  await fireEvent.press(screen.getByText("生成"));
+  await waitFor(() => expect(screen.getByText("生成调整草稿")).toBeTruthy());
+  await fireEvent.press(screen.getByText("生成调整草稿"));
   await waitFor(() =>
     expect(screen.getByText("确认这节训练的新方案？")).toBeTruthy(),
   );
@@ -548,7 +555,7 @@ test("distance-only calendar cards keep distance information and actions without
   }));
   await open();
   await waitFor(() => expect(screen.getByText("8 公里")).toBeTruthy());
-  expect(screen.queryByText(/强度均值/)).toBeNull();
+  expect(screen.queryByText(/计划区间中值/)).toBeNull();
   expect(screen.getByRole("button", { name: "查看耐力骑行详情" })).toBeTruthy();
   expect(screen.getByText("编辑动作")).toBeTruthy();
 });
@@ -929,22 +936,37 @@ test("invalid segment link shows an error instead of overwriting an action", asy
   expect(screen.queryByText("保存动作")).toBeNull();
 });
 
-test("incomplete date input remains editable without crashing or opening an editor", async () => {
+test("creation waits for calendar data and date-picker cancellation keeps the current date", async () => {
+  let resolveCalendar!: (
+    data: Awaited<ReturnType<typeof trainingApi.getCalendar>>,
+  ) => void;
+  api.getCalendar.mockReturnValueOnce(
+    new Promise((resolve) => {
+      resolveCalendar = resolve;
+    }),
+  );
   await open("/workouts/new");
-  await waitFor(() =>
-    expect(screen.queryByText("正在查询当天课程…")).toBeNull(),
-  );
-  await fireEvent.changeText(
-    screen.getByPlaceholderText("YYYY-MM-DD"),
-    "2026-",
-  );
-  await fireEvent.press(screen.getByText("创建第 1 节"));
+  const create = await screen.findByRole("button", { name: "创建第 1 节" });
+  expect(create).toBeDisabled();
   expect(screen.getByTestId("current-path").props.children).toBe(
     "/workouts/new",
   );
+  await act(async () => {
+    resolveCalendar({ from: today, to: today, ftpAvailable: true, items: [] });
+  });
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "创建第 1 节" })).toBeEnabled(),
+  );
+  const dateField = screen.getByRole("button", { name: "训练日期" });
+  const selected = dateField.props.accessibilityValue.text;
+  await fireEvent.press(dateField);
+  await fireEvent.press(screen.getByRole("button", { name: "取消日期选择" }));
+  expect(screen.queryByTestId("date-picker-sheet")).toBeNull();
   expect(
-    screen.getByText("请选择当天或未来的有效日期（YYYY-MM-DD）"),
-  ).toBeTruthy();
+    screen.getByRole("button", { name: "训练日期" }).props.accessibilityValue
+      .text,
+  ).toBe(selected);
+  expect(api.createManual).not.toHaveBeenCalled();
 });
 
 test("direct feedback route preserves failed input and refreshes detail after success", async () => {
@@ -989,19 +1011,19 @@ test("adjustment failure keeps notes, and apply timeout retries the identical wr
   coach.adjustWorkout.mockRejectedValueOnce(new Error("生成暂时失败"));
   coach.apply.mockRejectedValueOnce(new Error("应用响应超时"));
   await open(`/workouts/adjust?workoutId=${workout.id}`);
-  await waitFor(() => expect(screen.getByText("生成")).toBeTruthy());
+  await waitFor(() => expect(screen.getByText("生成调整草稿")).toBeTruthy());
   await fireEvent.changeText(
     screen.getByPlaceholderText("例如：昨晚只睡了 5 小时"),
     "只能训练二十分钟",
   );
-  await fireEvent.press(screen.getByText("生成"));
+  await fireEvent.press(screen.getByText("生成调整草稿"));
   await waitFor(() =>
     expect(screen.getAllByText("生成暂时失败").length).toBeGreaterThan(0),
   );
   expect(
     screen.getByPlaceholderText("例如：昨晚只睡了 5 小时").props.value,
   ).toBe("只能训练二十分钟");
-  await fireEvent.press(screen.getByText("生成"));
+  await fireEvent.press(screen.getByText("生成调整草稿"));
   await waitFor(() =>
     expect(screen.getByText("确认这节训练的新方案？")).toBeTruthy(),
   );
@@ -1039,15 +1061,17 @@ test.each([
     expect(screen.getByTestId("current-path").props.children).toBe(path);
     expect(screen.queryByRole("header", { name: "课程详情" })).toBeNull();
     if (path === "/workouts/adjust") {
-      await screen.findByRole("button", { name: "生成" });
+      await screen.findByRole("button", { name: "生成调整草稿" });
       expect(screen.queryByRole("button", { name: "取消" })).toBeNull();
-      expect(screen.getAllByRole("button", { name: "生成" })).toHaveLength(1);
+      expect(
+        screen.getAllByRole("button", { name: "生成调整草稿" }),
+      ).toHaveLength(1);
       expect(
         within(screen.getByTestId("training-page-content")).queryByRole(
           "button",
-          { name: "生成" },
+          { name: "生成调整草稿" },
         ),
-      ).toBeNull();
+      ).toBeTruthy();
       await fireEvent.press(screen.getByRole("button", { name: "返回上一页" }));
     } else {
       await waitFor(() => expect(screen.getByText("取消")).toBeTruthy());
@@ -1146,12 +1170,12 @@ test("home adjustment previews on its own route, preserves inputs on back and re
   await open("/");
   await waitFor(() => expect(screen.getByText("调整训练")).toBeTruthy());
   await fireEvent.press(screen.getByText("调整训练"));
-  await waitFor(() => expect(screen.getByText("生成")).toBeTruthy());
+  await waitFor(() => expect(screen.getByText("生成调整草稿")).toBeTruthy());
   await fireEvent.changeText(
     screen.getByPlaceholderText("例如：昨晚只睡了 5 小时"),
     "今天只有二十分钟",
   );
-  await fireEvent.press(screen.getByText("生成"));
+  await fireEvent.press(screen.getByText("生成调整草稿"));
   await waitFor(() =>
     expect(screen.getByRole("header", { name: "调整预览" })).toBeTruthy(),
   );
@@ -1168,7 +1192,7 @@ test("home adjustment previews on its own route, preserves inputs on back and re
   expect(
     screen.getByPlaceholderText("例如：昨晚只睡了 5 小时").props.value,
   ).toBe("今天只有二十分钟");
-  await fireEvent.press(screen.getByText("生成"));
+  await fireEvent.press(screen.getByText("生成调整草稿"));
   await waitFor(() =>
     expect(screen.getByText("确认应用这节训练")).toBeTruthy(),
   );
@@ -1200,7 +1224,7 @@ test.each(["adjust", "feedback"] as const)(
     await fireEvent.press(screen.getByText("重试"));
     await waitFor(() =>
       expect(
-        screen.getByText(action === "adjust" ? "生成" : "保存训练反馈"),
+        screen.getByText(action === "adjust" ? "生成调整草稿" : "保存训练反馈"),
       ).toBeTruthy(),
     );
   },
@@ -1242,7 +1266,7 @@ test.each(["adjust", "feedback"] as const)(
       ).toBeTruthy(),
     );
     expect(
-      screen.queryByText(action === "adjust" ? "生成" : "保存训练反馈"),
+      screen.queryByText(action === "adjust" ? "生成调整草稿" : "保存训练反馈"),
     ).toBeNull();
   },
 );
@@ -1490,7 +1514,7 @@ test("confirmed future adjustment uses range generation and routes to the comple
   await fireEvent.press(screen.getByRole("radio", { name: `${month}月` }));
   await fireEvent.press(screen.getByRole("radio", { name: `${day}日` }));
   await fireEvent.press(screen.getByRole("button", { name: "确认日期" }));
-  await fireEvent.press(screen.getByText("生成"));
+  await fireEvent.press(screen.getByText("生成调整草稿"));
   expect(goalsApi.generateCourses).not.toHaveBeenCalled();
   await fireEvent.press(screen.getByText("确认范围并生成草稿"));
   await screen.findByText("后续课程范围预览");

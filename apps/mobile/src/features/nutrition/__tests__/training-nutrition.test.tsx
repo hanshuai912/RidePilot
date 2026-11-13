@@ -135,7 +135,11 @@ test("reads affected dates without generating and generates only after a click",
     }),
   );
   expect(api.apply).not.toHaveBeenCalled();
-  expect(view.getByText("原安排")).toBeTruthy();
+  expect(view.queryByText("米饭早餐", { exact: true })).toBeNull();
+  await fireEvent.press(
+    view.getByRole("button", { name: "查看 2030-01-01 原安排" }),
+  );
+  expect(view.getByText(/08:00 · 早餐/)).toBeTruthy();
   expect(view.getByText("建议安排")).toBeTruthy();
 });
 
@@ -266,6 +270,30 @@ test("invalid amounts and times cannot save", async () => {
     ).toBeTruthy(),
   );
   expect(save).not.toHaveBeenCalled();
+});
+
+test("a rejected quantity save shows its error in the modal, retains input and can retry", async () => {
+  const save = jest
+    .fn()
+    .mockRejectedValueOnce(new Error("网络中断，请重试"))
+    .mockResolvedValueOnce(true);
+  const close = jest.fn();
+  const view = await render(
+    <NutritionItemEditor
+      item={meal}
+      busy={false}
+      onSave={save}
+      onClose={close}
+    />,
+  );
+  await fireEvent.changeText(view.getByLabelText("米饭份量"), "170");
+  await fireEvent.press(view.getByText("保存为草稿"));
+  await view.findByText("网络中断，请重试");
+  expect(view.getByLabelText("米饭份量").props.value).toBe("170");
+  expect(close).not.toHaveBeenCalled();
+  await fireEvent.press(view.getByText("保存为草稿"));
+  await waitFor(() => expect(close).toHaveBeenCalledTimes(1));
+  expect(save.mock.calls[1][0].foods[0].amount).toBe(170);
 });
 
 test("a timed out poll can resume the existing task without generating again", async () => {

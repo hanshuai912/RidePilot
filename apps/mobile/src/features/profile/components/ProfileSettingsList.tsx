@@ -9,12 +9,16 @@ import { profileMetricStyles as styles } from "./profile-metric-card.styles";
 export function ProfileSettingsList({ token }: { token: string }) {
   return (
     <View testID="profile-settings-list" className="mt-6 gap-3">
-      <AppText variant="section">训练与能力</AppText>
+      <AppText variant="section">运动能力</AppText>
       <Card padding="none" className="overflow-hidden">
         <FtpMeasurementCard token={token} />
         <View style={styles.divider} />
         <HeartRateSettingsCard token={token} />
-        <View style={styles.divider} />
+      </Card>
+      <AppText variant="section" className="mt-3">
+        训练管理与历史
+      </AppText>
+      <Card padding="none" className="overflow-hidden">
         <ProfilePlanningEntries />
       </Card>
       <AppText variant="section" className="mt-3">

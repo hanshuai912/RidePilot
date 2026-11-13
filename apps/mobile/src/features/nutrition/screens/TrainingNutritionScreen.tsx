@@ -39,7 +39,7 @@ export function TrainingNutritionScreen() {
           使用饮食偏好、过敏原和用餐时间生成草稿。训练和饮食分别确认应用。
         </AppText>
         <AppText variant="caption" muted className="mt-4">
-          开始日期（YYYY-MM-DD）
+          补给开始日期（YYYY-MM-DD）
         </AppText>
         <Input
           accessibilityLabel="补给开始日期"
@@ -50,7 +50,7 @@ export function TrainingNutritionScreen() {
           }
         />
         <AppText variant="caption" muted className="mt-3">
-          结束日期（一次最多 31 天）
+          补给结束日期（一次最多 31 天）
         </AppText>
         <Input
           accessibilityLabel="补给结束日期"
@@ -75,7 +75,10 @@ export function TrainingNutritionScreen() {
               {flow.state.trainingPlanVersion} · 饮食 v
               {flow.state.nutritionVersion}
             </AppText>
-            <AppText variant="caption" className="mt-2 text-warning">
+            <AppText
+              variant="caption"
+              className={`mt-2 ${flow.state.affectedDates.length ? "text-warning" : "text-positive"}`}
+            >
               {flow.state.affectedDates.length
                 ? `待核对日期：${flow.state.affectedDates.join("、")}`
                 : "所选日期的补给已按最新训练核对"}
@@ -164,6 +167,7 @@ export function TrainingNutritionScreen() {
           key={`${flow.proposal.proposalVersion}-${editing}`}
           item={flow.proposal.draft.items[editing]}
           busy={flow.busy}
+          saveError={flow.error}
           onSave={(item) => flow.edit(editing, item)}
           onClose={() => setEditing(null)}
         />

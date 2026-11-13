@@ -97,7 +97,9 @@ test("diff includes repeated duration, distance and both original and new intens
   );
   expect(screen.getByText("时间目标：35 → 0 分钟（-35）")).toBeTruthy();
   expect(screen.getByText("距离目标：0 → 20 公里")).toBeTruthy();
+  await fireEvent.press(screen.getByRole("button", { name: "查看原课程动作" }));
   expect(screen.getByText("100–150 W")).toBeTruthy();
+  await fireEvent.press(screen.getByRole("button", { name: "查看调整后动作" }));
   expect(screen.getByText("FTP 40–50%")).toBeTruthy();
 });
 test("future scope limits date selection and requires explicit range confirmation, while cancellation never generates", async () => {

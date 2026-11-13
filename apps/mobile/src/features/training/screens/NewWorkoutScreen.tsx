@@ -56,6 +56,15 @@ export function NewWorkoutScreen() {
       ) : (
         <DateStep
           date={date}
+          minimumDate={today}
+          disabled={
+            !valid ||
+            !resource.data ||
+            resource.loading ||
+            !!resource.error ||
+            !ftp.available ||
+            !!ftp.error
+          }
           workouts={resource.data?.items ?? []}
           onBack={backToTraining}
           onChange={(value) => {

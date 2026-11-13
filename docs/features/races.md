@@ -127,3 +127,7 @@
 - 在 `apps/api` 加载 `.env.test` 的本机 `*_test` PostgreSQL 和 Redis DB 1，执行 `pnpm test --runTestsByPath test/coach.e2e-spec.ts`：7 项通过，含跨周完整生命周期及旧任务/补给失效。该测试使用可控模型桩。
 - `pnpm lint`、`pnpm typecheck`、`pnpm build`、修改文件 Prettier 与 `git diff --check` 已通过；最终收尾同样复验通过。
 - 本轮未调用真实模型、未进行真机操作、未部署。无需数据库迁移。
+
+## 2026-11-13：赛事分组与操作层级
+
+赛事按状态分组，添加位于页头；详情先看影响和备赛，管理及未填写结果的表单按需展开；读取失败可重试，编辑等待加载并在字段旁显示校验错误。完整范围、验证命令与验收边界见 [全局页面结构优化](global-ui-ux-structure.md)。

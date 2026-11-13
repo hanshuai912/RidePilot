@@ -1,9 +1,15 @@
-import { CheckCircle2, CircleAlert, Sparkles } from "lucide-react-native";
+import { CircleAlert, Sparkles } from "lucide-react-native";
 import { View } from "react-native";
 import type { NutritionProposalResponse } from "@ridepilot/contracts";
 
 import { colors } from "../../../theme/colors";
-import { AppText, Badge, Button, Card } from "../../../components/ui";
+import {
+  AppText,
+  Badge,
+  Button,
+  Card,
+  Disclosure,
+} from "../../../components/ui";
 import { NutritionDraftReview } from "./NutritionDraftReview";
 
 export function NutritionProposalCard({
@@ -27,7 +33,7 @@ export function NutritionProposalCard({
   const applied = proposal.status === "APPLIED";
   return (
     <Card className="border-brand/60 bg-surface-elevated p-4">
-      <View className="flex-row items-center gap-2">
+      <View className="flex-row flex-wrap items-center gap-2">
         <Sparkles color={colors.brand} size={18} />
         <AppText variant="label" className="text-brand">
           {applied ? "AI 营养方案 · 已应用" : "AI 营养草稿 · 尚未应用"}
@@ -73,21 +79,12 @@ export function NutritionProposalCard({
           </AppText>
         </View>
       </View>
-      <NutritionDraftReview
-        proposal={proposal}
-        onEdit={onEdit}
-        busy={applying || validating}
-      />
-      {proposal.metadata?.assumptions.length ? (
-        <View className="mt-4 rounded-xl border border-border bg-surface-2 p-3">
-          <AppText variant="label" className="text-secondary">
-            生成依据
+      {proposal.validation.blockers.length ? (
+        <View className="mt-3 flex-row items-start gap-2 rounded-xl bg-negative/10 p-3">
+          <CircleAlert color={colors.negative} size={16} />
+          <AppText variant="caption" className="flex-1 text-negative">
+            {proposal.validation.blockers.join("；")}
           </AppText>
-          {proposal.metadata.assumptions.slice(0, 3).map((item) => (
-            <AppText key={item} variant="caption" muted className="mt-2">
-              · {item}
-            </AppText>
-          ))}
         </View>
       ) : null}
       {proposal.validation.warnings.length ? (
@@ -98,13 +95,24 @@ export function NutritionProposalCard({
           </AppText>
         </View>
       ) : null}
-      {proposal.validation.blockers.length ? (
-        <View className="mt-3 flex-row items-start gap-2 rounded-xl bg-negative/10 p-3">
-          <CircleAlert color={colors.negative} size={16} />
-          <AppText variant="caption" className="flex-1 text-negative">
-            {proposal.validation.blockers.join("；")}
-          </AppText>
-        </View>
+      <NutritionDraftReview
+        proposal={proposal}
+        onEdit={onEdit}
+        busy={applying || validating}
+      />
+      {proposal.metadata?.assumptions.length ? (
+        <Disclosure title="生成依据">
+          <View className="mt-4 rounded-xl border border-border bg-surface-2 p-3">
+            <AppText variant="label" className="text-secondary">
+              生成依据
+            </AppText>
+            {proposal.metadata.assumptions.map((item) => (
+              <AppText key={item} variant="caption" muted className="mt-2">
+                · {item}
+              </AppText>
+            ))}
+          </View>
+        </Disclosure>
       ) : null}
       <View className="mt-4 gap-2">
         {!canApply && !applied ? (
@@ -124,12 +132,6 @@ export function NutritionProposalCard({
         >
           {applied ? "返回" : "暂不处理"}
         </Button>
-      </View>
-      <View className="mt-2 flex-row items-center gap-2">
-        <CheckCircle2 color={colors.positive} size={14} />
-        <AppText variant="label" muted>
-          应用操作支持版本校验和幂等重试
-        </AppText>
       </View>
     </Card>
   );

@@ -37,7 +37,13 @@ export function RegisterScreen() {
   const passwordRules = [
     ["大写字母 A–Z", /[A-Z]/.test(password)],
     ["小写字母 a–z", /[a-z]/.test(password)],
-    ["特殊符号", /[^A-Za-z0-9]/.test(password)],
+    [
+      "特殊符号",
+      Array.from(password).some((character) => {
+        const code = character.codePointAt(0)!;
+        return code >= 33 && code <= 126 && !/^[A-Za-z0-9]$/.test(character);
+      }),
+    ],
   ] as const;
 
   const submit = handleSubmit(async (input) => {
@@ -82,6 +88,7 @@ export function RegisterScreen() {
           render={({ field, fieldState }) => (
             <AuthField
               label="验证码"
+              helper="当前为测试注册，不发送短信。请使用部署方提供的测试验证码。"
               error={fieldState.error?.message}
               value={field.value}
               onChangeText={field.onChange}
@@ -98,31 +105,13 @@ export function RegisterScreen() {
           render={({ field, fieldState }) => (
             <AuthField
               label="设置密码"
-              helper="密码至少6位，包含大小写字母、特殊字符。"
+              helper="至少 6 位，大写字母、小写字母、特殊符号中至少两类。"
               error={fieldState.error?.message}
               password
               value={field.value}
               onChangeText={field.onChange}
               onBlur={field.onBlur}
               placeholder="请设置密码"
-              autoComplete="new-password"
-              textContentType="newPassword"
-            />
-          )}
-        />
-        <Controller
-          control={control}
-          name="confirmPassword"
-          render={({ field, fieldState }) => (
-            <AuthField
-              label="确认密码"
-              helper="请再次输入密码"
-              error={fieldState.error?.message}
-              password
-              value={field.value}
-              onChangeText={field.onChange}
-              onBlur={field.onBlur}
-              placeholder="请再次输入密码"
               autoComplete="new-password"
               textContentType="newPassword"
             />
@@ -144,12 +133,31 @@ export function RegisterScreen() {
                 <Text
                   style={[styles.ruleText, met ? styles.ruleTextMet : null]}
                 >
+                  {met ? "已满足 · " : "未满足 · "}
                   {label}
                 </Text>
               </View>
             ))}
           </View>
         </View>
+        <Controller
+          control={control}
+          name="confirmPassword"
+          render={({ field, fieldState }) => (
+            <AuthField
+              label="确认密码"
+              helper="请再次输入密码"
+              error={fieldState.error?.message}
+              password
+              value={field.value}
+              onChangeText={field.onChange}
+              onBlur={field.onBlur}
+              placeholder="请再次输入密码"
+              autoComplete="new-password"
+              textContentType="newPassword"
+            />
+          )}
+        />
         <AuthFeedback message={feedback} />
         <AuthButton loading={isSubmitting} onPress={submit}>
           创建账号

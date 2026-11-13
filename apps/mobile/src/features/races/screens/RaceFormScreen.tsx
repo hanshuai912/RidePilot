@@ -30,12 +30,18 @@ export function RaceFormScreen() {
   const [version, setVersion] = useState<number | null>(null);
   const pending = useRef(false);
   const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   useEffect(() => {
+    void attempt;
     if (!raceId || !session?.accessToken) return;
+    let active = true;
     void coachApi
       .race(session.accessToken, raceId)
       .then((race) => {
+        if (!active) return;
+        setError(null);
         setVersion(race.version);
         setName(race.name);
         setLocalDate(race.localDate);
@@ -48,10 +54,14 @@ export function RaceFormScreen() {
         setPriority(race.priority);
         setIntent(race.intent);
       })
-      .catch((cause: unknown) =>
-        setError(cause instanceof Error ? cause.message : "赛事读取失败"),
-      );
-  }, [raceId, session?.accessToken]);
+      .catch((cause: unknown) => {
+        if (active)
+          setError(cause instanceof Error ? cause.message : "赛事读取失败");
+      });
+    return () => {
+      active = false;
+    };
+  }, [raceId, session?.accessToken, attempt]);
   const save = async () => {
     if (!session?.accessToken || pending.current) return;
     const input: RaceInput = {
@@ -66,13 +76,29 @@ export function RaceFormScreen() {
     };
     const parsed = raceInputSchema.safeParse(input);
     if (!parsed.success) {
-      setError("请检查赛事名称、日期、距离和爬升等信息");
+      const hints: Record<string, string> = {
+        name: "赛事名称需为 1–120 个字符",
+        localDate: "请输入有效日期（YYYY-MM-DD）",
+        timezone: "请填写比赛所在时区",
+        distanceKm: "距离需大于 0 且不超过 2000 km",
+        elevationGainM: "爬升需为 0–100000 m 的整数",
+      };
+      setFieldErrors(
+        Object.fromEntries(
+          parsed.error.issues.map((issue) => [
+            String(issue.path[0]),
+            hints[String(issue.path[0])] ?? "请检查此项",
+          ]),
+        ),
+      );
+      setError("请检查下方标出的赛事信息");
       return;
     }
     if (raceId && version === null) {
       setError("请等待赛事读取完成后再保存");
       return;
     }
+    setFieldErrors({});
     pending.current = true;
     setBusy(true);
     setError(null);
@@ -95,55 +121,119 @@ export function RaceFormScreen() {
     }
   };
   return (
-    <TrainingPage title={raceId ? "编辑赛事" : "添加赛事"} busy={busy}>
+    <TrainingPage
+      title={raceId ? "编辑赛事" : "添加赛事"}
+      busy={busy}
+      loading={!!raceId && version === null && !error}
+      error={raceId && version === null ? error : undefined}
+      retry={() => {
+        setError(null);
+        setAttempt((value) => value + 1);
+      }}
+    >
       <Card>
         <AppText variant="caption" muted>
           赛事名称
         </AppText>
         <Input
           className="mt-2"
+          accessibilityLabel="赛事名称"
+          editable={!busy}
           value={name}
           onChangeText={setName}
           placeholder="例如：环湖公路赛"
         />
+        {fieldErrors.name ? (
+          <AppText
+            accessibilityRole="alert"
+            variant="caption"
+            className="mt-2 text-negative"
+          >
+            {fieldErrors.name}
+          </AppText>
+        ) : null}
         <AppText variant="caption" muted className="mt-4">
           比赛日期（YYYY-MM-DD）
         </AppText>
         <Input
           className="mt-2"
+          accessibilityLabel="比赛日期"
+          editable={!busy}
           value={localDate}
           onChangeText={setLocalDate}
           placeholder="2026-12-15"
         />
+        {fieldErrors.localDate ? (
+          <AppText
+            accessibilityRole="alert"
+            variant="caption"
+            className="mt-2 text-negative"
+          >
+            {fieldErrors.localDate}
+          </AppText>
+        ) : null}
         <AppText variant="caption" muted className="mt-4">
           比赛时区
         </AppText>
         <Input
           className="mt-2"
+          accessibilityLabel="比赛时区"
+          editable={!busy}
           value={timezone}
           onChangeText={setTimezone}
           placeholder="Asia/Shanghai"
         />
+        {fieldErrors.timezone ? (
+          <AppText
+            accessibilityRole="alert"
+            variant="caption"
+            className="mt-2 text-negative"
+          >
+            {fieldErrors.timezone}
+          </AppText>
+        ) : null}
         <AppText variant="caption" muted className="mt-4">
           距离（km）
         </AppText>
         <Input
           className="mt-2"
+          accessibilityLabel="比赛距离"
+          editable={!busy}
           value={distanceKm}
           onChangeText={setDistanceKm}
           keyboardType="decimal-pad"
           placeholder="100"
         />
+        {fieldErrors.distanceKm ? (
+          <AppText
+            accessibilityRole="alert"
+            variant="caption"
+            className="mt-2 text-negative"
+          >
+            {fieldErrors.distanceKm}
+          </AppText>
+        ) : null}
         <AppText variant="caption" muted className="mt-4">
           预计爬升（m，可选）
         </AppText>
         <Input
           className="mt-2"
+          accessibilityLabel="预计爬升"
+          editable={!busy}
           value={elevationGainM}
           onChangeText={setElevationGainM}
           keyboardType="number-pad"
           placeholder="1500"
         />
+        {fieldErrors.elevationGainM ? (
+          <AppText
+            accessibilityRole="alert"
+            variant="caption"
+            className="mt-2 text-negative"
+          >
+            {fieldErrors.elevationGainM}
+          </AppText>
+        ) : null}
       </Card>
       <Card>
         <AppText variant="caption" muted>

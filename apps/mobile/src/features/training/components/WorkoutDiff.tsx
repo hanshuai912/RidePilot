@@ -1,8 +1,9 @@
 import { View } from "react-native";
 import type { ManualWorkoutDraft } from "@ridepilot/contracts";
-import { AppText, Card } from "../../../components/ui";
+import { AppText, Card, Disclosure } from "../../../components/ui";
 import { segmentTotals, WorkoutSegmentList } from "./WorkoutSegmentList";
 import { WorkoutProfileChart } from "./WorkoutProfileChart";
+import { comparisonMaximums } from "../model/workout-profile";
 
 export function WorkoutDiff({
   before,
@@ -14,6 +15,7 @@ export function WorkoutDiff({
   const oldTotals = segmentTotals(before.segments);
   const newTotals = segmentTotals(after.segments);
   const delta = newTotals.minutes - oldTotals.minutes;
+  const maximums = comparisonMaximums(before.segments, after.segments);
   return (
     <Card>
       <AppText variant="card">详细变化</AppText>
@@ -41,12 +43,17 @@ export function WorkoutDiff({
             {workout.title || "骑行训练"}
           </AppText>
           <AppText muted>目的：{workout.purpose || "未填写"}</AppText>
-          <WorkoutProfileChart segments={workout.segments} />
-          <WorkoutSegmentList segments={workout.segments} />
+          <WorkoutProfileChart
+            segments={workout.segments}
+            maximums={maximums}
+          />
+          <Disclosure title={i ? "查看调整后动作" : "查看原课程动作"}>
+            <WorkoutSegmentList segments={workout.segments} />
+          </Disclosure>
         </View>
       ))}
       <AppText muted className="mt-3">
-        各动作按原顺序列出目标、强度单位、区间及重复次数。距离动作不换算为时长，强度不折算为身体状态。
+        两图同单位使用相同强度刻度；横轴各自显示课程时长。展开可核对完整动作，距离不换算为时长。
       </AppText>
     </Card>
   );

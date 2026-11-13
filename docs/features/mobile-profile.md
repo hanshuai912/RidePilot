@@ -129,3 +129,7 @@ JAVA_HOME=/home/XiaoH/.gradle/jdks/eclipse_adoptium-17-amd64-linux.2 ./gradlew :
 - Python ZIP 完整性检查通过，DEX 包含 `RNDateTimePickerPackage`；包含 `arm64-v8a`、`armeabi-v7a`、`x86`、`x86_64` 四种架构。
 - 根目录 APK 大小为 244,987,315 字节，复制后与原始产物 SHA-256 一致：`f10223f3a3486acf7ea8d894533e7db053b4184d4bddc019aa565645e1a4d820`。
 - 本次按要求交付安装文件，尚未在手机上安装或验证系统日期控件交互。
+
+## 2026-11-13：能力与训练管理分组
+
+能力设置与训练管理/历史分组，个人资料失败可重试；FTP/心率修改后的区间标为未保存预览。完整范围、验证命令与验收边界见 [全局页面结构优化](global-ui-ux-structure.md)。

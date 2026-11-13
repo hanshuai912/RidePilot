@@ -75,6 +75,11 @@ export function CyclingPowerZonesScreen() {
               </AppText>
             ) : null}
           </Card>
+          {editor.dirty ? (
+            <AppText variant="caption" className="text-warning">
+              以下区间为未保存预览，保存后才更新 FTP。
+            </AppText>
+          ) : null}
           <FtpPowerZones ftp={editor.value} />
         </>
       ) : null}

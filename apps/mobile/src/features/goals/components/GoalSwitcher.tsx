@@ -1,6 +1,6 @@
 import { Pressable, View } from "react-native";
 import { router } from "expo-router";
-import { AppText, Button } from "../../../components/ui";
+import { AppText, Button, Disclosure } from "../../../components/ui";
 import { goalTypeLabels } from "../model/goal-lifecycle";
 import { goalStatusLabel, type GoalRecord } from "../model/goal-presentation";
 
@@ -41,36 +41,41 @@ export function GoalSwitcher({
         </Button>
       </View>
       {visible.length > 1 ? (
-        <View className="flex-row flex-wrap gap-2">
-          {visible.map((goal) => {
-            const selected = goal.id === current.id;
-            return (
-              <Pressable
-                key={goal.id}
-                accessibilityRole="button"
-                accessibilityLabel={`切换目标：${goal.description || goalTypeLabels[goal.type]}`}
-                accessibilityState={{ selected, disabled }}
-                disabled={disabled}
-                onPress={() => {
-                  if (!selected) onSelect(goal.id);
-                }}
-                style={{ flexBasis: "45%", flexGrow: 1 }}
-                className={`min-h-[76px] gap-2 rounded-xl border p-3 ${selected ? "border-brand-subtle bg-brand-subtle" : "border-border bg-surface"} ${disabled ? "opacity-50" : "active:opacity-70"}`}
-              >
-                <AppText
-                  variant="caption"
-                  className={selected ? "text-brand" : "text-secondary"}
+        <Disclosure
+          title="切换查看目标"
+          summary={current.description || goalTypeLabels[current.type]}
+        >
+          <View className="flex-row flex-wrap gap-2">
+            {visible.map((goal) => {
+              const selected = goal.id === current.id;
+              return (
+                <Pressable
+                  key={goal.id}
+                  accessibilityRole="radio"
+                  accessibilityLabel={`切换目标：${goal.description || goalTypeLabels[goal.type]}`}
+                  accessibilityState={{ selected, checked: selected, disabled }}
+                  disabled={disabled}
+                  onPress={() => {
+                    if (!selected) onSelect(goal.id);
+                  }}
+                  className={`min-h-12 w-full gap-2 border-b border-divider px-2 py-3 ${selected ? "bg-brand-subtle" : "bg-surface"} ${disabled ? "opacity-50" : "active:opacity-70"}`}
                 >
-                  {goal.priority === "PRIMARY" ? "主目标" : "次目标"} ·{" "}
-                  {goalStatusLabel(goal)}
-                </AppText>
-                <AppText numberOfLines={2}>
-                  {goal.description || goalTypeLabels[goal.type]}
-                </AppText>
-              </Pressable>
-            );
-          })}
-        </View>
+                  <AppText
+                    variant="caption"
+                    className={selected ? "text-brand" : "text-secondary"}
+                  >
+                    {selected ? "正在查看 · " : ""}
+                    {goal.priority === "PRIMARY" ? "主目标" : "次目标"} ·{" "}
+                    {goalStatusLabel(goal)}
+                  </AppText>
+                  <AppText numberOfLines={2}>
+                    {goal.description || goalTypeLabels[goal.type]}
+                  </AppText>
+                </Pressable>
+              );
+            })}
+          </View>
+        </Disclosure>
       ) : null}
       {error ? (
         <View className="gap-2">

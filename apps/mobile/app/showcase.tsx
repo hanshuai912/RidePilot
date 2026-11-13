@@ -54,16 +54,16 @@ export default function ShowcaseScreen() {
           <Section title="字体层级">
             <AppText variant="display">Display 32</AppText>
             <AppText variant="title" className="mt-2">
-              Title 24
+              Title 22
             </AppText>
             <AppText variant="section" className="mt-2">
-              Section 20
+              Section 18
             </AppText>
             <AppText variant="body" className="mt-2">
               Body 16 · 统一中文正文层级
             </AppText>
             <AppText variant="caption" muted className="mt-2">
-              Caption 13 · 辅助说明文字
+              Caption 14 · 辅助说明文字
             </AppText>
           </Section>
 

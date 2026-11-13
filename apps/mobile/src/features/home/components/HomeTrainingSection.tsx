@@ -1,9 +1,7 @@
-import { ImageBackground, View } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
+import { View } from "react-native";
 import type { CalendarResponse } from "@ridepilot/contracts";
 
 import { AppText, Badge, Button, Card } from "../../../components/ui";
-import { colors } from "../../../theme/colors";
 import { WorkoutProfileChart } from "../../training/components/WorkoutProfileChart";
 import { dateLabel } from "../../training/model/training";
 import type { HomeResource } from "../hooks/useHomeData";
@@ -35,6 +33,7 @@ export function HomeTrainingSection({
   onWorkout: (workout: Workout, action?: "adjust" | "feedback") => void;
 }) {
   const workouts = training.data?.items ?? [];
+  const nextUnrecordedId = workouts.find((workout) => !workout.activity)?.id;
   const actionable = !training.loading && !training.error;
   return (
     <View className="gap-3">
@@ -91,86 +90,77 @@ export function HomeTrainingSection({
           </Button>
         </Card>
       ) : null}
-      {workouts.map((workout, index) => (
-        <Card key={workout.id} padding="none" className="overflow-hidden">
-          <ImageBackground
-            source={require("../../../../assets/road-cycling-hero.png")}
-            resizeMode="cover"
+      {workouts.map((workout) => (
+        <Card key={workout.id} className="gap-3 p-5">
+          <View className="flex-row flex-wrap items-center gap-2">
+            <Badge variant="brand">第 {workout.dayOrder} 节 · 正式训练</Badge>
+            {workout.activity ? (
+              <Badge variant="positive">
+                {statusLabel[workout.activity.status]}
+              </Badge>
+            ) : null}
+          </View>
+          <AppText variant="section">{workout.title || "骑行训练"}</AppText>
+          <AppText variant="card" className="text-brand">
+            {[
+              workout.timeTargetMinutes
+                ? `${workout.timeTargetMinutes} 分钟`
+                : null,
+              workout.distanceTargetKm
+                ? `${workout.distanceTargetKm} 公里`
+                : null,
+              `${workout.segments.length} 个动作`,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          </AppText>
+          <AppText className="text-secondary">
+            {workout.purpose || "按结构化区段完成今天的训练"}
+          </AppText>
+          {workout.id === nextUnrecordedId ? (
+            <WorkoutProfileChart segments={workout.segments} />
+          ) : null}
+          {workout.activity ? (
+            <AppText variant="caption" className="text-positive">
+              {statusLabel[workout.activity.status]}
+              {workout.activity.durationMin !== null
+                ? ` · 实际 ${workout.activity.durationMin} 分钟`
+                : ""}
+              {workout.activity.rpe !== null
+                ? ` · RPE ${workout.activity.rpe}`
+                : ""}
+            </AppText>
+          ) : null}
+          <Button
+            size="lg"
+            variant={workout.id === nextUnrecordedId ? "primary" : "secondary"}
+            onPress={() => onWorkout(workout)}
           >
-            <LinearGradient
-              colors={[colors.scrim, colors.background]}
-              style={{ gap: 12, padding: 20 }}
-            >
-              <View className="flex-row flex-wrap items-center gap-2">
-                <Badge variant="brand">
-                  第 {workout.dayOrder} 节 · 正式训练
-                </Badge>
-                {workout.activity ? (
-                  <Badge variant="positive">
-                    {statusLabel[workout.activity.status]}
-                  </Badge>
-                ) : null}
-              </View>
-              <AppText variant="display" className="text-brand">
-                {workout.timeTargetMinutes
-                  ? `${workout.timeTargetMinutes} 分钟`
-                  : workout.distanceTargetKm
-                    ? `${workout.distanceTargetKm} 公里`
-                    : "查看训练目标"}
-              </AppText>
-              {workout.timeTargetMinutes && workout.distanceTargetKm ? (
-                <AppText variant="caption" muted>
-                  另含 {workout.distanceTargetKm} 公里距离目标，不折算时长
-                </AppText>
-              ) : null}
-              <AppText variant="section">{workout.title || "骑行训练"}</AppText>
-              <AppText className="text-secondary">
-                {workout.purpose || "按结构化区段完成今天的训练"}
-              </AppText>
-              <WorkoutProfileChart segments={workout.segments} />
-              {workout.activity ? (
-                <AppText variant="caption" className="text-positive">
-                  {statusLabel[workout.activity.status]}
-                  {workout.activity.durationMin !== null
-                    ? ` · 实际 ${workout.activity.durationMin} 分钟`
-                    : ""}
-                  {workout.activity.rpe !== null
-                    ? ` · RPE ${workout.activity.rpe}`
-                    : ""}
-                </AppText>
+            查看
+            {workouts.length === 1
+              ? "今日训练"
+              : `第 ${workout.dayOrder} 节训练`}
+          </Button>
+          {!workout.activity && actionable ? (
+            <View className="flex-row gap-2">
+              {workout.editable !== false ? (
+                <Button
+                  className="flex-1"
+                  variant="ghost"
+                  onPress={() => onWorkout(workout, "adjust")}
+                >
+                  调整训练
+                </Button>
               ) : null}
               <Button
-                size="lg"
-                variant={index === 0 ? "primary" : "secondary"}
-                onPress={() => onWorkout(workout)}
+                className="flex-1"
+                variant="secondary"
+                onPress={() => onWorkout(workout, "feedback")}
               >
-                查看
-                {workouts.length === 1
-                  ? "今日训练"
-                  : `第 ${workout.dayOrder} 节训练`}
+                记录完成
               </Button>
-              {!workout.activity && actionable ? (
-                <View className="flex-row gap-2">
-                  {workout.editable !== false ? (
-                    <Button
-                      className="flex-1"
-                      variant="secondary"
-                      onPress={() => onWorkout(workout, "adjust")}
-                    >
-                      调整训练
-                    </Button>
-                  ) : null}
-                  <Button
-                    className="flex-1"
-                    variant="secondary"
-                    onPress={() => onWorkout(workout, "feedback")}
-                  >
-                    记录完成
-                  </Button>
-                </View>
-              ) : null}
-            </LinearGradient>
-          </ImageBackground>
+            </View>
+          ) : null}
         </Card>
       ))}
     </View>

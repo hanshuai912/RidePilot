@@ -1,6 +1,14 @@
+import { Pressable, View } from "react-native";
+import { NavigationHeaderAction } from "../../../components/layout/NavigationHeaderAction";
 import { useCallback, useState } from "react";
 import { router, useFocusEffect } from "expo-router";
-import { AppText, Badge, Button, Card, Spinner } from "../../../components/ui";
+import {
+  AppText,
+  Badge,
+  Card,
+  Spinner,
+  Disclosure,
+} from "../../../components/ui";
 import { TrainingPage } from "../../training/components/TrainingPage";
 import { useAuth } from "../../auth/hooks/AuthProvider";
 import { coachApi } from "../../coach/services/coach.api";
@@ -48,52 +56,89 @@ export function RaceListScreen() {
   return (
     <TrainingPage
       title="赛事管理"
+      headerAction={
+        <NavigationHeaderAction
+          label="添加赛事"
+          onPress={() => router.push("/races/new")}
+        />
+      }
       error={error}
       retry={() => setAttempt((value) => value + 1)}
     >
       {!races ? <Spinner accessibilityLabel="读取赛事" /> : null}
-      {races?.map((race) => (
-        <Card key={race.id}>
-          <Badge variant={race.priority === "A" ? "brand" : "neutral"}>
-            {priorityLabel[race.priority]}
-          </Badge>
-          <AppText variant="section" className="mt-3">
-            {race.name}
-          </AppText>
-          <AppText variant="caption" muted className="mt-2">
-            {race.localDate} · {race.distanceKm} km · {statusLabel[race.status]}
-          </AppText>
-          <AppText variant="caption" muted className="mt-1">
-            {race.type === "GRAN_FONDO"
-              ? "Gran Fondo"
-              : race.type === "TIME_TRIAL"
-                ? "计时赛"
-                : race.type === "CLIMB"
-                  ? "爬坡赛"
-                  : "公路赛"}
-          </AppText>
-          <Button
-            className="mt-4"
-            variant="secondary"
-            onPress={() =>
-              router.push({
-                pathname: "/races/[raceId]",
-                params: { raceId: race.id },
-              } as never)
-            }
+      {(["CONFIRMED", "COMPLETED", "CANCELLED"] as const).map((status) => {
+        const items =
+          races
+            ?.filter((race) => race.status === status)
+            .sort((a, b) =>
+              status === "CONFIRMED"
+                ? a.localDate.localeCompare(b.localDate)
+                : b.localDate.localeCompare(a.localDate),
+            ) ?? [];
+        if (!items.length) return null;
+        const rows = (
+          <Card padding="none">
+            {items.map((race) => (
+              <Pressable
+                key={race.id}
+                accessibilityRole="button"
+                accessibilityLabel={`查看赛事与备赛：${race.name}`}
+                onPress={() =>
+                  router.push({
+                    pathname: "/races/[raceId]",
+                    params: { raceId: race.id },
+                  })
+                }
+                className="min-h-12 gap-2 border-b border-divider p-4 active:opacity-70"
+              >
+                <View className="flex-row flex-wrap items-center gap-2">
+                  <Badge variant={race.priority === "A" ? "brand" : "neutral"}>
+                    {priorityLabel[race.priority]}
+                  </Badge>
+                  <AppText variant="caption" muted>
+                    {race.localDate}
+                  </AppText>
+                </View>
+                <AppText variant="card">{race.name}</AppText>
+                <AppText variant="caption" muted>
+                  {race.distanceKm} km · {statusLabel[race.status]} ·{" "}
+                  {race.type === "GRAN_FONDO"
+                    ? "Gran Fondo"
+                    : race.type === "TIME_TRIAL"
+                      ? "计时赛"
+                      : race.type === "CLIMB"
+                        ? "爬坡赛"
+                        : race.type === "OTHER"
+                          ? "其他"
+                          : "公路赛"}
+                </AppText>
+              </Pressable>
+            ))}
+          </Card>
+        );
+        return status === "CANCELLED" ? (
+          <Disclosure
+            key={status}
+            title="已取消赛事"
+            summary={`${items.length} 场`}
           >
-            查看赛事与备赛
-          </Button>
-        </Card>
-      ))}
+            {rows}
+          </Disclosure>
+        ) : (
+          <View key={status} className="gap-3">
+            <AppText variant="section">
+              {status === "CONFIRMED" ? "待完成赛事" : "已完成赛事"} ·{" "}
+              {items.length}
+            </AppText>
+            {rows}
+          </View>
+        );
+      })}
       {races?.length === 0 ? (
         <Card>
           <AppText>还没有赛事，先添加一场比赛。</AppText>
         </Card>
       ) : null}
-      <Button onPress={() => router.push("/races/new" as never)}>
-        添加赛事
-      </Button>
     </TrainingPage>
   );
 }

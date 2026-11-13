@@ -70,19 +70,22 @@ export function WorkoutFeedbackForm({
       </Card>
       <Card className="mt-4">
         <AppText variant="card">实际训练（选填）</AppText>
-        <View className="mt-3 flex-row gap-2">
+        <View className="mt-3 gap-2">
+          <AppText variant="caption">实际时长（分钟）</AppText>
           <Input
             editable={!loading}
-            className="flex-1"
             accessibilityLabel="实际时长"
             value={duration}
             onChangeText={setDuration}
             keyboardType="number-pad"
             placeholder="时长（分钟）"
           />
+          <AppText variant="caption">主观用力程度 RPE（1–10）</AppText>
+          <AppText variant="caption" muted>
+            评价本次训练有多吃力，1 最轻松，10 最吃力。
+          </AppText>
           <Input
             editable={!loading}
-            className="flex-1"
             accessibilityLabel="主观用力程度"
             value={rpe}
             onChangeText={setRpe}
@@ -90,6 +93,12 @@ export function WorkoutFeedbackForm({
             placeholder="RPE 1-10"
           />
         </View>
+        <AppText variant="caption" className="mt-3">
+          训练后疲劳程度（1–10）
+        </AppText>
+        <AppText variant="caption" muted>
+          评价身体的疲劳感，1 最低，10 最高。
+        </AppText>
         <Input
           editable={!loading}
           className="mt-3"
@@ -99,6 +108,9 @@ export function WorkoutFeedbackForm({
           keyboardType="number-pad"
           placeholder="疲劳 1-10"
         />
+        <AppText variant="caption" className="mt-3">
+          训练备注（选填）
+        </AppText>
         <Input
           editable={!loading}
           className="mt-3"

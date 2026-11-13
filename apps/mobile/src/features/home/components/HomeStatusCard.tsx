@@ -1,7 +1,13 @@
 import { View } from "react-native";
 import { router } from "expo-router";
 import type { HomeActions } from "@ridepilot/contracts";
-import { AppText, Button, Card, Spinner } from "../../../components/ui";
+import {
+  AppText,
+  Button,
+  Card,
+  Spinner,
+  Disclosure,
+} from "../../../components/ui";
 import type { HomeResource } from "../hooks/useHomeData";
 import { HomeResourceFeedback } from "./HomeResourceFeedback";
 
@@ -32,16 +38,18 @@ export function HomeStatusCard({
           <AppText muted className="mt-2">
             {overview.status.explanation}
           </AppText>
-          {overview.status.evidence.map((evidence) => (
-            <AppText
-              key={`${evidence.kind}-${evidence.id}`}
-              variant="caption"
-              muted
-              className="mt-2"
-            >
-              {evidence.date} · {evidence.title}：{evidence.detail}
-            </AppText>
-          ))}
+          <Disclosure title="展开状态依据">
+            {overview.status.evidence.map((evidence) => (
+              <AppText
+                key={`${evidence.kind}-${evidence.id}`}
+                variant="caption"
+                muted
+                className="mt-2"
+              >
+                {evidence.date} · {evidence.title}：{evidence.detail}
+              </AppText>
+            ))}
+          </Disclosure>
           <Button variant="ghost" onPress={() => router.push("/(tabs)/coach")}>
             查看状态依据与教练建议
           </Button>
@@ -86,9 +94,7 @@ export function HomeStatusCard({
               下一比赛 · {data.nextRace.date} · {data.nextRace.title} ·{" "}
               {data.nextRace.priority} 级
             </Button>
-          ) : (
-            <AppText muted>暂无未来比赛安排</AppText>
-          )}
+          ) : null}
           {data.suggestions.length ? (
             <Button
               variant="secondary"
@@ -96,9 +102,7 @@ export function HomeStatusCard({
             >
               {data.suggestions.length} 项建议待确认
             </Button>
-          ) : (
-            <AppText muted>暂无待确认建议</AppText>
-          )}
+          ) : null}
         </>
       ) : null}
     </View>
