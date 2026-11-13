@@ -1,5 +1,7 @@
 # AI 教练 API
 
+2026-11-13：首周、空白周、日期／阶段范围及赛事课程生成的响应新增可选 `stagePlan: {action: CREATE | REPLACE | EXTEND | REUSE, summary, startDate, endDate, stages}`，通过既有课程预览、校验和 apply 接口一次确认生效；不新增请求参数。模型输出可附结构化 `stages`，客户端课程编辑不可提交该字段。阶段基准变化会阻断校验，apply 返回 `409 PROPOSAL_VALIDATION_FAILED`。独立阶段草稿新增基准版本校验，扩展后旧草稿返回 `409 STAGE_PLAN_STALE`。旧课程草稿无该字段时保持原语义。详见 [自动配套阶段](../features/course-stage-generation.md)。
+
 ## 资料变更影响检查
 
 新增 `GET /plans/input-impact`、`POST /plans/input-impact/decisions`、`GET /plans/input-impact/decisions/:id`、`POST /plans/input-impact/decisions/:id/apply` 与 `POST /plans/input-impact/generate-proposal`。范围使用 `{fingerprint,startDate,endDate}`，决定增加 `action: KEEP|FTP_RECALCULATE`；所有写入需幂等键。本人归属、冲突和原子发布规则见 [功能文档](../features/plan-input-impact.md)。

@@ -142,3 +142,4 @@ export {
 export type { RescheduleInput, ReschedulePreview } from "./training";
 export { homeActionsSchema } from "./home";
 export type { HomeActions } from "./home";
+export { courseStagePlanSchema, type CourseStagePlan } from "./stage-output";

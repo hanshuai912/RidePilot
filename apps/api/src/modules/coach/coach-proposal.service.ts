@@ -1,4 +1,9 @@
 import { assertPlanImpact } from "./plan-impact/plan-impact.repository";
+import {
+  assertCourseStageBase,
+  applyCourseStages,
+} from "./course-stage.repository";
+import type { CourseStageDraft } from "./course-stage-planning";
 import { retainedHardDates } from "./retained-training";
 import {
   readPlanningGoals,
@@ -52,6 +57,7 @@ import {
 } from "./coach-plan.validator";
 
 interface AiDraft extends AiWeekOutput {
+  courseStages?: CourseStageDraft;
   goalsSnapshot?: {
     goals: NonNullable<AiProposalResponse["planningGoals"]>;
     tradeoffs: string[];
@@ -111,6 +117,7 @@ export class CoachProposalService {
         })
       : null;
     return aiProposalResponseSchema.parse({
+      ...(draft.courseStages ? { stagePlan: draft.courseStages.plan } : {}),
       planningGoals: draft.goalsSnapshot
         ? planningSnapshotSchema.parse(draft.goalsSnapshot).goals
         : undefined,
@@ -284,6 +291,8 @@ export class CoachProposalService {
           message: blockers.join("；"),
         });
       const draft = proposal.draft as unknown as AiDraft;
+      if (draft.courseStages)
+        await applyCourseStages(tx, userId, draft.courseStages, draft);
       const targetPlan =
         plan ??
         (await tx.trainingPlan.create({ data: { userId, status: "ACTIVE" } }));
@@ -420,6 +429,14 @@ export class CoachProposalService {
         }),
       ]);
     const blockers: string[] = [];
+    if (draft.courseStages) {
+      try {
+        await assertCourseStageBase(tx, userId, draft.courseStages);
+      } catch (error) {
+        if (error instanceof ConflictException) blockers.push(error.message);
+        else throw error;
+      }
+    }
     if (
       !planningGoalsMatch(
         draft.goalsSnapshot,

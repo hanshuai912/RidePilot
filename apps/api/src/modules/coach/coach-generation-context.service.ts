@@ -19,6 +19,7 @@ import type { WeeklyAvailabilitySlot } from "./coach-plan.validator";
 import { TrainingRangeService } from "./training-range.service";
 import { assertDateRange } from "./stage-plan.validation";
 import { retainedHardDates } from "./retained-training";
+import { readCourseStageContext } from "./course-stage.repository";
 import {
   readPlanningGoals,
   primaryPlanningGoal,
@@ -496,7 +497,19 @@ export class CoachGenerationContextService {
           select: { title: true, purpose: true, assessmentSuggestion: true },
         })
       : null;
+    const courseStages = ["WEEK_PLAN", "RANGE_PLAN", "RACE_REPLAN"].includes(
+      scene,
+    )
+      ? await readCourseStageContext(this.prisma, userId, input, {
+          goals: planningGoals,
+          ftpMeasurementId: ftp.id,
+          availabilityVersion: availability.version,
+          profileVersion: user.profileVersion,
+          today: localToday,
+        })
+      : undefined;
     return {
+      ...(courseStages ? { courseStages } : {}),
       ...(impact && input.planImpact
         ? {
             planImpact: {

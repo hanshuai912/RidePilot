@@ -218,6 +218,47 @@ beforeEach(() => {
 });
 const detail = () => renderRouter(routes, { initialUrl: `/goals/${goalId}` });
 
+test("courses and phases share preview and explicit confirmation, with the same apply request after a network failure", async () => {
+  const combined: AiProposalResponse = {
+    ...proposal,
+    stagePlan: {
+      action: "CREATE",
+      summary: "配套耐力阶段",
+      startDate: start,
+      endDate: end,
+      stages: [
+        {
+          title: "配套基础阶段",
+          purpose: "稳步积累耐力",
+          startDate: start,
+          endDate: end,
+          assessmentSuggestion: "训练后复评",
+        },
+      ],
+    },
+  };
+  coach.proposal.mockResolvedValue(combined);
+  coach.validate.mockResolvedValue(combined);
+  coach.apply.mockRejectedValueOnce(new Error("确认连接中断"));
+  await renderRouter(routes, {
+    initialUrl: `/goals/course-preview?proposalId=${proposalId}`,
+  });
+  await screen.findByText("稳步积累耐力");
+  expect(coach.apply).not.toHaveBeenCalled();
+  expect(api.generateStages).not.toHaveBeenCalled();
+  await fireEvent.press(screen.getByText("校验课程草稿"));
+  await screen.findByText("确认应用课程与阶段");
+  expect(coach.apply).not.toHaveBeenCalled();
+  await fireEvent.press(screen.getByText("确认应用课程与阶段"));
+  await screen.findByText("确认连接中断");
+  expect(screen.getByText("稳步积累耐力")).toBeTruthy();
+  await fireEvent.press(screen.getByText("确认应用课程与阶段"));
+  await screen.findByText("训练日历已刷新");
+  expect(coach.validate).toHaveBeenCalledTimes(1);
+  expect(coach.apply.mock.calls[1]).toEqual(coach.apply.mock.calls[0]);
+  expect(api.activateStages).not.toHaveBeenCalled();
+});
+
 test("missing FTP links directly to settings and resumes the selected goal", async () => {
   coach.ftp.mockResolvedValue(null);
   await detail();

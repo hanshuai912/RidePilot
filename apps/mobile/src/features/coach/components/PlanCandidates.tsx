@@ -20,7 +20,9 @@ export function PlanCandidates({ proposal }: { proposal: AiProposalResponse }) {
       </View>
       <AppText className="text-secondary">{proposal.stageSummary}</AppText>
       <AppText variant="caption" muted>
-        下一步核对日期、课程变化与限制，再确认应用到正式计划。
+        {proposal.stagePlan
+          ? "下一步核对课程与阶段安排，一次确认后生效。"
+          : "下一步核对日期、课程变化与限制，再确认应用到正式计划。"}
       </AppText>
     </Card>
   );

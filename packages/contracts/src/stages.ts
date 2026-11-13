@@ -1,17 +1,12 @@
 import { z } from "zod";
+import { stageDraftSchema } from "./stage-output";
+export { stageDraftSchema } from "./stage-output";
 import { goalSchema } from "./coach";
 import {
   stageReviewEvidenceSchema,
   stageReviewSummarySchema,
 } from "./stage-review";
 
-export const stageDraftSchema = z.strictObject({
-  title: z.string().trim().min(1).max(80),
-  purpose: z.string().trim().min(1).max(300),
-  startDate: z.iso.date(),
-  endDate: z.iso.date(),
-  assessmentSuggestion: z.string().trim().min(1).max(300),
-});
 export const stagePlanOutputSchema = z.strictObject({
   goalTradeoffs: z.array(z.string().trim().min(1).max(500)).max(10).optional(),
   summary: z.string().trim().min(1).max(1000),

@@ -1,5 +1,7 @@
 # OpenAPI 与 Swagger
 
+2026-11-13：课程草稿响应的 `stagePlan` 使用共享 `courseStagePlanSchema`，随现有 GET／validate 的 `aiProposalResponseSchema` 自动生成 Swagger schema；结构含阶段操作、起止日期及结构化阶段列表。apply 请求不变，一次确认同时提交课程与阶段。详见 [AI 教练 API](ai-coach.md)。
+
 本地开发访问 `/api/docs` 查看 Swagger UI，访问 `/api/docs-json` 获取 OpenAPI JSON。API 路由仍以 `/api/v1` 为前缀。
 
 `apps/api/src/docs/swagger.ts` 负责文档注册，`apps/api/src/configure-app.ts` 将文档与 API 路由配置应用到 Nest 实例。健康、认证、用户档案和训练接口的主要请求/成功响应 schema 由 `packages/contracts` 的 Zod schema 转换为 OpenAPI 3.0，错误响应由控制器说明。训练草稿和应用接口中的基础版本允许为 0，表示首次人工创建。受保护接口在 Swagger UI 使用 `access-token` Bearer 认证方案。后续新增接口时应同步维护运行时 Zod 校验、Swagger 注解、共享契约和本目录文档。

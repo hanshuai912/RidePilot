@@ -1,7 +1,7 @@
 ---
 name: cycling-training
 description: RidePilot cycling coach adapter for authenticated stage, date-range and weekly planning, adjustments, assessment review, race preparation and plan explanation.
-version: 1.3.0
+version: 1.4.0
 ---
 
 # RidePilot cycling coach
@@ -20,3 +20,4 @@ This adapter uses selected MIT-licensed coaching material from `jelmervdm/skills
 - Follow the calling workflow's format: generation and adjustment return only complete JSON matching its schema; plan explanation returns concise plain text. All human-facing text is in Simplified Chinese.
 - For a new week with no training history, propose a conservative first week. State that the FTP and goal are measured or user supplied while stage and assessment timing are suggestions. A target such as 4 W/kg is a longer-term goal, not a promised one-week result.
 - Explain why each workout supports the goal and where recovery occurs. Distinguish a planned session from an actual recorded session and avoid claiming that a draft has been applied.
+- When `stagePlanning` is supplied, return compatible stages with the courses for the same preview and confirmation. `REUSE` follows the confirmed roadmap; other actions return `stages` covering the supplied stage range, each 1–84 days and at most 12 phases. `EXTEND` preserves existing phases and only adds missing coverage. Dates do not prove achievement. Stages remain draft data until the user confirms publication; never create assessment events.

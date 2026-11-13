@@ -88,7 +88,9 @@ export function CoursePreviewScreen() {
           />
           {validated ? (
             <AppText className="text-positive">
-              校验通过。确认后将应用以上课程，并替换预览中列出的未来课程。
+              {resource.data.proposal.stagePlan
+                ? "校验通过。确认后将一并应用课程与阶段安排，并替换预览中列出的未来课程。"
+                : "校验通过。确认后将应用以上课程，并替换预览中列出的未来课程。"}
             </AppText>
           ) : null}
           {error ? <AppText className="text-negative">{error}</AppText> : null}
@@ -96,7 +98,11 @@ export function CoursePreviewScreen() {
             resource.data.proposal.status,
           ) ? (
             <Button loading={busy} onPress={() => void confirm()}>
-              {validated ? "确认应用课程" : "校验课程草稿"}
+              {validated
+                ? resource.data.proposal.stagePlan
+                  ? "确认应用课程与阶段"
+                  : "确认应用课程"
+                : "校验课程草稿"}
             </Button>
           ) : (
             <AppText>

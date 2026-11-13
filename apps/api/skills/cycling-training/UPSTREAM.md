@@ -10,6 +10,7 @@ The runtime loads `SKILL.md`, `references/power-zones.md` and one scene referenc
 
 ## RidePilot adaptation
 
+- Adapter 1.4.0 couples course and stage candidates for a single preview and atomic publication. Existing valid roadmaps are reused or extended without replacing existing phase IDs; stages and test suggestions remain unconfirmed until explicit course publication. No upstream source or tool changes.
 - Adapter 1.3.0 adds authenticated assessment evidence to range planning: explicit test kind, actual date, source, conditions, comparable previous result and recorded stage completion. FTP confirmation and course publication remain separate user actions. No upstream source or tool changes.
 
 - Adapter 1.2.0 adds local `stage-planning` and `range-planning` references using the same pinned sources. Stage roadmaps use their own schema and confirmation flow; range courses cover all eligible weeks rather than inheriting the weekly scene's seven-date constraint. This does not update upstream commits or enable upstream tools.

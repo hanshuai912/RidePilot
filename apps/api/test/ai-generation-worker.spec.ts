@@ -44,6 +44,7 @@ test("empty week keeps a past course and allows the remaining dates", async () =
   jest.useFakeTimers().setSystemTime(new Date("2030-01-09T03:00:00.000Z"));
   const workoutId = "00000000-0000-4000-8000-000000000010";
   const prisma = {
+    trainingStagePlan: { findMany: jest.fn().mockResolvedValue([]) },
     trainingGoal: {
       findMany: jest.fn().mockResolvedValue([
         {

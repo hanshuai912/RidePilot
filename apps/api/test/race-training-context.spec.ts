@@ -38,6 +38,7 @@ function fixture() {
     result: null,
   };
   const db = {
+    trainingStagePlan: { findMany: jest.fn().mockResolvedValue([]) },
     trainingGoal: {
       findMany: jest.fn().mockResolvedValue([
         {

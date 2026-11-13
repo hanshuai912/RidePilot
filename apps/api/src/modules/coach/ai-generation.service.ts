@@ -1,4 +1,5 @@
 import { watchGeneration } from "../../infra/prisma/watch-generation";
+import { buildCourseStagePlan } from "./course-stage-planning";
 import { planningInstructions } from "./goals/planning-goals";
 import { workoutSegments } from "../training/calendar-events";
 import { validateCycleRecovery } from "./cycle-review/cycle-review.evidence";
@@ -268,6 +269,10 @@ export class AiGenerationService implements OnModuleInit, OnModuleDestroy {
               planningGoals: context.planningGoals,
               planningInstructions,
               stage: context.stage,
+              stagePlanning: context.courseStages,
+              stagePlanningInstructions: context.courseStages
+                ? "同时规划正式阶段，课程须符合各阶段目的。action=REUSE 时沿用已有阶段；否则返回 stages，连续覆盖 stagePlanning.startDate 至 endDate，每阶段最多84天、最多12阶段，包含 title、purpose、startDate、endDate、assessmentSuggestion。EXTEND 时保留 existing 内的阶段内容与日期，仅补齐范围。测试仅为建议，不创建日程。"
+                : undefined,
               ftp: {
                 watts: Number(context.ftp.value),
                 measuredAt: context.ftp.measuredAt.toISOString(),
@@ -310,6 +315,13 @@ export class AiGenerationService implements OnModuleInit, OnModuleDestroy {
         retainedMinutes: context.retainedMinutes,
         retainedHardDates: context.retainedHardDates,
       });
+      const courseStages = context.courseStages
+        ? {
+            context: context.courseStages,
+            plan: buildCourseStagePlan(context.courseStages, output),
+            generationId: job.id,
+          }
+        : undefined;
       if (context.planningGoals.length > 1 && !output.goalTradeoffs)
         throw new BadRequestException({
           code: "GOAL_TRADEOFFS_REQUIRED",
@@ -357,6 +369,7 @@ export class AiGenerationService implements OnModuleInit, OnModuleDestroy {
             validationBlockers: [],
             draft: {
               ...output,
+              ...(courseStages ? { courseStages } : {}),
               goalsSnapshot: {
                 goals: context.planningGoals,
                 tradeoffs: output.goalTradeoffs ?? [],
@@ -506,6 +519,7 @@ export class AiGenerationService implements OnModuleInit, OnModuleDestroy {
       return false;
     const draft = p.draft as Record<string, unknown>;
     return (
+      (!context.courseStages || !!draft.courseStages) &&
       draft.profileVersion === context.profileVersion &&
       draft.availabilityVersion === context.availability.version &&
       draft.ftpMeasurementId === context.ftp.id &&

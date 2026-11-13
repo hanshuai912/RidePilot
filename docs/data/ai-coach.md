@@ -1,5 +1,7 @@
 # AI 教练数据模型
 
+2026-11-13：课程草稿 JSON 新增 `courseStages: {context, plan, generationId}`，保存用户阶段 ID／版本基准与预览候选；阶段仅在课程确认事务内写现有阶段表。有效阶段扩展保留 ID 与历史测试／复评关联，并递增阶段安排版本；独立阶段草稿在既有 `goalsSnapshot` 中增加 `baseStagePlanVersion` 防止覆盖后续扩展。无表结构变化、无迁移或旧数据回填。详见 [自动配套阶段](../features/course-stage-generation.md)。
+
 2026-11-10：迁移 `20261110120000_unified_goal_planning` 为 `TrainingStagePlan` 新增可空 `goalsSnapshot`（JSONB，映射 `goals_snapshot`），保存 `{goals, tradeoffs}`。旧数据为空，不回填为综合计划；新阶段以主目标为 `goalId/goalVersion` 锚点，但服务全部活跃目标。部分唯一索引 `training_stage_plans_one_unified_active_per_user` 限制每个用户只能有一份快照非空且 ACTIVE 的综合安排；确认新草稿在同一事务中归档全部旧 ACTIVE 安排。无数据删除。回退应用时保留新增列和索引及历史快照，不执行破坏性回滚。课程快照存于既有草稿 JSON，无课程表结构变更。详见 [多目标综合规划](../features/unified-goal-planning.md)。
 
 迁移 `20261026000000_coach_foundation` 增加目标、可训练时间、训练记录、阶段测试、赛事和异步生成任务表，并扩充 `ChangeProposal.proposalType`。迁移 `20261026010000_coach_event_versions` 为测试和赛事加入乐观锁版本。迁移 `20261026020000_goal_target_wkg` 为目标添加可空 `target_wkg`，保留旧目标兼容性。新表关联 `users.id`，所有读取与写入均通过当前登录用户过滤。

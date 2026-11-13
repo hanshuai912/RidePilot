@@ -114,7 +114,8 @@ export class StagePlansService {
           p.ftpMeasurementId === context.ftp.id &&
           p.profileVersion === context.user.profileVersion &&
           p.availabilityVersion === context.availability.version &&
-          p.baseStagePlanId === (context.active?.id ?? null)
+          p.baseStagePlanId === (context.active?.id ?? null) &&
+          this.baseVersionMatches(p.goalsSnapshot, context.active)
         );
       },
     );
@@ -234,6 +235,7 @@ export class StagePlansService {
         data: {
           userId: job.userId,
           goalsSnapshot: {
+            baseStagePlanVersion: ctx.active?.version ?? null,
             goals: ctx.goals,
             tradeoffs: output.goalTradeoffs ?? [],
           } as unknown as Prisma.InputJsonValue,
@@ -281,7 +283,8 @@ export class StagePlansService {
             p.ftpMeasurementId === ctx.ftp.id &&
             p.profileVersion === ctx.user.profileVersion &&
             p.availabilityVersion === ctx.availability.version &&
-            p.baseStagePlanId === (ctx.active?.id ?? null)
+            p.baseStagePlanId === (ctx.active?.id ?? null) &&
+            this.baseVersionMatches(p.goalsSnapshot, ctx.active)
           );
         },
       );
@@ -377,7 +380,8 @@ export class StagePlansService {
         !planningGoalsMatch(plan.goalsSnapshot, goals) ||
         reviewStale ||
         (plan.status === "DRAFT" &&
-          (active?.id ?? null) !== plan.baseStagePlanId) ||
+          ((active?.id ?? null) !== plan.baseStagePlanId ||
+            !this.baseVersionMatches(plan.goalsSnapshot, active))) ||
         plan.goal.status !== "ACTIVE" ||
         plan.goal.version !== plan.goalVersion ||
         ftp?.id !== plan.ftpMeasurementId ||
@@ -441,7 +445,8 @@ export class StagePlansService {
         ftp.id !== plan.ftpMeasurementId ||
         availability?.version !== plan.availabilityVersion ||
         user.profileVersion !== plan.profileVersion ||
-        (active?.id ?? null) !== plan.baseStagePlanId
+        (active?.id ?? null) !== plan.baseStagePlanId ||
+        !this.baseVersionMatches(plan.goalsSnapshot, active)
       )
         throw new ConflictException({
           code: "STAGE_PLAN_STALE",
@@ -463,6 +468,19 @@ export class StagePlansService {
       });
     });
     return this.get(userId, id);
+  }
+
+  private baseVersionMatches(
+    snapshot: unknown,
+    active: { version: number } | null,
+  ) {
+    const parsed = planningSnapshotSchema.safeParse(snapshot);
+    if (!parsed.success) return false;
+    const version = parsed.data.baseStagePlanVersion;
+    // Older drafts predate in-place extension; activated roadmaps were v2.
+    return version === undefined
+      ? !active || active.version <= 2
+      : version === (active?.version ?? null);
   }
 
   private async context(userId: string, input: StagePlanGeneration) {

@@ -123,7 +123,7 @@ export function GoalCoursePlanner({
           生成课程草稿
         </Button>
         <AppText variant="caption" className="text-secondary">
-          草稿预览并确认后生效
+          自动配套阶段安排，预览并确认后一起生效
         </AppText>
       </Card>
     </View>

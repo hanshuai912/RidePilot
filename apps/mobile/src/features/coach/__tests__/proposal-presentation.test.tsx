@@ -99,3 +99,46 @@ test.each(["QUEUED", "RUNNING", "FAILED", "CANCELLED"] as const)(
       expect(view.getByRole("alert").props.children).toBe("生成连接中断");
   },
 );
+
+test.each(["CREATE", "REPLACE", "EXTEND", "REUSE"] as const)(
+  "course preview explains the actual stage change before confirmation: %s",
+  async (action) => {
+    const view = await render(
+      <PlanPreview
+        proposal={{
+          ...proposal,
+          stagePlan: {
+            action,
+            summary: "配套阶段说明",
+            startDate: "2030-01-07",
+            endDate: "2030-01-13",
+            stages: [
+              {
+                title: "基础耐力阶段",
+                purpose: "积累耐力",
+                startDate: "2030-01-07",
+                endDate: "2030-01-13",
+                assessmentSuggestion: "比较反馈",
+              },
+            ],
+          },
+        }}
+        ftpWatts={250}
+      />,
+    );
+    expect(view.getByText("阶段安排")).toBeTruthy();
+    expect(view.getByText("2030-01-07 至 2030-01-13 · 1 个阶段")).toBeTruthy();
+    if (action === "REUSE") {
+      expect(
+        view.getByText("本次课程沿用已有阶段安排，无需再次生成阶段。"),
+      ).toBeTruthy();
+      expect(view.queryByText("1. 基础耐力阶段")).toBeNull();
+      await fireEvent.press(
+        view.getByRole("button", { name: "查看本次阶段安排" }),
+      );
+    }
+    expect(view.getByText("1. 基础耐力阶段")).toBeTruthy();
+    expect(view.getByText("积累耐力")).toBeTruthy();
+    expect(view.getByText("测试建议不会自动创建测试日程。")).toBeTruthy();
+  },
+);

@@ -105,7 +105,7 @@ function GoalDetailContent({ goalId }: { goalId: string }) {
                 <AppText variant="card">尚无阶段安排</AppText>
                 {canPlan ? (
                   <AppText className="text-secondary">
-                    点击上方「规划阶段」建立安排，也可直接按日期规划课程。
+                    生成课程时会自动配套阶段，也可单独规划长期阶段。
                   </AppText>
                 ) : null}
               </Card>

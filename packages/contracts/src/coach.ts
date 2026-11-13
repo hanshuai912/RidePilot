@@ -6,6 +6,7 @@ import {
 import { z } from "zod";
 import { workoutSegmentSchema } from "./training";
 import { stageReviewEvidenceSchema } from "./stage-review";
+import { stageDraftSchema, courseStagePlanSchema } from "./stage-output";
 
 export const ftpMeasurementInputSchema = z.strictObject({
   valueWatts: z.number().int().min(50).max(800),
@@ -229,6 +230,7 @@ export const aiWorkoutDraftSchema = z.strictObject({
   segments: z.array(workoutSegmentSchema).min(1).max(50),
 });
 export const aiWeekOutputSchema = z.strictObject({
+  stages: z.array(stageDraftSchema).min(1).max(12).optional(),
   goalTradeoffs: z.array(z.string().trim().min(1).max(500)).max(10).optional(),
   summary: z.string().trim().min(1).max(1000),
   workouts: z.array(aiWorkoutDraftSchema).min(1).max(168),
@@ -237,7 +239,7 @@ export const aiWeekOutputSchema = z.strictObject({
 });
 export const updateAiProposalSchema = z.strictObject({
   expectedProposalVersion: z.number().int().positive(),
-  draft: aiWeekOutputSchema,
+  draft: aiWeekOutputSchema.omit({ stages: true }),
 });
 export const coachChatInputSchema = z.strictObject({
   message: z.string().trim().min(1).max(500),
@@ -278,6 +280,7 @@ export const restoreProposalResponseSchema = z.object({
   blockers: z.array(z.string()),
 });
 export const aiProposalResponseSchema = z.object({
+  stagePlan: courseStagePlanSchema.optional(),
   planningGoals: z.array(goalSchema).optional(),
   goalTradeoffs: z.array(z.string()).optional(),
   planImpact: z

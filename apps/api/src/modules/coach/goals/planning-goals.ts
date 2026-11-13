@@ -6,6 +6,7 @@ import { generationFingerprint } from "../../../infra/prisma/generation-candidat
 import { goalResponse } from "./goal-lifecycle.repository";
 
 export const planningSnapshotSchema = z.object({
+  baseStagePlanVersion: z.number().int().positive().nullable().optional(),
   goals: z.array(goalSchema).min(1),
   tradeoffs: z.array(z.string()).default([]),
 });

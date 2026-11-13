@@ -5,7 +5,7 @@ import { resolve, sep } from "node:path";
 
 const SKILL_ROOT = resolve(__dirname, "../../../skills/cycling-training");
 const MAX_FILE_BYTES = 32 * 1024;
-const SKILL_VERSION = "1.3.0";
+const SKILL_VERSION = "1.4.0";
 
 @Injectable()
 export class SkillLoaderService {

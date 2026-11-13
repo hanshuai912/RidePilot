@@ -3,6 +3,7 @@ import { WorkoutDiff } from "../../training/components/WorkoutDiff";
 import { ImpactWorkoutCard } from "../../plan-impact/components/ImpactWorkoutCard";
 import { StageReviewEvidenceCard } from "../../goals/components/StageReviewEvidenceCard";
 import { PlanningGoalsCard } from "../../goals/components/PlanningGoalsCard";
+import { CourseStagePreview } from "../../goals/components/CourseStagePreview";
 import { CycleReviewEvidenceCard } from "../cycle-review/CycleReviewEvidenceCard";
 import { View } from "react-native";
 import type { AiProposalResponse } from "@ridepilot/contracts";
@@ -94,6 +95,12 @@ export function PlanPreview({
         goals={proposal.planningGoals}
         tradeoffs={proposal.goalTradeoffs}
       />
+      {proposal.stagePlan ? (
+        <CourseStagePreview
+          plan={proposal.stagePlan}
+          applied={proposal.status === "APPLIED"}
+        />
+      ) : null}
       {proposal.planImpact || proposal.stageReview || proposal.cycleReview ? (
         <Disclosure title="查看原安排与复盘依据" defaultExpanded>
           {proposal.planImpact ? (
@@ -180,7 +187,9 @@ export function PlanPreview({
             {proposal.assessmentSuggestion}
           </AppText>
           <AppText variant="caption" muted className="mt-3">
-            此处的阶段与复评是课程建议说明。正式阶段安排请在目标详情查看；本次不会创建测试日程。
+            {proposal.stagePlan
+              ? "阶段安排已在上方列出，将随课程一并确认；本次不会创建测试日程。"
+              : "此处的阶段与复评是课程建议说明。正式阶段安排请在目标详情查看；本次不会创建测试日程。"}
           </AppText>
         </View>
       </Disclosure>
