@@ -140,6 +140,10 @@ test("the action body opens editing while the separate delete button and drag ha
       onMove={move}
     />,
   );
+  expect(screen.queryByText("编辑参数")).toBeNull();
+  expect(
+    screen.getAllByRole("button", { name: /^编辑第\d+个动作$/ }),
+  ).toHaveLength(draft.segments.length);
   await fireEvent.press(screen.getByText("2 · 训练"));
   await fireEvent.press(screen.getByText("时间 · 10 分钟 × 3"));
   await fireEvent.press(screen.getByText("140–180 W"));
@@ -204,8 +208,8 @@ test("segment cards follow measured list width after layout changes without chan
       onMove={onMove}
     />,
   );
-  for (const width of [280, 350, 390]) {
-    await fireEvent(screen.getByTestId("workout-segment-list"), "layout", {
+  for (const width of [280, 349.5, 390]) {
+    await fireEvent(screen.getByTestId("workout-segment-rows"), "layout", {
       nativeEvent: { layout: { x: 0, y: 0, width, height: 500 } },
     });
     for (let i = 0; i < draft.segments.length; i++) {
@@ -216,6 +220,17 @@ test("segment cards follow measured list width after layout changes without chan
       ).toBe(width);
     }
     expect(screen.getByText("时间 · 10 分钟 × 3")).toBeTruthy();
+  }
+  const measuredGrid = screen.getByTestId("sortable-segments");
+  for (const width of [0, -1, NaN, Infinity]) {
+    await fireEvent(screen.getByTestId("workout-segment-rows"), "layout", {
+      nativeEvent: { layout: { x: 0, y: 0, width, height: 0 } },
+    });
+    expect(screen.getByTestId("sortable-segments")).toBe(measuredGrid);
+    expect(
+      StyleSheet.flatten(screen.getByTestId("workout-segment-0").props.style)
+        .width,
+    ).toBe(390);
   }
   expect(onMove).not.toHaveBeenCalled();
   await fireEvent.press(screen.getByRole("button", { name: "编辑第2个动作" }));

@@ -1,6 +1,6 @@
 import { Pressable, View } from "react-native";
 import Sortable from "react-native-sortables";
-import { ChevronRight, GripVertical, Trash2 } from "lucide-react-native";
+import { GripVertical, Trash2 } from "lucide-react-native";
 import type { WorkoutSegment } from "@ridepilot/contracts";
 import { AppText } from "../../../components/ui";
 import { colors } from "../../../theme/colors";
@@ -51,6 +51,9 @@ export function WorkoutSegmentRow({
 }) {
   const content = (
     <>
+      <AppText variant="card" style={styles.segmentTitle}>
+        {index + 1} · {typeLabels[segment.type]}
+      </AppText>
       <View style={styles.metaRow}>
         <AppText variant="caption" muted>
           {targetLabel(segment)}
@@ -59,14 +62,6 @@ export function WorkoutSegmentRow({
           {intensityLabel(segment, ftpWatts)}
         </AppText>
       </View>
-      {onEdit ? (
-        <View style={styles.editHint}>
-          <AppText variant="caption" style={styles.editLabel}>
-            编辑参数
-          </AppText>
-          <ChevronRight size={16} color={colors.brand} />
-        </View>
-      ) : null}
     </>
   );
   return (
@@ -74,62 +69,34 @@ export function WorkoutSegmentRow({
       testID={`workout-segment-${index}`}
       style={[styles.segment, width ? { width } : undefined]}
     >
-      <View style={styles.segmentHeader}>
-        {onMove && count > 1 ? (
-          <Sortable.Handle>
-            <View
-              accessible
-              accessibilityRole="adjustable"
-              accessibilityLabel={`拖动第${index + 1}个动作排序`}
-              accessibilityHint="长按六点图标后上下拖动；读屏可使用调整操作改变顺序"
-              accessibilityValue={{ min: 1, max: count, now: index + 1 }}
-              accessibilityActions={[
-                ...(index > 0
-                  ? [{ name: "decrement", label: "移至前一位" }]
-                  : []),
-                ...(index < count - 1
-                  ? [{ name: "increment", label: "移至后一位" }]
-                  : []),
-              ]}
-              onAccessibilityAction={({ nativeEvent }) => {
-                if (nativeEvent.actionName === "decrement" && index > 0)
-                  onMove(index, index - 1);
-                if (nativeEvent.actionName === "increment" && index < count - 1)
-                  onMove(index, index + 1);
-              }}
-              style={styles.touch}
-            >
-              <GripVertical size={21} color={colors.textMuted} />
-            </View>
-          </Sortable.Handle>
-        ) : null}
-        {onEdit ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`编辑第${index + 1}个动作标题`}
-            onPress={() => onEdit(index)}
-            style={styles.segmentTitle}
+      {onMove && count > 1 ? (
+        <Sortable.Handle>
+          <View
+            accessible
+            accessibilityRole="adjustable"
+            accessibilityLabel={`拖动第${index + 1}个动作排序`}
+            accessibilityHint="长按六点图标后上下拖动；读屏可使用调整操作改变顺序"
+            accessibilityValue={{ min: 1, max: count, now: index + 1 }}
+            accessibilityActions={[
+              ...(index > 0
+                ? [{ name: "decrement", label: "移至前一位" }]
+                : []),
+              ...(index < count - 1
+                ? [{ name: "increment", label: "移至后一位" }]
+                : []),
+            ]}
+            onAccessibilityAction={({ nativeEvent }) => {
+              if (nativeEvent.actionName === "decrement" && index > 0)
+                onMove(index, index - 1);
+              if (nativeEvent.actionName === "increment" && index < count - 1)
+                onMove(index, index + 1);
+            }}
+            style={styles.touch}
           >
-            <AppText variant="card">
-              {index + 1} · {typeLabels[segment.type]}
-            </AppText>
-          </Pressable>
-        ) : (
-          <AppText variant="card" style={styles.segmentTitle}>
-            {index + 1} · {typeLabels[segment.type]}
-          </AppText>
-        )}
-        {onDelete ? (
-          <Pressable
-            style={({ pressed }) => [styles.touch, pressed && styles.pressed]}
-            onPress={() => onDelete(index)}
-            accessibilityRole="button"
-            accessibilityLabel={`删除第${index + 1}个动作`}
-          >
-            <Trash2 size={18} color={colors.negative} />
-          </Pressable>
-        ) : null}
-      </View>
+            <GripVertical size={21} color={colors.textMuted} />
+          </View>
+        </Sortable.Handle>
+      ) : null}
       {onEdit ? (
         <Pressable
           style={({ pressed }) => [
@@ -145,6 +112,16 @@ export function WorkoutSegmentRow({
       ) : (
         <View style={styles.segmentBody}>{content}</View>
       )}
+      {onDelete ? (
+        <Pressable
+          style={({ pressed }) => [styles.touch, pressed && styles.pressed]}
+          onPress={() => onDelete(index)}
+          accessibilityRole="button"
+          accessibilityLabel={`删除第${index + 1}个动作`}
+        >
+          <Trash2 size={18} color={colors.negative} />
+        </Pressable>
+      ) : null}
     </View>
   );
 }

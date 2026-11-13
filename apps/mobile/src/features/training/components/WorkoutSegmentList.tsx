@@ -9,7 +9,7 @@ import { Pressable, View, useWindowDimensions } from "react-native";
 import { Plus } from "lucide-react-native";
 import type { WorkoutSegment } from "@ridepilot/contracts";
 
-import { colors } from "../../../theme/tokens";
+import { colors, spacing } from "../../../theme/tokens";
 import { AppText } from "../../../components/ui";
 import { WorkoutSegmentRow } from "./WorkoutSegmentRow";
 import { segmentListStyles as styles } from "./workout-segment-list.styles";
@@ -75,25 +75,28 @@ export function WorkoutSegmentList({
     [onMove, segments.length],
   );
   return (
-    <View
-      testID="workout-segment-list"
-      style={styles.card}
-      onLayout={({ nativeEvent }) => {
-        const measuredWidth = Math.round(nativeEvent.layout.width);
-        if (measuredWidth > 0) setContentWidth(measuredWidth);
-      }}
-    >
-      {onMove ? (
-        <>
-          {segments.length > 1 ? (
-            <AppText variant="caption" muted>
-              长按六点图标拖动排序
-            </AppText>
-          ) : null}
+    <View testID="workout-segment-list" style={styles.card}>
+      {onMove && segments.length > 1 ? (
+        <AppText variant="caption" muted>
+          长按六点图标拖动排序
+        </AppText>
+      ) : null}
+      <View
+        testID="workout-segment-rows"
+        style={styles.rows}
+        onLayout={({ nativeEvent }) => {
+          // Measure the actual row area, preserving fractional layout widths.
+          // Ignore hidden-screen measurements while the parameter editor is open.
+          const measuredWidth = nativeEvent.layout.width;
+          if (Number.isFinite(measuredWidth) && measuredWidth > 0)
+            setContentWidth(measuredWidth);
+        }}
+      >
+        {onMove ? (
           <Sortable.Grid
             // Native sortable cells cache measured geometry. Recreate it when
             // available width or font scaling changes, keeping draft data intact.
-            key={`stacked-cards-${contentWidth}-${fontScale}-${ftpWatts ?? ""}-${contentGeometry}`}
+            key={`padded-cards-${contentWidth}-${fontScale}-${ftpWatts ?? ""}-${contentGeometry}`}
             columns={1}
             data={data}
             keyExtractor={segmentKey}
@@ -104,7 +107,7 @@ export function WorkoutSegmentList({
             enableActiveItemSnap={false}
             activeItemScale={1.02}
             inactiveItemOpacity={0.75}
-            rowGap={12}
+            rowGap={spacing.md}
             itemEntering={null}
             itemExiting={null}
             itemsLayoutTransitionMode="reorder"
@@ -114,21 +117,21 @@ export function WorkoutSegmentList({
             autoScrollMaxVelocity={500}
             onDragEnd={finishDrag}
           />
-        </>
-      ) : (
-        data.map((item, index) => (
-          <WorkoutSegmentRow
-            key={item.key}
-            segment={item.segment}
-            index={index}
-            count={data.length}
-            width={contentWidth || undefined}
-            ftpWatts={ftpWatts}
-            onEdit={onEdit}
-            onDelete={onDelete}
-          />
-        ))
-      )}
+        ) : (
+          data.map((item, index) => (
+            <WorkoutSegmentRow
+              key={item.key}
+              segment={item.segment}
+              index={index}
+              count={data.length}
+              width={contentWidth || undefined}
+              ftpWatts={ftpWatts}
+              onEdit={onEdit}
+              onDelete={onDelete}
+            />
+          ))
+        )}
+      </View>
       {onAdd ? (
         <Pressable
           onPress={onAdd}

@@ -41,3 +41,25 @@ V1 排序使用 `react-native-sortables` 的六点手柄长按拖拽，已移除
 - 添加 NativeWind Babel 配置所需的直接开发依赖 `@babel/plugin-transform-react-jsx@^7.29.7`，避免 pnpm 隔离解析时找不到插件；保持 Babel 7 兼容。
 
 库选择与兼容性见 [ADR 0004](../adr/0004-workout-drag-sorting.md)，运行命令和实测结果见 [拖拽验证](../testing/workout-drag-sorting-2026-11-09.md)。已有原生开发包需要重新构建以包含新增手势依赖，例如 mobile 目录运行 `pnpm android`；仅刷新 JS 无法加入原生模块。当前无设备连接，触控、长列表自动滚动和 iOS 页面重新进入仍需真机验收。
+
+## 2026-11-12：训练动作卡片间距与对齐
+
+- 动作卡片统一使用四周 16 pt 内边距，卡片之间保持 12 pt 间距，沿用页面两侧 20 pt 留白和现有黑金主题。
+- 移除“编辑参数”行与右箭头。标题、时间或距离目标、强度及中间留白合成一个点击区域，点击直接进入动作编辑；左侧拖拽手柄、右侧删除按钮独立于编辑区域，避免嵌套按钮误触。单动作、只读和保存中没有手柄时不保留空列，触控区域至少 44×44 pt。
+- 使用现有 spacing、layout、radii Token 统一尺寸。参数允许自然换行，卡片高度随内容变化，避免窄屏和大字体挤压。
+- `WorkoutSegmentList` 独立测量动作区域，保留小数宽度，避免宽度向上取整后超出容器；忽略隐藏页面的零值与其他无效尺寸。宽度、内容或字体缩放变化仍重建拖拽测量，排序保留原有容器与草稿。
+- 修改文件：`WorkoutSegmentList.tsx`、`WorkoutSegmentRow.tsx`、`workout-segment-list.styles.ts`、`workout-drag-sort.test.tsx`。人工课程与 AI 候选复用此布局，无 API、共享契约、数据库或依赖变更。
+
+实际验证（命令除注明外在 `apps/mobile` 执行）：
+
+- `./node_modules/.bin/jest --runInBand --silent --testTimeout=15000 src/features/training/__tests__/workout-drag-sort.test.tsx src/features/training/__tests__/workout-enhancements.test.tsx src/features/training/__tests__/training-routes.test.tsx`：3 suites、57 tests 通过；覆盖排序、编辑、删除、保存中禁用、错误与退出处理，并增加小数宽度、无效布局尺寸、无“编辑参数”行和每动作单一编辑入口的回归断言。
+- `./node_modules/.bin/tsc --noEmit`、`./node_modules/.bin/eslint src app`：通过。
+- `node ./node_modules/expo/bin/cli export --platform web --output-dir /tmp/ridepilot-segment-layout-final --max-workers 2`：通过。
+- 根目录 `node /tmp/ridepilot-segments-layout-check.cjs`：使用模拟 API 的 Chromium 页面验证 320 / 390 / 430 px 宽度和点击动作标题进入编辑后返回；检查卡片四周留白、12 px 间距、内容对齐、无“编辑参数”行、触控尺寸及文字边界。320 px 下将文字增大至 150% 后检查通过。截图位于 `/tmp/ridepilot-segments-fixed-{320,390,430}.png`、`/tmp/ridepilot-segments-fixed-large-text.png`。此浏览器检查不写入真实用户数据。
+- 根目录 `node /tmp/ridepilot-segments-touch-check.cjs`：Chromium 触摸事件拖拽成功，拖动后添加、删除动作保持 12 px 间距；删至单动作和空列表仍可正常操作。
+- 后端目录 `./node_modules/.bin/jest --runInBand --silent`：31 suites、173 tests 通过，18 suites、145 tests 跳过；未运行真实数据库集成测试。
+- 根目录依次运行 `./node_modules/.bin/tsc -p packages/contracts/tsconfig.json --noEmit`、`./node_modules/.bin/tsc -p apps/api/tsconfig.json --noEmit`、`./node_modules/.bin/oxlint apps/api/src apps/api/test packages/contracts/src`、`./node_modules/.bin/tsc -p packages/contracts/tsconfig.json`、`./node_modules/.bin/tsc -p apps/api/tsconfig.build.json`：通过。
+
+移动端全量命令 `./node_modules/.bin/jest --runInBand --silent --testTimeout=15000 --json --outputFile=/tmp/ridepilot-segments-final-results.json`：47 suites、412 tests 通过，10 tests 跳过，2 suites、5 tests 失败。失败为目标规划 `goal-planning.test.tsx` 的 3 项断言和教练中心 `coach-center.test.tsx` 的 2 项断言。将修改前的 HEAD 导出到 `/tmp/ridepilot-segments-baseline` 后运行这两个套件，复现相同 5 项失败（基线结果 `/tmp/ridepilot-segments-baseline-results.json`）；本次未扩大范围修改这些模块。变更文件 Prettier 检查与 `git diff --check` 通过。
+
+未连接 Android/iOS 设备，原生页面实际布局、系统字体缩放、触控与边缘自动滚动仍需设备验收；浏览器放大文字不等同于系统字体缩放验证。
