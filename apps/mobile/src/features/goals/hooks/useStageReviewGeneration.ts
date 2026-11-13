@@ -11,6 +11,7 @@ import {
   type StageReviewEvidence,
 } from "@ridepilot/contracts";
 import { coachApi, CoachApiError } from "../../coach/services/coach.api";
+import { addDays } from "../../coach/model/plan-dates";
 import { goalsApi } from "../services/goals.api";
 import { waitForGeneration } from "../services/wait-for-generation";
 
@@ -47,7 +48,7 @@ export function useStageReviewGeneration(
     try {
       const s = evidence.snapshot;
       const start = startDate || s.localDate;
-      const end = endDate || s.goalTargetDate;
+      const end = endDate || addDays(start, 27);
       const signature = JSON.stringify({
         id: evidence.id,
         roadmap,
@@ -163,7 +164,9 @@ export function useStageReviewGeneration(
     cancellation,
     resume,
     startDate: startDate || evidence?.snapshot.localDate || "",
-    endDate: endDate || evidence?.snapshot.goalTargetDate || "",
+    endDate:
+      endDate ||
+      (evidence ? addDays(startDate || evidence.snapshot.localDate, 27) : ""),
     setStartDate,
     setEndDate,
     busy,

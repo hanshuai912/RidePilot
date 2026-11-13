@@ -110,7 +110,6 @@ export class CoachOverviewService {
             ? {
                 id: goal.id,
                 title: goal.description || goal.type,
-                targetDate: dbToDate(goal.targetDate),
               }
             : null,
           stage: stage

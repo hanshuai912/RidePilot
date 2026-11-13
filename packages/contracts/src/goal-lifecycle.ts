@@ -23,7 +23,6 @@ export const goalChangeSchema = z.strictObject({
 });
 export const goalEvaluationSchema = z.object({
   localDate: z.iso.date(),
-  daysRemaining: z.number().int(),
   weeklyMinutes: z.number().nullable(),
   currentFtp: z
     .object({
@@ -44,7 +43,7 @@ export const goalChangePreviewSchema = z.object({
   fingerprint: z.string().regex(/^[a-f0-9]{64}$/),
   before: goalSchema,
   after: goalSchema,
-  nextGoal: goalInputSchema.nullable(),
+  nextGoal: goalInputSchema.omit({ targetDate: true }).strip().nullable(),
   affected: z.object({
     workouts: z.array(
       z.object({ id: z.uuid(), date: z.iso.date(), title: z.string() }),

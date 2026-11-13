@@ -128,7 +128,7 @@ it("keeps training adjustments focused on supported scopes, a note and the curre
       setTaskNote={setTaskNote}
       planStatus={{ hasActivePlan: true, planVersion: 2 }}
       goalLabel="耐力目标"
-      goalDate="2030-05-01"
+
       onEditGoal={onEditGoal}
     />,
   );
@@ -142,7 +142,7 @@ it("keeps training adjustments focused on supported scopes, a note and the curre
   expect(setPlanningScope).toHaveBeenCalledWith("NEXT_WORKOUT");
   await fireEvent.changeText(ui.getByLabelText("训练调整说明"), "下周出差");
   expect(setTaskNote).toHaveBeenCalledWith("下周出差");
-  await fireEvent.press(ui.getByRole("button", { name: "修改当前目标与日期" }));
+  await fireEvent.press(ui.getByRole("button", { name: "修改当前目标" }));
   expect(onEditGoal).toHaveBeenCalledTimes(1);
   await waitFor(() => expect(ui.getByText(/基于正式计划 v2/)).toBeTruthy());
 });

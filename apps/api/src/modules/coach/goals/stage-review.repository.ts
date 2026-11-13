@@ -12,11 +12,7 @@ import { dbToDate } from "../../training/training.validation";
 import { readCycleReviewData } from "../cycle-review/cycle-review.repository";
 import { buildCycleReview } from "../cycle-review/cycle-review.policy";
 import { readGoalContext } from "./goal-lifecycle.repository";
-import {
-  readPlanningGoals,
-  planningGoalsMatch,
-  planningHorizon,
-} from "./planning-goals";
+import { readPlanningGoals, planningGoalsMatch } from "./planning-goals";
 
 export const stageReviewStaleReason =
   "阶段复评依据或决定已变化，请重新复评后生成";
@@ -78,9 +74,6 @@ export async function readStageSnapshot(
     goalId: ctx.goal.id,
     goalVersion: ctx.goal.version,
     goalStatus: ctx.goal.status,
-    goalTargetDate: goals.length
-      ? planningHorizon(goals)
-      : dbToDate(ctx.goal.targetDate),
     stageId: id,
     stagePlanId: stage.stagePlanId,
     stagePlanVersion: stage.stagePlan.version,

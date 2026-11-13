@@ -2,7 +2,6 @@ import { View } from "react-native";
 import type { ReactNode } from "react";
 import type { GoalInput } from "@ridepilot/contracts";
 import { AppText, Input, Card } from "../../../components/ui";
-import { DatePickerField } from "../../../components/ui/DatePickerField";
 import { GoalInfoButton } from "./GoalInfoButton";
 import { GoalOption } from "./GoalOption";
 import { goalTypeLabels, type GoalFormValue } from "../model/goal-lifecycle";
@@ -11,13 +10,11 @@ export function GoalForm({
   value,
   onChange,
   disabled,
-  today,
   priorityControl,
 }: {
   value: GoalFormValue;
   onChange: (value: GoalFormValue) => void;
   disabled: boolean;
-  today: string;
   priorityControl?: ReactNode;
 }) {
   const set = (key: keyof GoalFormValue, text: string) =>
@@ -46,20 +43,9 @@ export function GoalForm({
             </View>
           </View>
           {priorityControl}
-          <View className="overflow-hidden rounded-xl border border-border bg-surface-2">
-            <DatePickerField
-              label="目标日期"
-              value={value.targetDate}
-              minimumDate={today}
-              disabled={disabled}
-              onChange={(date) => set("targetDate", date)}
-            />
-          </View>
-          {value.targetDate && value.targetDate < today ? (
-            <AppText variant="caption" className="text-warning">
-              目标日期已过，请选择今天或未来的日期。
-            </AppText>
-          ) : null}
+          <AppText variant="caption" className="text-secondary">
+            根据实际训练、疲劳反馈和阶段复评逐步推进目标。
+          </AppText>
           {value.type === "FTP" ? (
             <View className="gap-3 border-t border-divider pt-2">
               <View className="flex-row items-center">

@@ -20,11 +20,7 @@ import { TrainingRangeService } from "./training-range.service";
 import { assertDateRange } from "./stage-plan.validation";
 import { retainedHardDates } from "./retained-training";
 import { readCourseStageContext } from "./course-stage.repository";
-import {
-  readPlanningGoals,
-  primaryPlanningGoal,
-  planningHorizon,
-} from "./goals/planning-goals";
+import { readPlanningGoals, primaryPlanningGoal } from "./goals/planning-goals";
 
 @Injectable()
 export class CoachGenerationContextService {
@@ -224,15 +220,6 @@ export class CoachGenerationContextService {
         message: "请选择进行中的目标",
       });
     const goal = primaryPlanningGoal(planningGoals);
-    if (
-      scene === "RANGE_PLAN" &&
-      input.endDate &&
-      input.endDate > planningHorizon(planningGoals)
-    )
-      throw new BadRequestException({
-        code: "INVALID_DATE_RANGE",
-        message: "课程日期不能超过全部进行中目标的最晚期限",
-      });
     if (!ftp || !availability || !profile?.experienceLevel)
       throw new BadRequestException({
         code: "INSUFFICIENT_TRAINING_INPUT",
@@ -476,12 +463,11 @@ export class CoachGenerationContextService {
     if (
       cycleReview &&
       (input.weekStartDate <= cycleReview.snapshot.endDate ||
-        input.weekStartDate < localToday ||
-        end > planningHorizon(planningGoals))
+        input.weekStartDate < localToday)
     )
       throw new BadRequestException({
         code: "INVALID_CYCLE_TARGET_RANGE",
-        message: "后续训练须从今天或未来开始、晚于复盘结束日，且不超过目标日期",
+        message: "后续训练须从今天或未来开始，且晚于复盘结束日",
       });
     if (cycleReview && cycleReview.snapshot.goal?.id !== input.goalId)
       throw new ConflictException({
@@ -556,7 +542,6 @@ export class CoachGenerationContextService {
           (goal.targetWkg && weightKg
             ? Math.round(Number(goal.targetWkg) * weightKg)
             : null),
-        targetDate: goal.targetDate,
       },
       planningGoals,
       availability,

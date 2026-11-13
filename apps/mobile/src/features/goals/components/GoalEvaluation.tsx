@@ -19,11 +19,6 @@ export function GoalEvaluation({
     : "尚未填写 FTP 基线。";
   const metrics = [
     {
-      label: data.daysRemaining < 0 ? "已到期" : "剩余时间",
-      value: `${Math.abs(data.daysRemaining)} 天`,
-      warning: data.daysRemaining < 0,
-    },
-    {
       label: "当前 FTP",
       value: data.currentFtp ? `${data.currentFtp.valueWatts} W` : "未填写",
     },
@@ -73,10 +68,7 @@ export function GoalEvaluation({
             <AppText variant="caption" className="text-secondary">
               {metric.label}
             </AppText>
-            <AppText
-              variant="card"
-              className={`tabular-nums ${metric.warning ? "text-warning" : ""}`}
-            >
+            <AppText variant="card" className="tabular-nums">
               {metric.value}
             </AppText>
           </View>

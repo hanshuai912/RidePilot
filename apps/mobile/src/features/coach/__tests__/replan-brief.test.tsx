@@ -17,7 +17,6 @@ function ReplanForm({ busy = false }: { busy?: boolean }) {
       setTaskNote={setNote}
       planStatus={{ hasActivePlan: true, planVersion: 3 }}
       goalLabel="提升耐力"
-      goalDate="2030-05-01"
       onEditGoal={jest.fn()}
       busy={busy}
     />

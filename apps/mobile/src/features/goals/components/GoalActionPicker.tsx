@@ -29,9 +29,7 @@ export function GoalActionPicker({
         {actions.map((action) => (
           <GoalOption
             key={action}
-            label={
-              action === "UPDATE" ? "调整 / 延期" : goalActionLabels[action]
-            }
+            label={goalActionLabels[action]}
             accessibilityLabel={goalActionLabels[action]}
             selected={value === action}
             disabled={disabled}

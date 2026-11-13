@@ -9,9 +9,7 @@ export const coachOverviewSchema = z.object({
   localDate: z.iso.date(),
   timezone: z.string(),
   planVersion: z.number().int().nonnegative(),
-  goal: z
-    .object({ id: z.uuid(), title: z.string(), targetDate: z.iso.date() })
-    .nullable(),
+  goal: z.object({ id: z.uuid(), title: z.string() }).nullable(),
   stage: z
     .object({
       id: z.uuid(),

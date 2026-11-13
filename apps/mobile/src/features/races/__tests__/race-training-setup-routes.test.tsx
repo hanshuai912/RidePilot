@@ -246,7 +246,7 @@ test("保存资料失败时保留表单并允许重试", async () => {
       type: "RACE",
       description: null,
       targetWkg: null,
-      targetDate: "2030-06-09",
+
       priority: "PRIMARY",
       status: "ACTIVE",
       version: 1,

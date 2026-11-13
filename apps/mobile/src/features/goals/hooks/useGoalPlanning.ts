@@ -78,39 +78,18 @@ export function useGoalPlanning(goalId: string) {
           setData({ goal, stages, ftp, today, ...portfolio });
           setStageStartDate((current) => current || today);
           setStageEndDate((current) => {
-            const target =
-              stages?.endDate ??
-              portfolio.goals
-                .filter((g) => g.status === "ACTIVE")
-                .map((g) => g.targetDate)
-                .sort()
-                .at(-1) ??
-              goal.targetDate;
+            const target = stages?.endDate ?? addDays(today, 83);
             return (
               current ||
               (target < today
-                ? today
+                ? addDays(today, 83)
                 : target > addDays(today, 364)
                   ? addDays(today, 364)
                   : target)
             );
           });
           setStartDate((current) => current || today);
-          const horizon =
-            portfolio.goals
-              .filter((g) => g.status === "ACTIVE")
-              .map((g) => g.targetDate)
-              .sort()
-              .at(-1) ?? goal.targetDate;
-          setEndDate(
-            (current) =>
-              current ||
-              (horizon < today
-                ? today
-                : horizon < addDays(today, 27)
-                  ? horizon
-                  : addDays(today, 27)),
-          );
+          setEndDate((current) => current || addDays(today, 27));
           setError(null);
         })
         .catch((cause: unknown) => {

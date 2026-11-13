@@ -24,7 +24,6 @@ export function PlanningBrief({
   setBodyStatus,
   planStatus,
   goalLabel,
-  goalDate,
   onEditGoal,
   busy = false,
 }: {
@@ -37,7 +36,6 @@ export function PlanningBrief({
   setBodyStatus: (value: "READY" | "TIRED" | "RECOVERY") => void;
   planStatus: CoachPlanStatus;
   goalLabel: string;
-  goalDate: string;
   onEditGoal: () => void;
   busy?: boolean;
 }) {
@@ -51,7 +49,6 @@ export function PlanningBrief({
         setTaskNote={setTaskNote}
         planStatus={planStatus}
         goalLabel={goalLabel}
-        goalDate={goalDate}
         onEditGoal={onEditGoal}
       />
     );
@@ -65,7 +62,6 @@ export function PlanningBrief({
       setBodyStatus={setBodyStatus}
       planStatus={planStatus}
       goalLabel={goalLabel}
-      goalDate={goalDate}
       busy={busy}
     />
   );

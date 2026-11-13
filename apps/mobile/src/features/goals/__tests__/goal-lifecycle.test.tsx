@@ -136,24 +136,22 @@ test("stale goal preview preserves form input and requires another preview", asy
     new CoachApiError("目标已变化", 409, "GOAL_PREVIEW_STALE"),
   );
   await renderRouter(routes, { initialUrl: `/goals/manage?goalId=${goalId}` });
-  await selectPlanningDate("目标日期", "2099-03-31");
+  await fireEvent.changeText(await screen.findByLabelText("目标 FTP"), "280");
   await fireEvent.changeText(
     screen.getByLabelText("目标操作理由"),
-    "延期后再测量",
+    "补充训练后再测量",
   );
   await fireEvent.press(screen.getByText("预览目标修改"));
   await fireEvent.press(await screen.findByText("确认保存修改"));
   await screen.findByText("目标已变化");
-  expect(screen.getByLabelText("目标日期").props.accessibilityValue.text).toBe(
-    "2099年3月31日",
-  );
+  expect(screen.getByLabelText("目标 FTP").props.value).toBe("280");
   expect(screen.queryByText("确认保存修改")).toBeNull();
 });
 
 test("new custom goals require evaluation and confirmation before saving", async () => {
   await renderRouter(routes, { initialUrl: "/goals/new" });
   await fireEvent.press(await screen.findByText("自定义目标"));
-  await selectPlanningDate("目标日期", "2099-03-31");
+  expect(screen.queryByLabelText("目标日期")).toBeNull();
   expect(screen.queryByLabelText("目标达成条件")).toBeNull();
   await fireEvent.changeText(
     screen.getByLabelText("目标说明"),
@@ -164,6 +162,7 @@ test("new custom goals require evaluation and confirmation before saving", async
   expect(coach.createGoal).not.toHaveBeenCalled();
   await fireEvent.press(screen.getByText("确认添加目标"));
   await screen.findByText("新目标已添加");
+  expect(coach.createGoal.mock.calls[0][1]).not.toHaveProperty("targetDate");
   expect(coach.createGoal.mock.calls[0][1]).toMatchObject({
     type: "CUSTOM",
     description: "记录同路线用时",
@@ -183,15 +182,12 @@ test("adding a separate goal uses a blank form and never changes an existing goa
   await renderRouter(routes, { initialUrl: "/goals/new" });
   await screen.findByText("目标条件");
   expect(screen.getByLabelText("目标说明").props.value).toBe("");
-  expect(screen.getByLabelText("目标日期").props.accessibilityValue.text).toBe(
-    "请选择日期",
-  );
+  expect(screen.queryByLabelText("目标日期")).toBeNull();
   expect(screen.queryByText("本次操作")).toBeNull();
   expect(screen.queryByText("设为主目标")).toBeNull();
   expect(screen.getByText("次目标")).toBeTruthy();
   await fireEvent.press(await screen.findByText("自定义目标"));
   await fireEvent.changeText(screen.getByLabelText("目标说明"), "独立的新目标");
-  await selectPlanningDate("目标日期", "2099-03-31");
   await fireEvent.press(screen.getByText("预览新目标"));
   await screen.findByText("新目标预览");
   expect(coach.createGoal).not.toHaveBeenCalled();
@@ -215,7 +211,7 @@ test("new routes ignore goal IDs and the first goal defaults to primary", async 
   expect(api.overview).not.toHaveBeenCalled();
   expect(screen.queryByText("优先级")).toBeNull();
   expect(screen.getByLabelText("目标说明").props.value).toBe("");
-  await selectPlanningDate("目标日期", "2099-03-31");
+  await fireEvent.changeText(await screen.findByLabelText("目标 FTP"), "280");
   await fireEvent.press(screen.getByText("预览新目标"));
   await screen.findByText("新目标预览");
   expect(api.evaluate.mock.calls[0][1].priority).toBe("PRIMARY");
@@ -258,21 +254,15 @@ test("an edit route without a goal ID cannot create or mutate a goal", async () 
   expect(api.apply).not.toHaveBeenCalled();
 });
 
-test("management date selection commits only on confirmation and survives preview cancellation", async () => {
+test("goal metric changes require confirmation and survive preview cancellation", async () => {
   await renderRouter(routes, { initialUrl: `/goals/manage?goalId=${goalId}` });
   await fireEvent.changeText(
     await screen.findByLabelText("目标说明"),
     "保留说明",
   );
-  await fireEvent.changeText(screen.getByLabelText("目标操作理由"), "调整期限");
-  await fireEvent.press(screen.getByRole("button", { name: "目标日期" }));
-  expect(screen.queryByRole("radio", { name: "2098年" })).toBeNull();
-  await fireEvent.press(screen.getByRole("radio", { name: "3月" }));
-  await fireEvent.press(screen.getByRole("button", { name: "取消" }));
-  expect(screen.getByLabelText("目标日期").props.accessibilityValue.text).toBe(
-    "2099年2月28日",
-  );
-  await selectPlanningDate("目标日期", "2099-03-31");
+  await fireEvent.changeText(screen.getByLabelText("目标操作理由"), "调整指标");
+  expect(screen.queryByRole("button", { name: "目标日期" })).toBeNull();
+  await fireEvent.changeText(await screen.findByLabelText("目标 FTP"), "280");
   await fireEvent.press(screen.getByText("预览目标修改"));
   await screen.findByText("目标变更预览");
   expect(api.preview).toHaveBeenCalledWith(
@@ -280,8 +270,8 @@ test("management date selection commits only on confirmation and survives previe
     goalId,
     expect.objectContaining({
       changes: expect.objectContaining({
-        targetDate: "2099-03-31",
         description: "保留说明",
+        targetFtpWatts: 280,
       }),
     }),
   );
@@ -289,11 +279,9 @@ test("management date selection commits only on confirmation and survives previe
   expect(screen.getByText("需另行确认训练变更")).toBeTruthy();
   expect(screen.getByText(evaluation.notices[0])).toBeTruthy();
   await fireEvent.press(screen.getByText("返回修改"));
-  expect(screen.getByLabelText("目标日期").props.accessibilityValue.text).toBe(
-    "2099年3月31日",
-  );
+  expect(screen.getByLabelText("目标 FTP").props.value).toBe("280");
   expect(screen.getByLabelText("目标说明").props.value).toBe("保留说明");
-  expect(screen.getByLabelText("目标操作理由").props.value).toBe("调整期限");
+  expect(screen.getByLabelText("目标操作理由").props.value).toBe("调整指标");
 });
 
 test("supplementary notices open from info icons without displaying decision history", async () => {
@@ -331,7 +319,7 @@ test("supplementary notices open from info icons without displaying decision his
 });
 
 test("only completing a goal asks for criteria and evidence, preserving them across editing and conflict retry", async () => {
-  const before = { ...goal, successCriteria: null, targetDate: "2098-12-31" };
+  const before = { ...goal, successCriteria: null };
   const criteria = "同路线完成百公里并记录用时";
   const after = {
     ...before,
@@ -352,7 +340,7 @@ test("only completing a goal asks for criteria and evidence, preserving them acr
   });
   await renderRouter(routes, { initialUrl: `/goals/manage?goalId=${goalId}` });
   await screen.findByText("本次操作");
-  for (const name of ["调整目标 / 延期", "暂停目标", "结束目标"]) {
+  for (const name of ["调整目标", "暂停目标", "结束目标"]) {
     await fireEvent.press(screen.getByRole("radio", { name }));
     expect(screen.queryByLabelText("目标达成条件")).toBeNull();
   }
@@ -424,21 +412,17 @@ test("a failed overview can retry and a closed goal only allows a next goal", as
   await screen.findByRole("radio", { name: "建立下一目标" });
   expect(screen.queryByRole("radio", { name: "暂停目标" })).toBeNull();
   expect(screen.queryByRole("radio", { name: "结束目标" })).toBeNull();
-  expect(screen.getByLabelText("目标日期").props.accessibilityValue.text).toBe(
-    "请选择日期",
-  );
+  expect(screen.queryByLabelText("目标日期")).toBeNull();
   expect(screen.queryByLabelText("目标达成条件")).toBeNull();
 });
 
-test("creating a goal retries profile loading before opening its date picker", async () => {
-  jest.mocked(getProfile).mockRejectedValueOnce(new Error("时区资料读取失败"));
+test("creating a goal retries loading goals and needs no achievement date", async () => {
+  coach.goals.mockRejectedValueOnce(new Error("目标资料读取失败"));
   await renderRouter(routes, { initialUrl: "/goals/new" });
-  await screen.findByText("时区资料读取失败");
+  await screen.findByText("目标资料读取失败");
   await fireEvent.press(screen.getByText("重试"));
-  await selectPlanningDate("目标日期", "2099-03-31");
-  expect(screen.getByLabelText("目标日期").props.accessibilityValue.text).toBe(
-    "2099年3月31日",
-  );
+  await fireEvent.changeText(await screen.findByLabelText("目标 FTP"), "280");
+  expect(screen.getByLabelText("目标 FTP").props.value).toBe("280");
   expect(coach.createGoal).not.toHaveBeenCalled();
 });
 
@@ -761,4 +745,29 @@ test("keeping an ended stage preserves the review but requires extend or adjust 
   expect(screen.getByText("生成后续课程草稿")).toBeDisabled();
   await fireEvent.press(screen.getByText("生成后续课程草稿"));
   expect(planning.generateCourses).not.toHaveBeenCalled();
+});
+
+test("legacy goal deadlines do not disable review follow-up or cap its range", async () => {
+  const legacy = { ...snapshot, goalTargetDate: "2098-12-31" };
+  api.review.mockResolvedValue({
+    snapshot: legacy,
+    history: [{ ...evidence, decision: "ADJUST", snapshot: legacy }],
+  });
+  await renderRouter(routes, {
+    initialUrl: `/goals/stage-review?stageId=${stageId}`,
+  });
+  await screen.findByText("规划后续训练");
+  expect(screen.getByText("生成后续课程草稿")).toBeEnabled();
+  expect(screen.queryByText(/请先延期/)).toBeNull();
+  await fireEvent.press(screen.getByText("生成后续课程草稿"));
+  await screen.findByText("课程待预览确认");
+  expect(planning.generateCourses).toHaveBeenCalledWith(
+    "token",
+    expect.objectContaining({
+      startDate: "2099-01-01",
+      endDate: "2099-01-28",
+      scope: "DATES",
+    }),
+    expect.any(String),
+  );
 });

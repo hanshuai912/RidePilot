@@ -129,7 +129,6 @@ export function buildCycleReview(data: CycleReviewData): CycleReviewSnapshot {
       ? {
           id: data.goal.id,
           title: data.goal.description || data.goal.type,
-          targetDate: dbToDate(data.goal.targetDate),
         }
       : null,
     stage: stage

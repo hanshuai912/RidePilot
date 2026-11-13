@@ -204,7 +204,6 @@ export async function readPlanImpact(db: ImpactDb, userId: string) {
     currentFtpWatts: inputs.ftp?.valueWatts ?? null,
     goalId: goal?.id ?? null,
     goalDescription: goal?.description ?? null,
-    goalTargetDate: goal ? dbToDate(goal.targetDate) : null,
     items,
     stageMessages,
     protectedCount: workouts.length - editable.length,

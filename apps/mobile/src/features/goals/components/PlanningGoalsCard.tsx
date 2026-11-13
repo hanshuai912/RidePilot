@@ -22,8 +22,7 @@ export function PlanningGoalsCard({
               goal.priority === "PRIMARY" ? "text-brand" : "text-secondary"
             }
           >
-            {goal.priority === "PRIMARY" ? "主目标" : "次目标"} ·{" "}
-            {goal.targetDate}
+            {goal.priority === "PRIMARY" ? "主目标" : "次目标"}
           </AppText>
           <AppText>{goal.description || goalTypeLabels[goal.type]}</AppText>
         </View>

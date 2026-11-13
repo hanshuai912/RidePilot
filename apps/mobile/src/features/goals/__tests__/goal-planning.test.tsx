@@ -65,7 +65,7 @@ const goal = {
   type: "ENDURANCE" as const,
   description: "提升耐力",
   targetWkg: null,
-  targetDate: "2099-12-31",
+
   priority: "PRIMARY" as const,
   status: "ACTIVE" as const,
   version: 1,

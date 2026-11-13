@@ -32,7 +32,6 @@ export const planImpactPreviewSchema = z.object({
   currentFtpWatts: z.number().positive().nullable(),
   goalId: z.uuid().nullable(),
   goalDescription: z.string().nullable(),
-  goalTargetDate: z.iso.date().nullable(),
   stageMessages: z.array(z.string()),
   items: z.array(planImpactItemSchema),
   protectedCount: z.number().int().nonnegative(),

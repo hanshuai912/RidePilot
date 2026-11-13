@@ -10,6 +10,7 @@ The runtime loads `SKILL.md`, `references/power-zones.md` and one scene referenc
 
 ## RidePilot adaptation
 
+- Adapter 1.5.0 removes achievement deadlines from training goals and uses evidence-based rolling progression while preserving event and scheduling dates. No upstream source or tool changes.
 - Adapter 1.4.0 couples course and stage candidates for a single preview and atomic publication. Existing valid roadmaps are reused or extended without replacing existing phase IDs; stages and test suggestions remain unconfirmed until explicit course publication. No upstream source or tool changes.
 - Adapter 1.3.0 adds authenticated assessment evidence to range planning: explicit test kind, actual date, source, conditions, comparable previous result and recorded stage completion. FTP confirmation and course publication remain separate user actions. No upstream source or tool changes.
 

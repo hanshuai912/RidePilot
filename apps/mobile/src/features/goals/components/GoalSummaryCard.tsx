@@ -1,11 +1,7 @@
 import { View } from "react-native";
 import { AppText, Badge, Button, Card } from "../../../components/ui";
 import { goalTypeLabels } from "../model/goal-lifecycle";
-import {
-  goalDateLabel,
-  goalStatusLabel,
-  type GoalRecord,
-} from "../model/goal-presentation";
+import { goalStatusLabel, type GoalRecord } from "../model/goal-presentation";
 
 export function GoalSummaryCard({
   goal,
@@ -74,16 +70,13 @@ export function GoalSummaryCard({
           ) : null}
         </View>
       ) : null}
-      <View className="mt-4 gap-2 border-t border-divider pt-3">
-        <AppText variant="caption" className="tabular-nums text-secondary">
-          目标日期 · {goalDateLabel(goal.targetDate)}
-        </AppText>
-        {!goal.targetFtpWatts ? (
+      {!goal.targetFtpWatts ? (
+        <View className="mt-4 gap-2 border-t border-divider pt-3">
           <AppText variant="caption" className="tabular-nums text-secondary">
             {currentFtp ? `当前 FTP ${currentFtp} W` : "尚未设置 FTP"}
           </AppText>
-        ) : null}
-      </View>
+        </View>
+      ) : null}
       {goal.successCriteria ? (
         <View className="mt-4 rounded-xl bg-surface-2 p-3">
           <AppText variant="label" className="text-secondary">

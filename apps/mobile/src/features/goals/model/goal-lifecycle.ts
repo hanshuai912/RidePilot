@@ -8,7 +8,7 @@ export const goalTypeLabels = {
   CUSTOM: "自定义目标",
 };
 export const goalActionLabels = {
-  UPDATE: "调整目标 / 延期",
+  UPDATE: "调整目标",
   PAUSE: "暂停目标",
   RESUME: "恢复目标",
   COMPLETE: "确认完成目标",
@@ -33,7 +33,6 @@ export type GoalFormValue = {
   successCriteria: string;
   targetFtpWatts: string;
   targetWkg: string;
-  targetDate: string;
   priority: GoalInput["priority"];
 };
 export const goalFormValue = (goal?: GoalInput): GoalFormValue => ({
@@ -42,7 +41,6 @@ export const goalFormValue = (goal?: GoalInput): GoalFormValue => ({
   successCriteria: goal?.successCriteria ?? "",
   targetFtpWatts: goal?.targetFtpWatts?.toString() ?? "",
   targetWkg: goal?.targetWkg?.toString() ?? "",
-  targetDate: goal?.targetDate ?? "",
   priority: goal?.priority ?? "SECONDARY",
 });
 export function parseGoalForm(value: GoalFormValue): GoalInput {
@@ -60,9 +58,7 @@ export function parseGoalForm(value: GoalFormValue): GoalInput {
         : null,
   });
   if (!parsed.success)
-    throw new Error(
-      "请检查目标日期和数值；FTP 为 50–800 W，功体比为 1–10 W/kg。",
-    );
+    throw new Error("请检查目标数值；FTP 为 50–800 W，功体比为 1–10 W/kg。");
   return parsed.data;
 }
 

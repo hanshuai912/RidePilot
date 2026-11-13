@@ -2,7 +2,6 @@ import { View } from "react-native";
 import type { GoalChangePreview, GoalInput } from "@ridepilot/contracts";
 import { AppText, Badge } from "../../../components/ui";
 import { goalTypeLabels } from "../model/goal-lifecycle";
-import { goalDateLabel } from "../model/goal-presentation";
 
 function GoalValues({
   goal,
@@ -24,9 +23,6 @@ function GoalValues({
         <AppText variant="card">{goalTypeLabels[goal.type]}</AppText>
         <Badge>{goal.priority === "PRIMARY" ? "主目标" : "次目标"}</Badge>
       </View>
-      <AppText className="tabular-nums text-secondary">
-        {goalDateLabel(goal.targetDate)}
-      </AppText>
       {goal.description ? (
         <AppText className="text-secondary">{goal.description}</AppText>
       ) : null}

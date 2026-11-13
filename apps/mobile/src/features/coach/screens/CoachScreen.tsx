@@ -33,7 +33,6 @@ import { PlanningBrief, planningTaskCopy } from "../components/PlanningBrief";
 import { useCoachDashboard } from "../hooks/useCoachDashboard";
 import { useCoachFlow } from "../hooks/CoachFlowContext";
 import type { CoachTask, InitialPlanStage } from "../hooks/useInitialPlan";
-import { localDateInTimezone } from "../model/plan-dates";
 import { firstMissingStep, missingTrainingData } from "../model/readiness";
 
 type CoachRoutePath =
@@ -166,7 +165,6 @@ export function CoachScreen() {
     );
 
   const toProfile = () => router.push("/(tabs)/profile");
-  const today = localDateInTimezone(new Date(), resources.profile.timezone);
   const hasActivePlan = resources.planStatus.hasActivePlan;
   const missingFields = resources.readiness.missingFields;
   const ready = resources.readiness.ready;
@@ -314,7 +312,7 @@ export function CoachScreen() {
             这次会完成
           </AppText>
           <StepItem number={1}>确认骑行基础和 FTP</StepItem>
-          <StepItem number={2}>设定训练目标、周期和明确日期</StepItem>
+          <StepItem number={2}>设定训练目标和本次训练周期</StepItem>
           <StepItem number={3}>安排每周训练日与单次时长</StepItem>
           <StepItem number={4}>记录饮食限制，预览后确认应用</StepItem>
         </View>
@@ -358,7 +356,6 @@ export function CoachScreen() {
           goalLabel={
             activeGoal ? goalTypeLabels[activeGoal.type] : "待设置目标"
           }
-          goalDate={activeGoal?.targetDate ?? "待补充"}
           onEditGoal={() => {
             flow.editTaskGoal();
             router.push(coachRoute("goal"));
@@ -421,7 +418,7 @@ export function CoachScreen() {
           hasActivePlan ? "补全训练资料 · 第 2 步" : "新用户引导 · 第 2 步"
         }
         title="训练目标"
-        description="设置目标和日期，达成情况以实际训练为准。"
+        description="设置训练方向，结合实际训练和阶段复评持续调整。"
         primary="下一步"
         actionsInScroll
         onPrimary={() => {
@@ -452,9 +449,6 @@ export function CoachScreen() {
         <GoalStep
           type={flow.goalType}
           setType={flow.setGoalType}
-          date={flow.goalDate}
-          setDate={flow.setGoalDate}
-          today={today}
           targetWkg={flow.targetWkg}
           setTargetWkg={flow.setTargetWkg}
           note={flow.goalNote}

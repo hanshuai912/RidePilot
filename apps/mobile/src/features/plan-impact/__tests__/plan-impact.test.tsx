@@ -42,7 +42,7 @@ const preview: PlanImpactPreview = {
   currentFtpWatts: 220,
   goalId: id,
   goalDescription: "耐力目标",
-  goalTargetDate: "2099-12-31",
+
   stageMessages: ["阶段依据已变化，请到训练目标复评。"],
   protectedCount: 1,
   pendingCount: 1,

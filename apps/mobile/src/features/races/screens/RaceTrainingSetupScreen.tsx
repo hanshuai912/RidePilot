@@ -11,7 +11,6 @@ import {
   firstMissingStep,
   missingTrainingData,
 } from "../../coach/model/readiness";
-import { localDateInTimezone } from "../../coach/model/plan-dates";
 
 export function RaceTrainingSetupScreen() {
   const {
@@ -85,12 +84,6 @@ export function RaceTrainingSetupScreen() {
               <GoalStep
                 type={flow.goalType}
                 setType={flow.setGoalType}
-                date={flow.goalDate}
-                setDate={flow.setGoalDate}
-                today={localDateInTimezone(
-                  new Date(),
-                  resources.profile.timezone,
-                )}
                 targetWkg={flow.targetWkg}
                 setTargetWkg={flow.setTargetWkg}
                 note={flow.goalNote}

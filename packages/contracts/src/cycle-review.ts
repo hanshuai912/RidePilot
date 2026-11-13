@@ -29,9 +29,7 @@ export const cycleReviewSnapshotSchema = z.object({
   timezone: z.string(),
   fingerprint: z.string().regex(/^[a-f0-9]{64}$/),
   planVersion: z.number().int().nonnegative(),
-  goal: z
-    .object({ id: z.uuid(), title: z.string(), targetDate: z.iso.date() })
-    .nullable(),
+  goal: z.object({ id: z.uuid(), title: z.string() }).nullable(),
   stage: z
     .object({
       title: z.string(),

@@ -260,7 +260,7 @@ beforeEach(() => {
       type: "ENDURANCE",
       description: null,
       targetWkg: null,
-      targetDate: addDays(today, 56),
+
       priority: "PRIMARY",
       status: "ACTIVE",
       version: 1,

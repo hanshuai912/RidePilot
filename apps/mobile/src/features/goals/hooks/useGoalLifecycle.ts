@@ -9,8 +9,6 @@ import type {
 import { useAuth } from "../../auth/hooks/AuthProvider";
 import { coachApi, CoachApiError } from "../../coach/services/coach.api";
 import { useTrainingResource } from "../../training/hooks/useTrainingResource";
-import { getProfile } from "../../profile/services/profile.api";
-import { localDateInTimezone } from "../../coach/model/plan-dates";
 import { goalLifecycleApi as api } from "../services/goal-lifecycle.api";
 import {
   goalFormValue,
@@ -34,14 +32,9 @@ export function useGoalLifecycle(goalId?: string) {
     const goals = await coachApi.goals(token);
     if (goalId) {
       const overview = await api.overview(token, goalId);
-      return { overview, goals, today: overview.evaluation.localDate };
+      return { overview, goals };
     }
-    const profile = await getProfile(token);
-    return {
-      overview: null,
-      goals,
-      today: localDateInTimezone(new Date(), profile.timezone),
-    };
+    return { overview: null, goals };
   }, [token, goalId]);
   const resource = useTrainingResource(load);
   const retry = resource.retry;
@@ -69,11 +62,8 @@ export function useGoalLifecycle(goalId?: string) {
       ? goalFormValue({
           type: data.goal.type,
           priority: newPriority,
-          targetDate: "",
         })
-      : goalFormValue(
-          data?.goal ?? { type: "FTP", priority: newPriority, targetDate: "" },
-        ));
+      : goalFormValue(data?.goal ?? { type: "FTP", priority: newPriority }));
   const [actionOverride, setActionState] = useState<
     GoalChange["action"] | null
   >(null);
@@ -112,7 +102,6 @@ export function useGoalLifecycle(goalId?: string) {
         goalFormValue({
           type: data?.goal.type ?? "FTP",
           priority: newPriority,
-          targetDate: "",
         }),
       );
     else if (data) setFormState(goalFormValue(data.goal));
@@ -207,7 +196,6 @@ export function useGoalLifecycle(goalId?: string) {
   return {
     ...resource,
     data,
-    today: resource.data?.today ?? "",
     form: effectiveForm,
     showPriority: otherActiveGoals.length > 0,
     canPromote:

@@ -52,7 +52,7 @@ const review: CycleReviewSnapshot = {
   timezone: "Asia/Shanghai",
   fingerprint: "a".repeat(64),
   planVersion: 1,
-  goal: { id, title: "耐力目标", targetDate: "2030-04-01" },
+  goal: { id, title: "耐力目标" },
   stage: null,
   missingFields: [],
   stats: {

@@ -68,7 +68,7 @@ const overview: CoachOverview = {
   localDate: "2030-01-09",
   timezone: "Asia/Shanghai",
   planVersion: 2,
-  goal: { id, title: "提升耐力", targetDate: "2030-04-01" },
+  goal: { id, title: "提升耐力" },
   stage: {
     id,
     title: "基础阶段",

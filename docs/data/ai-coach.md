@@ -6,15 +6,15 @@
 
 迁移 `20261026000000_coach_foundation` 增加目标、可训练时间、训练记录、阶段测试、赛事和异步生成任务表，并扩充 `ChangeProposal.proposalType`。迁移 `20261026010000_coach_event_versions` 为测试和赛事加入乐观锁版本。迁移 `20261026020000_goal_target_wkg` 为目标添加可空 `target_wkg`，保留旧目标兼容性。新表关联 `users.id`，所有读取与写入均通过当前登录用户过滤。
 
-| 模型                   | 用途与约束                                                                                  |
-| ---------------------- | ------------------------------------------------------------------------------------------- |
-| `TrainingGoal`         | 目标、可选目标功体比、目标日期、优先级、状态和版本号；生成时记录目标版本快照                |
-| `TrainingAvailability` | 用户时区、每周可训练日与分钟、单次上限、版本号；一个用户一条                                |
-| `TrainingActivity`     | 关联已发布课程，记录完成状态、时长、RPE、疲劳；`(userId, workoutId)` 唯一                   |
-| `TrainingAssessment`   | 阶段测试安排、结果、条件、状态和版本号                                                      |
-| `TrainingRace`         | 赛事日期、距离、优先级、状态和版本号                                                        |
-| `AiGeneration`         | 异步任务、请求快照、幂等键、状态、重试次数、租约和关联提案；`(userId, idempotencyKey)` 唯一 |
-| `ChangeProposal`       | AI 生成输出、Skill 版本与哈希、输入版本快照、验证状态；应用后指向新计划版本                 |
+| 模型                   | 用途与约束                                                                                           |
+| ---------------------- | ---------------------------------------------------------------------------------------------------- |
+| `TrainingGoal`         | 目标、可选目标功体比、优先级、状态和版本号；历史目标日期列可空且不再参与规划；生成时记录目标版本快照 |
+| `TrainingAvailability` | 用户时区、每周可训练日与分钟、单次上限、版本号；一个用户一条                                         |
+| `TrainingActivity`     | 关联已发布课程，记录完成状态、时长、RPE、疲劳；`(userId, workoutId)` 唯一                            |
+| `TrainingAssessment`   | 阶段测试安排、结果、条件、状态和版本号                                                               |
+| `TrainingRace`         | 赛事日期、距离、优先级、状态和版本号                                                                 |
+| `AiGeneration`         | 异步任务、请求快照、幂等键、状态、重试次数、租约和关联提案；`(userId, idempotencyKey)` 唯一          |
+| `ChangeProposal`       | AI 生成输出、Skill 版本与哈希、输入版本快照、验证状态；应用后指向新计划版本                          |
 
 FTP 使用现有 `AbilityMeasurement` 的 `metricType=FTP`、`unit=W`。课程仍使用现有不可变 `PlanVersion → Workout / PlanItem` 结构，AI 创建的课程 `source=ai`；人工课程 `source=manual`。训练日期存 PostgreSQL `DATE`，按用户时区解释。功率单位 W，训练时长单位分钟，距离单位公里。
 
@@ -70,3 +70,7 @@ FTP 使用现有 `AbilityMeasurement` 的 `metricType=FTP`、`unit=W`。课程�
 ## 聊天历史（2026-11-12）
 
 新增 CoachChatTurn（coach_chat_turns），保存所属用户、客户端消息标识、问题、回答、状态、版本、尝试编号、租约及时间戳。唯一键为 (user_id, client_message_id)，分页索引为 (user_id, created_at, id)，User 删除时级联清理。迁移 20261112090000_coach_chat_history 仅新增表、枚举及索引。用户行锁、attemptId 和 expectedVersion 分别保证同账号发送串行、旧尝试隔离和失败重试版本校验；模型调用在事务外。详情与兼容策略见 [聊天布局与历史记录](../features/coach-chat-history.md)。
+
+## 2026-11-13：目标历史日期兼容
+
+`20261113120000_remove_goal_deadline` 将 `TrainingGoal.targetDate` / `training_goals.target_date` 改为可空，保留所有历史值。新建及下一目标写 `NULL`；已有目标更新不修改此列。响应、AI 目标快照和规划边界不再使用该列。历史 JSON 记录继续保留，读取时剔除旧目标日期；新旧阶段目标快照比较忽略此字段，其他版本及成员检查不变。回退 `NOT NULL` 前必须处理新增空值，不可用虚构期限回填。参见 [实现与验证](../features/training-goals-without-deadlines.md)。

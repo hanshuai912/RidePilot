@@ -75,7 +75,6 @@ export function useInitialPlan() {
   const [returnStage, setReturnStage] = useState<"planning" | null>(null);
   const [experience, setExperience] = useState<Experience>("BEGINNER");
   const [goalType, setGoalType] = useState<GoalType>("ENDURANCE");
-  const [goalDate, setGoalDate] = useState("");
   const [targetWkg, setTargetWkg] = useState("");
   const [goalNote, setGoalNote] = useState("");
   const [cycleWeeks, setCycleWeeks] = useState(8);
@@ -136,13 +135,8 @@ export function useInitialPlan() {
         ) ?? goals.find((goal) => goal.status === "ACTIVE");
       if (activeGoal) {
         setGoalType(activeGoal.type);
-        setGoalDate(activeGoal.targetDate);
         setTargetWkg(activeGoal.targetWkg?.toString() ?? "");
         setGoalNote(activeGoal.description ?? "");
-      } else {
-        setGoalDate(
-          addDays(localDateInTimezone(new Date(), profile.timezone), 84),
-        );
       }
       if (availability) {
         setDays(availability.weekdays.map((slot) => slot.weekday));
@@ -239,12 +233,10 @@ export function useInitialPlan() {
       description: goalNote.trim() || null,
       targetWkg:
         goalType === "FTP" && targetWkg.trim() ? Number(targetWkg) : null,
-      targetDate: goalDate,
       priority: "PRIMARY",
     });
-    const today = localDateInTimezone(new Date(), resources.profile.timezone);
-    if (!parsed.success || goalDate < today) {
-      setError("请填写有效的目标日期和目标数值，日期不能早于今天");
+    if (!parsed.success) {
+      setError("请填写有效的目标数值");
       return;
     }
     if (parsed.data.targetWkg && !resources.profile.weightKg) {
@@ -611,8 +603,6 @@ export function useInitialPlan() {
     setExperience,
     goalType,
     setGoalType,
-    goalDate,
-    setGoalDate,
     targetWkg,
     setTargetWkg,
     goalNote,

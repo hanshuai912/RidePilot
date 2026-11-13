@@ -13,7 +13,6 @@ const snapshot: StageReviewSnapshot = {
   goalId: id,
   goalVersion: 1,
   goalStatus: "ACTIVE",
-  goalTargetDate: "2026-12-31",
   stageId: id,
   stagePlanId: id,
   stagePlanVersion: 2,
@@ -111,7 +110,7 @@ test("binds NEXT to the actual next stage and EXTEND to roadmap confirmation", (
     assertStageReviewScope(extended, { goalId: id }, true),
   ).not.toThrow();
 });
-test("allows ADJUST by dates only within the current goal and future range", () => {
+test("allows future ADJUST ranges without a goal deadline and rejects past starts", () => {
   const adjusted = { ...evidence, decision: "ADJUST" as const };
   expect(() =>
     assertStageReviewScope(adjusted, {
@@ -132,5 +131,5 @@ test("allows ADJUST by dates only within the current goal and future range", () 
       weekStartDate: "2026-11-06",
       endDate: "2027-01-01",
     }),
-  ).toThrow(BadRequestException);
+  ).not.toThrow();
 });

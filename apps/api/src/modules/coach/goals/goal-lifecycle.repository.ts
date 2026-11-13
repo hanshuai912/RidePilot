@@ -1,7 +1,7 @@
 import { NotFoundException } from "@nestjs/common";
 import type { Prisma, TrainingGoal } from "../../../generated/prisma/client";
 import { goalSchema } from "@ridepilot/contracts";
-import { dbToDate, dateToDb } from "../../training/training.validation";
+import { dateToDb } from "../../training/training.validation";
 
 export const goalResponse = (goal: TrainingGoal) =>
   goalSchema.parse({
@@ -12,7 +12,6 @@ export const goalResponse = (goal: TrainingGoal) =>
     targetFtpWatts: goal.targetFtpWatts,
     closureReason: goal.closureReason,
     targetWkg: goal.targetWkg === null ? null : Number(goal.targetWkg),
-    targetDate: dbToDate(goal.targetDate),
     priority: goal.priority,
     status: goal.status,
     version: goal.version,

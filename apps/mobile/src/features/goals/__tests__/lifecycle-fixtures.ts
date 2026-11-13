@@ -14,14 +14,14 @@ export const goal = {
   successCriteria: "同协议实测",
   targetFtpWatts: 300,
   targetWkg: null,
-  targetDate: "2099-02-28",
+
   priority: "PRIMARY" as const,
   status: "ACTIVE" as const,
   version: 1,
 };
 export const evaluation: GoalEvaluation = {
   localDate: "2099-01-01",
-  daysRemaining: 58,
+
   weeklyMinutes: 300,
   currentFtp: null,
   wattsGap: null,
@@ -48,7 +48,7 @@ export const snapshot: StageReviewSnapshot = {
   goalId,
   goalVersion: 1,
   goalStatus: "ACTIVE",
-  goalTargetDate: goal.targetDate,
+
   stageId,
   stagePlanId: goalId,
   stagePlanVersion: 2,

@@ -42,13 +42,9 @@ export function assertStageReviewScope(
       code: "STAGE_REVIEW_SCOPE",
       message: "课程范围必须与已确认的阶段决定一致",
     });
-  if (
-    input.weekStartDate &&
-    (input.weekStartDate < s.localDate ||
-      (input.endDate ?? input.weekStartDate) > s.goalTargetDate)
-  )
+  if (input.weekStartDate && input.weekStartDate < s.localDate)
     throw new BadRequestException({
       code: "STAGE_REVIEW_SCOPE",
-      message: "后续课程须从今天或未来开始，并在目标日期内结束",
+      message: "后续课程须从今天或未来开始",
     });
 }

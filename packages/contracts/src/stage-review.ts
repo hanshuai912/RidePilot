@@ -8,7 +8,6 @@ export const stageReviewSnapshotSchema = z.object({
   goalId: z.uuid(),
   goalVersion: z.number().int().positive(),
   goalStatus: z.string(),
-  goalTargetDate: z.iso.date(),
   stageId: z.uuid(),
   stagePlanId: z.uuid(),
   stagePlanVersion: z.number().int().positive(),

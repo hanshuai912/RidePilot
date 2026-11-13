@@ -1,6 +1,8 @@
 import { BadRequestException, ConflictException } from "@nestjs/common";
 import {
   goalChangePreviewSchema,
+  goalSchema,
+  goalInputSchema,
   type GoalChange,
   type GoalEvaluation,
   type GoalInput,
@@ -9,12 +11,7 @@ import { generationFingerprint } from "../../../infra/prisma/generation-candidat
 import { dbToDate } from "../../training/training.validation";
 import { goalResponse, type GoalContext } from "./goal-lifecycle.repository";
 
-export function validateGoalInput(input: GoalInput, today: string) {
-  if (input.targetDate < today)
-    throw new BadRequestException({
-      code: "GOAL_DATE_IN_PAST",
-      message: "目标日期不能早于今天，请先延期",
-    });
+export function validateGoalInput(input: GoalInput) {
   if (input.type !== "FTP" && (input.targetWkg || input.targetFtpWatts))
     throw new BadRequestException({
       code: "GOAL_METRIC_MISMATCH",
@@ -28,14 +25,10 @@ export function evaluateGoal(
 ): GoalEvaluation {
   const current = ctx.ftp ? Number(ctx.ftp.value) : null;
   const weight = ctx.profile?.weightKg ? Number(ctx.profile.weightKg) : null;
-  const daysRemaining = Math.round(
-    (Date.parse(goal.targetDate) - Date.parse(ctx.localDate)) / 86400000,
-  );
   const weekdays = ctx.availability?.weekdays as
     { availableMinutes: number }[] | undefined;
   return {
     localDate: ctx.localDate,
-    daysRemaining,
     weeklyMinutes: weekdays
       ? weekdays.reduce((sum, slot) => sum + slot.availableMinutes, 0)
       : null,
@@ -55,10 +48,7 @@ export function evaluateGoal(
         ? Math.round((goal.targetWkg - current / weight) * 100) / 100
         : null,
     notices: [
-      "难度需结合目标差距、期限、经验和可用训练时间判断；不预测固定增长速度或保证达成。可延长期限、调整目标或补充测试后再规划。",
-      ...(daysRemaining <= 0
-        ? ["目标已到期，请复评后选择完成、延期、结束或建立下一目标。"]
-        : []),
+      "根据能力差距、经验、可用训练时间和实际训练反馈持续规划，通过阶段复评调整；不预测固定增长速度或承诺达成日期。",
       ...(!ctx.ftp ? ["缺少 FTP 基线，无法计算能力差距。"] : []),
       ...(goal.targetWkg
         ? ["功体比差距使用当前体重计算，不代表同日期的历史实测功体比。"]
@@ -118,7 +108,11 @@ export function buildGoalPreview(ctx: GoalContext, change: GoalChange) {
       code: "INVALID_GOAL_ACTION",
       message: "建立下一目标时需要完整的新目标条件",
     });
-  const after = { ...before, ...change.changes, version: before.version + 1 };
+  const after = goalSchema.parse({
+    ...before,
+    ...change.changes,
+    version: before.version + 1,
+  });
   if (
     ["UPDATE", "RESUME"].includes(change.action) &&
     before.priority === "PRIMARY" &&
@@ -146,20 +140,22 @@ export function buildGoalPreview(ctx: GoalContext, change: GoalChange) {
       code: "GOAL_CRITERIA_REQUIRED",
       message: "请填写达成条件，并在完成理由中说明实际证据",
     });
-  if (["UPDATE", "RESUME"].includes(change.action))
-    validateGoalInput(after, ctx.localDate);
+  if (["UPDATE", "RESUME"].includes(change.action)) validateGoalInput(after);
   const nextGoal =
     change.nextGoal && ctx.otherActiveGoals.length === 0
       ? { ...change.nextGoal, priority: "PRIMARY" as const }
       : change.nextGoal;
-  if (nextGoal) validateGoalInput(nextGoal, ctx.localDate);
+  const nextConditions = nextGoal
+    ? goalInputSchema.omit({ targetDate: true }).strip().parse(nextGoal)
+    : null;
+  if (nextConditions) validateGoalInput(nextConditions);
   const demotes =
     (nextGoal ?? after).priority === "PRIMARY" &&
     (nextGoal || after.status === "ACTIVE");
   const data = {
     before,
     after,
-    nextGoal: nextGoal ?? null,
+    nextGoal: nextConditions,
     affected: {
       workouts: (ctx.plan?.activeVersion?.workouts ?? []).map((w) => ({
         id: w.id,

@@ -1,13 +1,9 @@
 import { Pressable, View } from "react-native";
-import { CalendarDays, ChevronRight, Target } from "lucide-react-native";
+import { ChevronRight, Target } from "lucide-react-native";
 import { AppText, Badge } from "../../../components/ui";
 import { colors } from "../../../theme/colors";
 import { goalTypeLabels } from "../model/goal-lifecycle";
-import {
-  goalDateLabel,
-  goalStatusLabel,
-  type GoalRecord,
-} from "../model/goal-presentation";
+import { goalStatusLabel, type GoalRecord } from "../model/goal-presentation";
 
 export function GoalListCard({
   goal,
@@ -55,15 +51,6 @@ export function GoalListCard({
           ) : null}
         </View>
       ) : null}
-      <View className="mt-4 flex-row items-center gap-2 border-t border-divider pt-3">
-        <CalendarDays color={colors.textSecondary} size={15} />
-        <AppText
-          variant="caption"
-          className="min-w-0 flex-1 tabular-nums text-secondary"
-        >
-          {goalDateLabel(goal.targetDate)}
-        </AppText>
-      </View>
     </Pressable>
   );
 }

@@ -92,7 +92,7 @@ it("keeps the homepage when opening a goal after a previous adjustment task", as
     .mockReturnValue({ ...flow, stage: "planning", task: "REPLAN" });
   api.overview.mockResolvedValue({
     ...overview,
-    goal: { id: "goal-id", title: "提升耐力", targetDate: "2030-05-01" },
+    goal: { id: "goal-id", title: "提升耐力" },
   });
   const ui = await render(<CoachScreen />);
   await ui.findByText("今日耐力训练");

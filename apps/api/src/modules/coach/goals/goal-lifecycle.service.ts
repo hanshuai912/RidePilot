@@ -13,7 +13,6 @@ import {
 import { Prisma } from "../../../generated/prisma/client";
 import { PrismaService } from "../../../infra/prisma/prisma.service";
 import { generationFingerprint } from "../../../infra/prisma/generation-candidates";
-import { dateToDb } from "../../training/training.validation";
 import {
   buildGoalPreview,
   evaluateGoal,
@@ -45,7 +44,7 @@ export class GoalLifecycleService {
         const localDate = new Intl.DateTimeFormat("en-CA", {
           timeZone: user.timezone,
         }).format(new Date());
-        validateGoalInput(input, localDate);
+        validateGoalInput(input);
         this.checkFirstGoalPriority(input, activeGoals.length);
         return {
           evaluation: evaluateGoal(
@@ -142,7 +141,6 @@ export class GoalLifecycleService {
         where: { id },
         data: {
           ...fields,
-          targetDate: dateToDb(fields.targetDate),
           closureReason,
           status,
           version: { increment: 1 },
@@ -152,7 +150,7 @@ export class GoalLifecycleService {
         ? await tx.trainingGoal.create({
             data: {
               ...preview.nextGoal,
-              targetDate: dateToDb(preview.nextGoal.targetDate),
+              targetDate: null,
               userId,
             },
           })
@@ -193,17 +191,12 @@ export class GoalLifecycleService {
           });
         return goalChangeResultSchema.parse(existing.result).goal;
       }
-      const user = await tx.user.findUniqueOrThrow({ where: { id: userId } });
       const activeCount = await tx.trainingGoal.count({
         where: { userId, status: "ACTIVE" },
       });
       this.checkFirstGoalPriority(input, activeCount);
-      validateGoalInput(
-        input,
-        new Intl.DateTimeFormat("en-CA", { timeZone: user.timezone }).format(
-          new Date(),
-        ),
-      );
+      validateGoalInput(input);
+      const { targetDate: _legacyDate, ...conditions } = input;
       if (
         input.priority === "PRIMARY" &&
         (await tx.trainingGoal.count({
@@ -216,9 +209,9 @@ export class GoalLifecycleService {
         });
       const goal = await tx.trainingGoal.create({
         data: {
-          ...input,
+          ...conditions,
           userId,
-          targetDate: dateToDb(input.targetDate),
+          targetDate: null,
         },
       });
       const result = {

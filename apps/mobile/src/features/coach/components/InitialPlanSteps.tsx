@@ -3,7 +3,6 @@ import { Flag, Mountain, Target } from "lucide-react-native";
 import type { ProfileResponse, GoalInput } from "@ridepilot/contracts";
 
 import { AppText, Button, Card, Input } from "../../../components/ui";
-import { targetDateAfterWeeks } from "../model/plan-dates";
 import { ChoicePill } from "./CoachPage";
 import { colors } from "../../../theme/colors";
 
@@ -221,9 +220,6 @@ export function BasicsStep({
 export function GoalStep({
   type,
   setType,
-  date,
-  setDate,
-  today,
   targetWkg,
   setTargetWkg,
   note,
@@ -233,9 +229,6 @@ export function GoalStep({
 }: {
   type: GoalType;
   setType: (value: GoalType) => void;
-  date: string;
-  setDate: (value: string) => void;
-  today: string;
   targetWkg: string;
   setTargetWkg: (value: string) => void;
   note: string;
@@ -248,7 +241,7 @@ export function GoalStep({
       <Card>
         <AppText variant="card">训练目标</AppText>
         <AppText variant="caption" muted className="mt-1">
-          选择一项主要方向，后续可以在计划里继续调整。
+          选择一项主要方向，根据实际训练和阶段复评逐步推进。
         </AppText>
         <View className="mt-4 gap-2">
           <GoalOption
@@ -282,37 +275,11 @@ export function GoalStep({
           <GoalOption
             icon={<Flag color={colors.brand} size={17} strokeWidth={1.8} />}
             label="准备一场比赛"
-            description="围绕目标日期安排阶段训练"
+            description="结合赛事安排与实际能力逐步备赛"
             selected={type === "RACE"}
             onPress={() => setType("RACE")}
           />
         </View>
-      </Card>
-      <Card>
-        <AppText variant="card">目标日期</AppText>
-        <AppText variant="caption" muted className="mt-1">
-          请选择明确日期。阶段检查点只是建议，不保证届时达到目标。
-        </AppText>
-        <View className="mt-3 flex-row gap-2">
-          {[8, 12, 16].map((weeks) => (
-            <Pressable
-              key={weeks}
-              accessibilityRole="button"
-              className={`flex-1 rounded-xl border p-3 ${date === targetDateAfterWeeks(today, weeks) ? "border-brand bg-brand-subtle" : "border-border bg-surface-2"}`}
-              onPress={() => setDate(targetDateAfterWeeks(today, weeks))}
-            >
-              <AppText className="text-center text-brand">{weeks} 周后</AppText>
-            </Pressable>
-          ))}
-        </View>
-        <Input
-          className="mt-3"
-          accessibilityLabel="目标日期"
-          value={date}
-          onChangeText={setDate}
-          placeholder="YYYY-MM-DD"
-          maxLength={10}
-        />
       </Card>
       {type === "FTP" ? (
         <Card>

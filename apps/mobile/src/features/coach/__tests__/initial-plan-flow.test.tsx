@@ -103,7 +103,7 @@ const goal = {
   type: "FTP" as const,
   description: null,
   targetWkg: 4,
-  targetDate: "2030-06-01",
+
   priority: "PRIMARY" as const,
   status: "ACTIVE" as const,
   version: 1,
@@ -219,7 +219,10 @@ test("missing FTP blocks the wizard and points to personal data", async () => {
 });
 
 test("generates one draft and applies it only after validation and confirmation", async () => {
-  api.goals.mockResolvedValueOnce([]).mockResolvedValue([goal]);
+  api.goals
+    .mockResolvedValueOnce([])
+    .mockResolvedValueOnce([])
+    .mockResolvedValue([goal]);
   const { result } = await renderHook(() => useInitialPlan());
   await waitFor(() => expect(result.current.loading).toBe(false));
   await act(async () => {
@@ -233,6 +236,7 @@ test("generates one draft and applies it only after validation and confirmation"
     await result.current.nextFromGoal();
   });
   expect(result.current.error).toBeNull();
+  expect(api.createGoal.mock.calls[0][1]).not.toHaveProperty("targetDate");
   await act(async () => {
     await result.current.nextFromSchedule();
   });
@@ -677,7 +681,7 @@ test("existing plan screen opens the missing goal form instead of trapping the u
   expect(
     within(view.getByTestId("coach-page-content")).queryByRole("header"),
   ).toBeNull();
-  expect(view.getByText(/设置目标和日期/)).toBeTruthy();
+  expect(view.getByText(/设置训练方向/)).toBeTruthy();
   await fireEvent.press(view.getByRole("button", { name: "返回上一页" }));
   expect(mockNavigate).toHaveBeenLastCalledWith("/(tabs)/coach");
 });

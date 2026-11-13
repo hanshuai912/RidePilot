@@ -74,7 +74,7 @@ POST 返回 `{id,valueWatts,source,measuredAt}`，`measuredAt` 始终必填；GE
 
 版本冲突返回 409；过期阶段返回 `STAGE_PLAN_STALE`；不合法范围返回 `INVALID_DATE_RANGE`。2026-11-10 起每个用户共用一份综合 ACTIVE 阶段安排，生成同时纳入全部进行中目标，以主目标确定重点。`goalId` 保留为归属校验入口和主目标锚点，不再隔离阶段。`GET /goals/:id/stage-plan` 返回同一用户共享安排，新增 `scope: ALL_GOALS | LEGACY_GOAL`、`planningGoals` 和 `goalTradeoffs`；旧单目标安排可读但标记过期，确认新草稿时才统一归档。阶段、课程生成失败不改正式安排；课程确认继续进行服务端重验与正式版本检查。
 
-课程响应同步增加 `planningGoals` 和 `goalTradeoffs`。任一活跃目标内容、版本、主次或成员发生变化时，旧阶段及课程候选需重新生成；旧课程候选没有完整目标快照时不能应用。阶段最长范围由全部活跃目标的最晚期限决定；范围课程同样不能超过该期限。多目标生成必须返回 `goalTradeoffs` 数组，缺失返回 `GOAL_TRADEOFFS_REQUIRED`；没有唯一活跃主目标返回 `PRIMARY_GOAL_REQUIRED`。恢复校验包含保留课程及范围前后一天的高强度安排。测试列表在目标页使用用户范围，同类可比测量支持跨来源目标复评。详见 [综合规划实现与兼容说明](../features/unified-goal-planning.md)。
+课程响应同步增加 `planningGoals` 和 `goalTradeoffs`。任一活跃目标内容、版本、主次或成员发生变化时，旧阶段及课程候选需重新生成；旧课程候选没有完整目标快照时不能应用。训练目标没有达成截止日期；阶段按所选日期规划，最长 365 天、每阶段最多 84 天；范围课程最多 84 天。多目标生成必须返回 `goalTradeoffs` 数组，缺失返回 `GOAL_TRADEOFFS_REQUIRED`；没有唯一活跃主目标返回 `PRIMARY_GOAL_REQUIRED`。恢复校验包含保留课程及范围前后一天的高强度安排。测试列表在目标页使用用户范围，同类可比测量支持跨来源目标复评。详见 [综合规划实现与兼容说明](../features/unified-goal-planning.md)。
 
 | 方法               | 路径                                              | 作用                                                                        |
 | ------------------ | ------------------------------------------------- | --------------------------------------------------------------------------- |
@@ -99,7 +99,7 @@ POST 返回 `{id,valueWatts,source,measuredAt}`，`measuredAt` 始终必填；GE
 | POST               | `/plans/versions/:id/restore-proposal`            | 从历史版本创建未来课程恢复提案                                              |
 | POST               | `/ai-coach/chat`                                  | 解释当前正式计划，只读                                                      |
 
-功体比目标可在 `POST /goals` 传 `targetWkg`。例如 `{"type":"FTP","targetWkg":4,"targetDate":"2027-04-26","priority":"PRIMARY"}`；若档案体重为 55 kg，服务端在生成上下文中换算为目标 FTP 220 W。`GET /ai-coach/readiness` 对缺少体重的此类目标返回 `missingFields:["weightKg"]`。修改体重后，旧 AI 提案需要重新生成。
+功体比目标可在 `POST /goals` 传 `targetWkg`。例如 `{"type":"FTP","targetWkg":4,"priority":"PRIMARY"}`；若档案体重为 55 kg，服务端在生成上下文中换算为目标 FTP 220 W。`GET /ai-coach/readiness` 对缺少体重的此类目标返回 `missingFields:["weightKg"]`。修改体重后，旧 AI 提案需要重新生成。
 
 赛事训练接口接收 `weekGenerationInputSchema`，服务端固定 `scene=RACE_REPLAN` 和 URL 对应的赛事 ID。`mode=range` 使用 `weekStartDate/endDate`（今天或未来开始，1–84 天），支持跨周；旧 `replace_week` 周请求兼容。`racePhase` 为 PREPARATION（备赛）、RECOVERY（恢复）或 RETURN_TO_GOAL（取消后回归），不传时按赛事状态/日期确定。`relatedVersion` 校验赛事或结果版本。无正式计划时支持 `expectedBaseVersion=0`；已有计划保留历史、已记录及范围外课程。普通请求复用已有方案/任务；`forceRegenerate=true` 明确请求新候选，仍复用正在运行的同场景任务。提交在用户锁事务中幂等创建，不自动应用。
 
@@ -231,3 +231,7 @@ GET 建议列表把版本/资料失效的候选投影为 EXPIRED，从 pending �
 ## 持久化聊天接口（2026-11-12）
 
 新增 GET /ai-coach/chat/messages（before 游标、每页20轮）、GET /ai-coach/chat/messages/:clientMessageId（本人消息恢复，返回 {turn}，未找到时 turn 为 null）、POST /ai-coach/chat/messages（clientMessageId、message、expectedVersion）。接口均要求 JWT 并按账号隔离，失败重试校验版本，相同标识去重。POST 返回 PROCESSING / COMPLETED / FAILED 轮次，模型失败记录为 FAILED；旧 POST /ai-coach/chat 兼容保留且不保存历史。新接口响应与边界见 [聊天布局与历史记录](../features/coach-chat-history.md)。
+
+## 2026-11-13：移除目标达成日期
+
+训练目标创建、评估和变更请求中的 `targetDate` 改为可选兼容字段，合法旧输入被忽略；新客户端不提交该字段。目标和变更预览不返回 `targetDate`，评价不返回 `daysRemaining`，阶段复评和资料影响不返回 `goalTargetDate`，概览／周期复盘中的目标只保留标识和标题。旧幂等结果解析会剔除旧字段。课程、阶段按明确排期生成，不受历史目标日期限制；实际赛事日期、排期长度和冲突校验保留。历史证据指纹不同的复评需要重新确认。详见 [无达成日期训练目标](../features/training-goals-without-deadlines.md)。

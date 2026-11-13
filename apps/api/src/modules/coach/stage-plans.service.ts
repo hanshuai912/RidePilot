@@ -35,7 +35,6 @@ import {
   primaryPlanningGoal,
   planningGoalsMatch,
   planningSnapshotSchema,
-  planningHorizon,
   planningInstructions,
 } from "./goals/planning-goals";
 
@@ -184,7 +183,6 @@ export class StagePlansService {
               successCriteria: ctx.goal.successCriteria,
               targetFtpWatts: ctx.goal.targetFtpWatts,
               targetWkg: ctx.goal.targetWkg ? Number(ctx.goal.targetWkg) : null,
-              targetDate: dbToDate(ctx.goal.targetDate),
             },
             ftp: {
               watts: Number(ctx.ftp.value),
@@ -535,10 +533,10 @@ export class StagePlansService {
       month: "2-digit",
       day: "2-digit",
     }).format(new Date());
-    if (input.startDate < today || input.endDate > planningHorizon(goals))
+    if (input.startDate < today)
       throw new BadRequestException({
         code: "INVALID_DATE_RANGE",
-        message: "阶段应从今天或未来开始，并在全部进行中目标的最晚期限内结束",
+        message: "阶段应从今天或未来开始",
       });
     return {
       stageReview,

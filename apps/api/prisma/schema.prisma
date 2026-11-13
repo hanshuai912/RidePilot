@@ -280,7 +280,8 @@ model TrainingGoal {
   targetFtpWatts Int? @map("target_ftp_watts")
   successCriteria String? @map("success_criteria") @db.VarChar(300)
   closureReason String? @map("closure_reason") @db.VarChar(16)
-  targetDate  DateTime @map("target_date") @db.Date
+  /// Legacy achievement date retained for history; ignored by current goal planning.
+  targetDate  DateTime? @map("target_date") @db.Date
   priority    String   @db.VarChar(16)
   status      String   @default("ACTIVE") @db.VarChar(16)
   version     Int      @default(1)

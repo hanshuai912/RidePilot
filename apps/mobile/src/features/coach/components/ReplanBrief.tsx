@@ -39,7 +39,6 @@ export function ReplanBrief({
   setTaskNote,
   planStatus,
   goalLabel,
-  goalDate,
   onEditGoal,
   busy = false,
 }: {
@@ -49,7 +48,6 @@ export function ReplanBrief({
   setTaskNote: (value: string) => void;
   planStatus: CoachPlanStatus;
   goalLabel: string;
-  goalDate: string;
   onEditGoal: () => void;
   busy?: boolean;
 }) {
@@ -97,7 +95,7 @@ export function ReplanBrief({
       <ReplanNote value={taskNote} onChange={setTaskNote} disabled={busy} />
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="修改当前目标与日期"
+        accessibilityLabel="修改当前目标"
         accessibilityState={{ disabled: busy }}
         disabled={busy}
         onPress={onEditGoal}
@@ -109,9 +107,6 @@ export function ReplanBrief({
             当前目标
           </AppText>
           <AppText variant="card">{goalLabel}</AppText>
-          <AppText variant="caption" className="text-secondary">
-            {goalDate}
-          </AppText>
         </View>
         <AppText variant="caption" className="text-brand">
           修改

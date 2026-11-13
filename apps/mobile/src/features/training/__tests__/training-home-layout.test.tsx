@@ -48,7 +48,7 @@ const preview: PlanImpactPreview = {
   currentFtpWatts: 250,
   goalId: null,
   goalDescription: null,
-  goalTargetDate: null,
+
   stageMessages: [],
   items: [],
   protectedCount: 0,

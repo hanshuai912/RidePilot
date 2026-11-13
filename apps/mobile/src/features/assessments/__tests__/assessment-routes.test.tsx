@@ -154,7 +154,7 @@ beforeEach(() => {
     type: "ENDURANCE",
     description: "提升耐力",
     targetWkg: null,
-    targetDate: "2099-01-14",
+
     priority: "PRIMARY",
     status: "ACTIVE",
     version: 1,

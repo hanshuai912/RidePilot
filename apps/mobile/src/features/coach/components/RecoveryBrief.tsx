@@ -43,7 +43,6 @@ export function RecoveryBrief({
   setBodyStatus,
   planStatus,
   goalLabel,
-  goalDate,
   busy = false,
 }: {
   planningScope: PlanningScope;
@@ -54,7 +53,6 @@ export function RecoveryBrief({
   setBodyStatus: (value: BodyStatus) => void;
   planStatus: CoachPlanStatus;
   goalLabel: string;
-  goalDate: string;
   busy?: boolean;
 }) {
   return (
@@ -169,9 +167,6 @@ export function RecoveryBrief({
           </AppText>
           <View className="min-w-0 flex-1 gap-1">
             <AppText>{goalLabel}</AppText>
-            <AppText variant="caption" className="text-secondary">
-              {goalDate}
-            </AppText>
           </View>
         </View>
         <AppText variant="caption" className="text-secondary">

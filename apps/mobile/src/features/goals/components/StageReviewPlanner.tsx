@@ -34,19 +34,14 @@ export function StageReviewPlanner({
   const dates =
     evidence.decision === "EXTEND" || evidence.decision === "ADJUST";
   const limit = roadmap ? 365 : 84;
-  const maximumEnd = [
-    current.goalTargetDate,
-    addDays(g.startDate, limit - 1),
-  ].sort()[0];
+  const maximumEnd = addDays(g.startDate, limit - 1);
   const days = (Date.parse(g.endDate) - Date.parse(g.startDate)) / 86400000 + 1;
-  const expiredGoal = current.goalTargetDate < current.localDate;
   const invalidDates =
     dates &&
     (!Number.isInteger(days) ||
       days < 1 ||
       days > limit ||
-      g.startDate < current.localDate ||
-      g.endDate > current.goalTargetDate);
+      g.startDate < current.localDate);
   const ended = current.endDate < current.localDate;
   const unavailableStage =
     !roadmap &&
@@ -60,19 +55,14 @@ export function StageReviewPlanner({
         <AppText variant="section">规划后续训练</AppText>
         <GoalInfoButton
           title="复评后规划说明"
-          description="后续规划使用最近保存的复评依据，综合全部进行中目标。阶段草稿一次最多 365 天，按日期生成课程一次最多 84 天，均不得超过规划期限。生成后仍需预览、校验和确认应用。延长阶段需先确认新的阶段安排，再生成课程。"
+          description="后续规划使用最近保存的复评依据，综合全部进行中目标。阶段草稿一次最多 365 天，按日期生成课程一次最多 84 天。生成后仍需预览、校验和确认应用。延长阶段需先确认新的阶段安排，再生成课程。"
         />
       </View>
       <Card className="gap-4 p-5">
         <AppText variant="card">{decisionLabels[evidence.decision]}</AppText>
         {!canFollow ? (
           <AppText className="text-warning">
-            复评依据已变化或目标未激活，请刷新并重新复评；到期目标可先延期。
-          </AppText>
-        ) : null}
-        {expiredGoal ? (
-          <AppText className="text-warning">
-            规划期限已过，请先延期目标。
+            复评依据已变化或目标未激活，请刷新并重新复评。
           </AppText>
         ) : null}
         {dirty ? (
@@ -95,20 +85,16 @@ export function StageReviewPlanner({
             ))}
           </View>
         ) : null}
-        {dates && !expiredGoal ? (
+        {dates ? (
           <View className="overflow-hidden rounded-xl border border-border bg-surface-2">
             <DatePickerField
               label="复评后开始日期"
               value={g.startDate}
               minimumDate={current.localDate}
-              maximumDate={current.goalTargetDate}
               disabled={busy}
               onChange={(next) => {
                 g.setStartDate(next);
-                const end = [
-                  current.goalTargetDate,
-                  addDays(next, limit - 1),
-                ].sort()[0];
+                const end = addDays(next, limit - 1);
                 if (g.endDate < next || g.endDate > end)
                   g.setEndDate(g.endDate < next ? next : end);
               }}
@@ -128,9 +114,9 @@ export function StageReviewPlanner({
             />
           </View>
         ) : null}
-        {invalidDates && !expiredGoal ? (
+        {invalidDates ? (
           <AppText className="text-warning">
-            请选择今天起、规划期限内的 {roadmap ? "1–365" : "1–84"} 天。
+            请选择今天或未来开始的 {roadmap ? "1–365" : "1–84"} 天。
           </AppText>
         ) : null}
         {ended && evidence.decision === "KEEP" ? (
@@ -159,12 +145,7 @@ export function StageReviewPlanner({
           size="lg"
           loading={g.busy}
           disabled={
-            busy ||
-            !canFollow ||
-            dirty ||
-            expiredGoal ||
-            invalidDates ||
-            unavailableStage
+            busy || !canFollow || dirty || invalidDates || unavailableStage
           }
           onPress={() => void g.generate(roadmap)}
         >
@@ -184,7 +165,7 @@ export function StageReviewPlanner({
             })
           }
         >
-          管理目标 / 延期
+          管理目标
         </Button>
       </Card>
     </View>

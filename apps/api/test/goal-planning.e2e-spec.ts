@@ -144,7 +144,6 @@ describeDb("goal stages and selected course ranges", () => {
       await post("goals")
         .send({
           type: "ENDURANCE",
-          targetDate: addDays(start, 180),
           priority: "PRIMARY",
         })
         .expect(201)
@@ -708,7 +707,6 @@ describeDb("goal stages and selected course ranges", () => {
       await post(`goals/${goalId}/change-preview`).send(change).expect(201)
     ).body;
     expect(preview.after).toMatchObject({
-      targetDate: "2020-01-01",
       successCriteria: "完成百公里",
       status: "CLOSED",
       closureReason: "COMPLETED",
@@ -737,7 +735,6 @@ describeDb("goal stages and selected course ranges", () => {
         .expect(201)
     ).body;
     expect(result.goal).toMatchObject({
-      targetDate: "2020-01-01",
       successCriteria: "完成百公里",
       status: "CLOSED",
       closureReason: "COMPLETED",
@@ -844,7 +841,7 @@ describeDb("goal stages and selected course ranges", () => {
     ).toBeDefined();
   });
 
-  it("extends expired goals, rejects completion without criteria and rejects concurrent or outdated previews", async () => {
+  it("updates legacy expired goals without extension and rejects unsupported completion or stale previews", async () => {
     await prisma.trainingGoal.update({
       where: { id: goalId },
       data: { targetDate: new Date("2020-01-01") },
@@ -858,7 +855,7 @@ describeDb("goal stages and selected course ranges", () => {
       })
       .expect(400);
     const first = await goalChange("UPDATE", {
-      targetDate: addDays(start, 40),
+      description: "按实际训练持续提高耐力",
     });
     await ftp();
     await post(`goals/${goalId}/changes`)
@@ -866,7 +863,7 @@ describeDb("goal stages and selected course ranges", () => {
       .send({ change: first.change, fingerprint: first.preview.fingerprint })
       .expect(409);
     const fresh = await goalChange("UPDATE", {
-      targetDate: addDays(start, 40),
+      description: "按实际训练持续提高耐力",
     });
     const results = await Promise.all(
       [1, 2].map(() =>
@@ -879,9 +876,13 @@ describeDb("goal stages and selected course ranges", () => {
       ),
     );
     expect(results.map((r) => r.status).sort()).toEqual([201, 409]);
-    expect((await get(`goals/${goalId}`).expect(200)).body.targetDate).toBe(
-      addDays(start, 40),
-    );
+    const saved = (await get(`goals/${goalId}`).expect(200)).body;
+    expect(saved).not.toHaveProperty("targetDate");
+    expect(saved.description).toBe("按实际训练持续提高耐力");
+    const legacy = await prisma.trainingGoal.findUniqueOrThrow({
+      where: { id: goalId },
+    });
+    expect(legacy.targetDate?.toISOString().slice(0, 10)).toBe("2020-01-01");
   });
 
   it("requires authentication and isolates goal/stage review writes and reads", async () => {

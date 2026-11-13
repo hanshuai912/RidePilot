@@ -127,7 +127,6 @@ function GoalEditor({
                 value={s.form}
                 onChange={s.changeForm}
                 disabled={s.busy}
-                today={s.today}
                 priorityControl={
                   s.showPriority ? (
                     <GoalPriorityControl

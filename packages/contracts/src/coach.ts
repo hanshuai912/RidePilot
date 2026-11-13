@@ -44,15 +44,22 @@ export const goalInputSchema = z.strictObject({
   successCriteria: z.string().trim().min(1).max(300).nullable().optional(),
   targetFtpWatts: z.number().int().min(50).max(800).nullable().optional(),
   targetWkg: z.number().min(1).max(10).nullable().optional(),
-  targetDate: z.iso.date(),
+  /** @deprecated Accepted for older clients; ignored when saving goals. */
+  targetDate: z.iso
+    .date()
+    .optional()
+    .describe("兼容字段：训练目标无达成截止日期，提交值会被忽略"),
   priority: z.enum(["PRIMARY", "SECONDARY"]),
 });
-export const goalSchema = goalInputSchema.extend({
-  id: z.uuid(),
-  status: z.enum(["ACTIVE", "PAUSED", "CLOSED"]),
-  closureReason: z.enum(["COMPLETED", "STOPPED"]).nullable().optional(),
-  version: z.number().int().positive(),
-});
+export const goalSchema = goalInputSchema
+  .omit({ targetDate: true })
+  .extend({
+    id: z.uuid(),
+    status: z.enum(["ACTIVE", "PAUSED", "CLOSED"]),
+    closureReason: z.enum(["COMPLETED", "STOPPED"]).nullable().optional(),
+    version: z.number().int().positive(),
+  })
+  .strip();
 export const goalPatchSchema = goalInputSchema
   .partial()
   .extend({
