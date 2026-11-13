@@ -12,12 +12,14 @@ export function NavigationHeader({
   disabled = false,
   backLabel = "返回上一页",
   rightAction,
+  actionWidth = layout.tapMin,
 }: {
   title: string;
   onBack: () => void;
   disabled?: boolean;
   backLabel?: string;
   rightAction?: ReactNode;
+  actionWidth?: number;
 }) {
   return (
     <View style={styles.header}>
@@ -27,7 +29,7 @@ export function NavigationHeader({
         accessibilityState={{ disabled }}
         disabled={disabled}
         onPress={onBack}
-        style={styles.side}
+        style={[styles.side, { width: actionWidth }]}
       >
         <ArrowLeft size={20} color={colors.textPrimary} />
       </Pressable>
@@ -40,7 +42,9 @@ export function NavigationHeader({
       >
         {title}
       </AppText>
-      <View style={[styles.side, { alignItems: "flex-end" }]}>
+      <View
+        style={[styles.side, { width: actionWidth, alignItems: "flex-end" }]}
+      >
         {rightAction}
       </View>
     </View>

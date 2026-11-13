@@ -22,7 +22,7 @@ import {
   type AdjustmentScope,
   type PlanningScope,
 } from "../services/adjustment-scope";
-import type { Experience, GoalType } from "../components/InitialPlanSteps";
+import type { Experience, GoalType } from "../model/initial-plan-types";
 
 export type { PlanningScope } from "../services/adjustment-scope";
 

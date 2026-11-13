@@ -7,12 +7,14 @@ export function NavigationHeaderAction({
   disabled = false,
   onPress,
   hint,
+  width = 44,
 }: {
   label: string;
   loading?: boolean;
   disabled?: boolean;
   onPress: () => void;
   hint?: string;
+  width?: number;
 }) {
   const unavailable = loading || disabled;
   return (
@@ -23,7 +25,8 @@ export function NavigationHeaderAction({
       accessibilityState={{ disabled: unavailable, busy: loading }}
       disabled={unavailable}
       onPress={onPress}
-      className={`min-h-11 w-11 items-center justify-center ${unavailable ? "opacity-50" : "active:opacity-70"}`}
+      style={{ width }}
+      className={`min-h-12 items-center justify-center ${unavailable ? "opacity-50" : "active:opacity-70"}`}
     >
       {loading ? (
         <Spinner accessibilityLabel={`正在${label}`} />

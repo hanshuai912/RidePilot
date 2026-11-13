@@ -193,13 +193,11 @@ test("补填 FTP、经验、目标和时间后回到同一赛事生成首份备�
   });
   await waitFor(() => expect(screen.getByText("去填写基本信息")).toBeTruthy());
   await fireEvent.press(screen.getByText("去填写基本信息"));
-  await waitFor(() =>
-    expect(screen.getByText("到个人资料补充 FTP")).toBeTruthy(),
-  );
+  await waitFor(() => expect(screen.getByText("补充 FTP")).toBeTruthy());
   expect(api.replanRace).not.toHaveBeenCalled();
-  await fireEvent.press(screen.getByText("到个人资料补充 FTP"));
+  await fireEvent.press(screen.getByText("补充 FTP"));
   await fireEvent.press(await screen.findByText("保存 FTP 并返回"));
-  await waitFor(() => expect(screen.getByText("200 W")).toBeTruthy());
+  await waitFor(() => expect(screen.getByText("200")).toBeTruthy());
   await fireEvent.press(screen.getByText("规律骑行"));
   await fireEvent.press(screen.getByText("保存并继续"));
   await waitFor(() => expect(screen.getByText("准备一场比赛")).toBeTruthy());

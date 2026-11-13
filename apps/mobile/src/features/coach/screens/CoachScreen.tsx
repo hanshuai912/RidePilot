@@ -374,16 +374,12 @@ export function CoachScreen() {
         title="骑行基础"
         description="确认骑行经验与 FTP，用于计算训练功率。"
         primary="下一步"
-        actionsInScroll
+        primaryPlacement="header"
+        contentClassName="mt-6 gap-6"
         onPrimary={() => {
           void flow.nextFromBasics().then((next) => {
             if (next) goToStage(next);
           });
-        }}
-        secondary="返回"
-        onSecondary={() => {
-          flow.goTo("entry");
-          router.replace("/(tabs)/coach");
         }}
         onBack={() => {
           flow.goTo("entry");
@@ -395,6 +391,7 @@ export function CoachScreen() {
         error={error}
       >
         <BasicsStep
+          disabled={busy}
           experience={flow.experience}
           setExperience={flow.setExperience}
           ftpWatts={resources.ftpWatts}
@@ -420,7 +417,8 @@ export function CoachScreen() {
         title="训练目标"
         description="设置训练方向，结合实际训练和阶段复评持续调整。"
         primary="下一步"
-        actionsInScroll
+        primaryPlacement="header"
+        contentClassName="mt-6 gap-6"
         onPrimary={() => {
           void flow.nextFromGoal().then((next) => {
             if (next) {
@@ -429,12 +427,6 @@ export function CoachScreen() {
               else goToStage(next);
             }
           });
-        }}
-        secondary={hasActivePlan ? "返回 AI 教练" : "返回骑行基础"}
-        onSecondary={() => {
-          const next = hasActivePlan ? "entry" : "basics";
-          flow.goTo(next);
-          router.replace(next === "entry" ? "/(tabs)/coach" : coachRoute(next));
         }}
         onBack={() => {
           const next = hasActivePlan ? "entry" : "basics";
@@ -447,6 +439,7 @@ export function CoachScreen() {
         error={error}
       >
         <GoalStep
+          disabled={busy}
           type={flow.goalType}
           setType={flow.setGoalType}
           targetWkg={flow.targetWkg}
@@ -459,7 +452,7 @@ export function CoachScreen() {
         {flow.goalType === "FTP" &&
         flow.targetWkg &&
         !resources.profile.weightKg ? (
-          <Button variant="secondary" onPress={toProfile}>
+          <Button variant="secondary" disabled={busy} onPress={toProfile}>
             到个人资料补充体重
           </Button>
         ) : null}
@@ -474,18 +467,13 @@ export function CoachScreen() {
         }
         title="时间安排"
         description="选择训练日与单次时长，预留恢复时间。"
-        primary={hasActivePlan ? "保存并检查未来训练" : "下一步"}
-        actionsInScroll
+        primary="下一步"
+        primaryPlacement="header"
+        contentClassName="mt-6 gap-6"
         onPrimary={() => {
           void flow.nextFromSchedule().then((next) => {
             if (next) goToStage(next);
           });
-        }}
-        secondary={hasActivePlan ? "返回 AI 教练" : "返回训练目标"}
-        onSecondary={() => {
-          const next = hasActivePlan ? "entry" : "goal";
-          flow.goTo(next);
-          router.replace(next === "entry" ? "/(tabs)/coach" : coachRoute(next));
         }}
         onBack={() => {
           const next = hasActivePlan ? "entry" : "goal";
@@ -498,6 +486,7 @@ export function CoachScreen() {
         error={error}
       >
         <ScheduleStep
+          disabled={busy}
           days={flow.days}
           setDays={flow.setDays}
           minutes={flow.minutes}
@@ -512,8 +501,10 @@ export function CoachScreen() {
         eyebrow="新用户引导 · 第 4 步"
         title="饮食与禁忌"
         description="记录饮食偏好与禁忌，仅在本次引导中保留。"
-        primary="生成计划草稿"
-        actionsInScroll
+        primary="生成"
+        primaryPlacement="header"
+        primaryHint="生成训练计划草稿，随后预览确认"
+        contentClassName="mt-6 gap-6"
         onPrimary={() => {
           if (flow.restriction === "其他限制" && !flow.restrictionNote.trim()) {
             void flow.generate("initial");
@@ -522,20 +513,17 @@ export function CoachScreen() {
           void flow.generate("initial");
           router.push(coachRoute("loading"));
         }}
-        secondary="返回时间安排"
-        onSecondary={() => {
-          flow.goTo("schedule");
-          router.replace(coachRoute("schedule"));
-        }}
         onBack={() => {
           flow.goTo("schedule");
           router.replace(coachRoute("schedule"));
         }}
         progressStep={4}
         progressLabel="最后确认饮食相关的关键限制"
+        busy={busy}
         error={error}
       >
         <NutritionStep
+          disabled={busy}
           restriction={flow.restriction}
           setRestriction={flow.setRestriction}
           restrictionNote={flow.restrictionNote}

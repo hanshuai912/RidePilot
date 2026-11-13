@@ -207,6 +207,165 @@ beforeEach(() => {
   });
 });
 
+test.each([
+  ["basics", "骑行基础", "下一步", "/(tabs)/coach"],
+  ["goal", "训练目标", "下一步", "/(tabs)/coach/basics"],
+  ["schedule", "时间安排", "下一步", "/(tabs)/coach/goal"],
+  ["nutrition", "饮食与禁忌", "生成", "/(tabs)/coach/schedule"],
+])(
+  "%s keeps its only primary action in the fixed header",
+  async (route, title, action, back) => {
+    mockPathname = `/coach/${route}`;
+    const view = await render(
+      <CoachFlowProvider>
+        <CoachScreen />
+      </CoachFlowProvider>,
+    );
+    await waitFor(() =>
+      expect(view.getByRole("header", { name: title })).toBeTruthy(),
+    );
+    expect(view.getAllByRole("button", { name: action })).toHaveLength(1);
+    const content = within(view.getByTestId("coach-page-content"));
+    expect(content.queryByRole("button", { name: action })).toBeNull();
+    expect(content.queryByRole("button", { name: /返回|上一步/ })).toBeNull();
+    await fireEvent.press(view.getByRole("button", { name: "返回上一页" }));
+    expect(mockNavigate).toHaveBeenLastCalledWith(back);
+  },
+);
+
+test("header save locks navigation and fields until the experience is saved", async () => {
+  mockPathname = "/coach/basics";
+  let finishSave!: (value: ProfileResponse) => void;
+  jest.mocked(patchProfile).mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finishSave = resolve;
+      }),
+  );
+  const view = await render(
+    <CoachFlowProvider>
+      <CoachScreen />
+    </CoachFlowProvider>,
+  );
+  await waitFor(() =>
+    expect(view.getByRole("header", { name: "骑行基础" })).toBeTruthy(),
+  );
+  const choices = view.getAllByRole("radio");
+  const differentExperience = choices.find(
+    (choice) => choice.props.accessibilityState?.checked === false,
+  )!;
+  await fireEvent.press(differentExperience);
+  await fireEvent.press(view.getByRole("button", { name: "下一步" }));
+  await waitFor(() =>
+    expect(jest.mocked(patchProfile)).toHaveBeenCalledTimes(1),
+  );
+  expect(
+    view.getByRole("button", { name: "下一步" }).props.accessibilityState,
+  ).toMatchObject({ disabled: true, busy: true });
+  expect(
+    view.getByRole("button", { name: "返回上一页" }).props.accessibilityState
+      .disabled,
+  ).toBe(true);
+  expect(
+    view
+      .getAllByRole("radio")
+      .every((choice) => choice.props.accessibilityState.disabled),
+  ).toBe(true);
+  await fireEvent.press(view.getByRole("button", { name: "下一步" }));
+  expect(jest.mocked(patchProfile)).toHaveBeenCalledTimes(1);
+  await act(async () => finishSave(profile));
+  await waitFor(() =>
+    expect(mockNavigate).toHaveBeenLastCalledWith("/(tabs)/coach/goal"),
+  );
+});
+
+test("invalid goal input stays visible after the header action reports an error", async () => {
+  mockPathname = "/coach/goal";
+  const view = await render(
+    <CoachFlowProvider>
+      <CoachScreen />
+    </CoachFlowProvider>,
+  );
+  await waitFor(() =>
+    expect(view.getByRole("radio", { name: /提升 FTP/ })).toBeTruthy(),
+  );
+  await fireEvent.press(view.getByRole("radio", { name: /提升 FTP/ }));
+  await fireEvent.changeText(view.getByLabelText("目标功体比"), "abc");
+  await fireEvent.press(view.getByRole("button", { name: "下一步" }));
+  expect(view.getByRole("alert")).toBeTruthy();
+  expect(view.getByText("请填写有效的目标数值")).toBeTruthy();
+  expect(view.getByLabelText("目标功体比").props.value).toBe("abc");
+  expect(api.createGoal).not.toHaveBeenCalled();
+});
+
+test("schedule retains custom duration and saves selected days through the header", async () => {
+  mockPathname = "/coach/schedule";
+  api.availability.mockResolvedValue({
+    ...availability,
+    maxSessionMinutes: 75,
+    weekdays: [{ weekday: 2, availableMinutes: 75 }],
+  });
+  const view = await render(
+    <CoachFlowProvider>
+      <CoachScreen />
+    </CoachFlowProvider>,
+  );
+  await waitFor(() =>
+    expect(view.getByRole("radio", { name: "75 分钟" })).toBeTruthy(),
+  );
+  expect(
+    view.getByRole("radio", { name: "75 分钟" }).props.accessibilityState
+      .checked,
+  ).toBe(true);
+  await fireEvent.press(view.getByRole("checkbox", { name: "周二" }));
+  await fireEvent.press(view.getByRole("button", { name: "下一步" }));
+  expect(view.getByText("请至少选择一个可训练日")).toBeTruthy();
+  expect(api.saveAvailability).not.toHaveBeenCalled();
+  await fireEvent.press(view.getByRole("checkbox", { name: "周四" }));
+  await fireEvent.press(view.getByRole("radio", { name: "90 分钟" }));
+  await fireEvent.press(view.getByRole("button", { name: "下一步" }));
+  await waitFor(() =>
+    expect(api.saveAvailability).toHaveBeenCalledWith("token", {
+      timezone: "Asia/Shanghai",
+      weekdays: [{ weekday: 4, availableMinutes: 90 }],
+      maxSessionMinutes: 90,
+      expectedVersion: 1,
+    }),
+  );
+  await waitFor(() =>
+    expect(mockNavigate).toHaveBeenLastCalledWith("/(tabs)/coach/nutrition"),
+  );
+});
+
+test("nutrition explains local-only preferences and validates other restrictions before generation", async () => {
+  mockPathname = "/coach/nutrition";
+  api.goals.mockResolvedValue([goal]);
+  const view = await render(
+    <CoachFlowProvider>
+      <CoachScreen />
+    </CoachFlowProvider>,
+  );
+  await waitFor(() =>
+    expect(view.getByRole("header", { name: "饮食与禁忌" })).toBeTruthy(),
+  );
+  expect(
+    view.getByText("这里的信息暂不提交服务器，也不会自动应用到饮食方案。"),
+  ).toBeTruthy();
+  await fireEvent.press(view.getByRole("radio", { name: "其他限制" }));
+  await fireEvent.press(view.getByRole("button", { name: "生成" }));
+  expect(view.getByText("请补充其他饮食限制的具体食物或成分")).toBeTruthy();
+  expect(mockNavigate).not.toHaveBeenCalled();
+  expect(api.generate).not.toHaveBeenCalled();
+  await fireEvent.changeText(view.getByLabelText("其他饮食限制"), "虾类过敏");
+  await fireEvent.press(view.getByRole("radio", { name: /外食较多/ }));
+  await fireEvent.press(view.getByRole("button", { name: "生成" }));
+  await waitFor(() => expect(api.generate).toHaveBeenCalledTimes(1));
+  expect(api.apply).not.toHaveBeenCalled();
+  expect(JSON.stringify(api.generate.mock.calls[0][1])).not.toContain(
+    "虾类过敏",
+  );
+});
+
 test("missing FTP blocks the wizard and points to personal data", async () => {
   api.ftp.mockResolvedValue(null);
   const { result } = await renderHook(() => useInitialPlan());

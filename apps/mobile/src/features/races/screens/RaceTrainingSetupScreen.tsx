@@ -64,6 +64,7 @@ export function RaceTrainingSetupScreen() {
           </Card>
           {!ready && step === "basics" ? (
             <BasicsStep
+              disabled={flow.busy}
               experience={flow.experience}
               setExperience={flow.setExperience}
               ftpWatts={resources.ftpWatts}
@@ -82,6 +83,7 @@ export function RaceTrainingSetupScreen() {
           {!ready && step === "goal" ? (
             <>
               <GoalStep
+                disabled={flow.busy}
                 type={flow.goalType}
                 setType={flow.setGoalType}
                 targetWkg={flow.targetWkg}
@@ -103,6 +105,7 @@ export function RaceTrainingSetupScreen() {
           ) : null}
           {!ready && step === "schedule" ? (
             <ScheduleStep
+              disabled={flow.busy}
               days={flow.days}
               setDays={flow.setDays}
               minutes={flow.minutes}

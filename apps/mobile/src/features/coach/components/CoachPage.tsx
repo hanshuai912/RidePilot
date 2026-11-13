@@ -1,8 +1,11 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 
 import { BottomActionBar } from "../../../components/layout/BottomActionBar";
 import { AppHeader } from "../../../components/layout/AppHeader";
+import { NavigationHeaderAction } from "../../../components/layout/NavigationHeaderAction";
+import { InitialPlanProgress } from "./InitialPlanProgress";
+import { layout } from "../../../theme/layout";
 import { NavigationHeader } from "../../../components/layout/NavigationHeader";
 import { Screen } from "../../../components/layout/Screen";
 import { AppText, Button } from "../../../components/ui";
@@ -26,6 +29,8 @@ export function CoachPage({
   actionsInScroll = false,
   contentClassName = "mt-6 gap-3",
   headerAction,
+  primaryPlacement = "bottom",
+  primaryHint = "保存当前填写内容并继续",
 }: {
   eyebrow: string;
   title: string;
@@ -45,13 +50,34 @@ export function CoachPage({
   actionsInScroll?: boolean;
   contentClassName?: string;
   headerAction?: ReactNode;
+  primaryPlacement?: "bottom" | "header";
+  primaryHint?: string;
 }) {
   const progressWidth = progressStep
     ? (`${Math.min(progressStep / progressTotal, 1) * 100}%` as `${number}%`)
     : ("0%" as `${number}%`);
 
+  const headerPrimary = primaryPlacement === "header";
+  const scroll = useRef<ScrollView>(null);
+  useEffect(() => {
+    if (headerPrimary && error)
+      scroll.current?.scrollTo({ y: 0, animated: false });
+  }, [headerPrimary, error]);
+  const navigationAction =
+    headerPrimary && primary && onPrimary ? (
+      <NavigationHeaderAction
+        label={primary}
+        onPress={onPrimary}
+        loading={busy}
+        width={72}
+        hint={primaryHint}
+      />
+    ) : (
+      headerAction
+    );
+
   const actions =
-    primary || secondary || error ? (
+    !headerPrimary && (primary || secondary || error) ? (
       <>
         {error ? (
           <AppText variant="body" className="mb-2 text-negative">
@@ -87,50 +113,83 @@ export function CoachPage({
   return (
     <Screen>
       {onBack ? (
-        <NavigationHeader title={title} onBack={onBack} disabled={busy} />
+        <NavigationHeader
+          title={title}
+          onBack={onBack}
+          disabled={busy}
+          rightAction={navigationAction}
+          actionWidth={headerPrimary ? 72 : layout.tapMin}
+        />
       ) : null}
       <ScrollView
+        ref={scroll}
         testID="coach-page-content"
         className="flex-1"
         contentContainerClassName="px-5 pb-8"
         keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets
+        keyboardDismissMode="on-drag"
       >
-        {!onBack ? (
-          <AppHeader
-            eyebrow={eyebrow}
-            title={title}
-            compact={compactHeader}
-            className="mt-2"
-            right={headerAction}
-          />
-        ) : null}
-        {progressStep ? (
-          <View className="mt-5">
-            <View className="flex-row items-center justify-between">
-              <AppText variant="label" className="text-muted">
-                {progressLabel}
-              </AppText>
-              <AppText variant="label" className="text-brand">
-                {progressStep}/{progressTotal}
-              </AppText>
+        <View
+          style={
+            headerPrimary
+              ? {
+                  width: "100%",
+                  maxWidth: layout.contentMaxWidth,
+                  alignSelf: "center",
+                }
+              : undefined
+          }
+        >
+          {!onBack ? (
+            <AppHeader
+              eyebrow={eyebrow}
+              title={title}
+              compact={compactHeader}
+              className="mt-2"
+              right={navigationAction}
+            />
+          ) : null}
+          {headerPrimary && progressStep ? (
+            <InitialPlanProgress step={progressStep} />
+          ) : progressStep ? (
+            <View className="mt-5">
+              <View className="flex-row items-center justify-between">
+                <AppText variant="label" className="text-muted">
+                  {progressLabel}
+                </AppText>
+                <AppText variant="label" className="text-brand">
+                  {progressStep}/{progressTotal}
+                </AppText>
+              </View>
+              <View className="mt-2 h-1 overflow-hidden rounded-full bg-surface-2">
+                <View
+                  className="h-full rounded-full bg-brand"
+                  style={{ width: progressWidth }}
+                />
+              </View>
             </View>
-            <View className="mt-2 h-1 overflow-hidden rounded-full bg-surface-2">
-              <View
-                className="h-full rounded-full bg-brand"
-                style={{ width: progressWidth }}
-              />
+          ) : null}
+          {description ? (
+            <AppText variant="body" className="mt-3 text-secondary">
+              {description}
+            </AppText>
+          ) : null}
+          {headerPrimary && error ? (
+            <View
+              accessible
+              accessibilityRole="alert"
+              accessibilityLiveRegion="polite"
+              className="mt-4 rounded-xl border border-negative bg-surface p-4"
+            >
+              <AppText className="text-negative">{error}</AppText>
             </View>
-          </View>
-        ) : null}
-        {description ? (
-          <AppText variant="body" className="mt-3 text-secondary">
-            {description}
-          </AppText>
-        ) : null}
-        <View className={contentClassName}>{children}</View>
-        {actionsInScroll && actions ? (
-          <View className="mt-5 pb-8">{actions}</View>
-        ) : null}
+          ) : null}
+          <View className={contentClassName}>{children}</View>
+          {actionsInScroll && actions ? (
+            <View className="mt-5 pb-8">{actions}</View>
+          ) : null}
+        </View>
       </ScrollView>
       {!actionsInScroll && actions ? (
         <BottomActionBar>{actions}</BottomActionBar>

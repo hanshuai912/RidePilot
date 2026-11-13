@@ -48,6 +48,8 @@ AI 教练步骤使用 Expo Router 嵌套路由承载：`/(tabs)/coach` 是状态
 
 ## 验证
 
+2026-11-13：首次建计划的四个设置页已统一为标题右侧前进/生成、左侧返回，并移除底部重复导航；表单重新分组，补充保存禁用、错误提示及小屏适配。详见 [首次训练计划设置页优化](./initial-plan-setup-redesign.md)。
+
 移动端测试覆盖无 FTP 阻断、身体状态和周期信息传入生成请求、一周提案在确认前不应用、任务失败不改变正式计划、已有计划缺目标和时间的补录路径、已有计划的生成和调整入口、单节 AI 调整的预览/校验/应用、训练反馈记录、应用日期定位及首页随正式版本切换。执行 `pnpm --filter @ridepilot/mobile typecheck`、`pnpm --filter @ridepilot/mobile lint` 和 `pnpm --filter @ridepilot/mobile test`。真实模型生成的服务端联调记录见 `docs/features/ai-coach.md`；移动端尚未在实体设备上完成端到端真机验收。
 
 ## 2026-10-27 交互优化
