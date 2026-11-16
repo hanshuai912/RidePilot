@@ -4,6 +4,7 @@ import { GenerationCancelButton } from "../../coach/components/GenerationCancelB
 import type { useGenerationCancellation } from "../../coach/hooks/useGenerationCancellation";
 
 export function NutritionGenerationCard({
+  dayLabel = "今日",
   generating,
   status,
   hasPlan,
@@ -12,6 +13,7 @@ export function NutritionGenerationCard({
   onGenerate,
   cancellation,
 }: {
+  dayLabel?: string;
   generating: boolean;
   status: "QUEUED" | "RUNNING" | null;
   hasPlan: boolean;
@@ -26,8 +28,8 @@ export function NutritionGenerationCard({
         {hasDraft
           ? "已有待确认草稿"
           : hasPlan
-            ? "调整今日饮食"
-            : "安排今日饮食"}
+            ? `调整${dayLabel}饮食`
+            : `安排${dayLabel}饮食`}
       </AppText>
       <AppText variant="caption" muted>
         {hasDraft
@@ -40,7 +42,7 @@ export function NutritionGenerationCard({
         disabled={disabled}
         onPress={onGenerate}
       >
-        {status === "RUNNING" ? "正在生成营养草稿" : "生成今日营养草稿"}
+        {status === "RUNNING" ? "正在生成营养草稿" : `生成${dayLabel}营养草稿`}
       </Button>
       {generating ? (
         <GenerationCancelButton cancellation={cancellation} />

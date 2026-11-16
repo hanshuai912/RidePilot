@@ -24,6 +24,7 @@ jest.mock("../services/nutrition.api", () => ({
     getProfile: jest.fn(),
     saveProfile: jest.fn(),
     getPlan: jest.fn(),
+    getPlanRange: jest.fn(),
     generate: jest.fn(),
     generation: jest.fn(),
     proposal: jest.fn(),
@@ -34,7 +35,7 @@ jest.mock("../services/nutrition.api", () => ({
 }));
 jest.mock("expo-router", () => ({
   useFocusEffect: (effect: () => void) =>
-    jest.requireActual("react").useEffect(effect, []),
+    jest.requireActual("react").useEffect(effect, [effect]),
 }));
 
 const mockedUseAuth = useAuth as jest.MockedFunction<typeof useAuth>;
@@ -87,6 +88,7 @@ beforeEach(() => {
     retry: jest.fn(),
   });
   mockedApi.getPlan.mockResolvedValue(plan);
+  mockedApi.getPlanRange.mockResolvedValue(plan);
 });
 
 test("guides a new user to create a nutrition profile", async () => {

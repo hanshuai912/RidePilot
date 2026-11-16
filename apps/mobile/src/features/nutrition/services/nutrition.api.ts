@@ -143,6 +143,12 @@ export const nutritionApi = {
       token,
       nutritionPlanResponseSchema,
     ),
+  getPlanRange: (token: string, from: string, to: string) =>
+    request(
+      `nutrition/plan?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
+      token,
+      nutritionPlanResponseSchema,
+    ),
   generate: (token: string, input: NutritionGenerationInput) =>
     request(
       "nutrition/plans/generate-proposal",

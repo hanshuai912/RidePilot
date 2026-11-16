@@ -12,6 +12,10 @@ import {
 } from "../../../components/ui";
 import { colors } from "../../../theme/colors";
 import { addDays } from "../../coach/model/plan-dates";
+import { NutritionDailyTarget } from "../components/NutritionDailyTarget";
+import { NutritionDateBrowser } from "../components/NutritionDateBrowser";
+import { NutritionUpcomingLink } from "../components/NutritionUpcomingLink";
+import { shortDateLabel } from "../model/nutrition-dates";
 import { NutritionGenerationCard } from "../components/NutritionGenerationCard";
 import { NutritionEditableMeals } from "../components/NutritionEditableMeals";
 import { TrainingNutritionLinkCard } from "../components/TrainingNutritionLinkCard";
@@ -29,6 +33,12 @@ function sectionTitle(date: string) {
 
 export function NutritionScreen() {
   const flow = useNutritionPlan();
+  const isToday = flow.date === flow.today;
+  const dayLabel = isToday
+    ? "今日"
+    : flow.date
+      ? shortDateLabel(flow.date)
+      : "所选日期";
   if (!flow.token) {
     return (
       <Screen>
@@ -59,6 +69,30 @@ export function NutritionScreen() {
           </Pressable>
         }
       />
+      {flow.date && flow.today ? (
+        <NutritionDateBrowser
+          token={flow.token}
+          date={flow.date}
+          today={flow.today}
+          revision={flow.revision}
+          disabled={flow.busy}
+          onSelect={flow.selectDate}
+        />
+      ) : null}
+      {flow.readError ? (
+        <Card className="gap-3 p-4">
+          <AppText accessibilityRole="alert" className="text-negative">
+            {flow.readError}
+          </AppText>
+          <Button
+            variant="secondary"
+            loading={flow.refreshing}
+            onPress={() => void flow.refresh()}
+          >
+            重试读取饮食安排
+          </Button>
+        </Card>
+      ) : null}
       {flow.feedback ? (
         <AppText
           variant="caption"
@@ -75,11 +109,11 @@ export function NutritionScreen() {
         <Card className="items-center py-10">
           <Spinner accessibilityLabel="正在加载饮食计划" />
           <AppText variant="caption" muted className="mt-3">
-            正在读取今日饮食安排
+            正在读取{dayLabel}饮食安排
           </AppText>
         </Card>
       ) : null}
-      {!flow.loading && !flow.profile ? (
+      {!flow.loading && !flow.readError && !flow.profile ? (
         <Card className="border-brand/50 bg-surface-elevated p-5">
           <Badge variant="brand">开始前先告诉我</Badge>
           <AppText variant="section" className="mt-3">
@@ -96,6 +130,7 @@ export function NutritionScreen() {
       {!flow.loading && flow.proposal ? (
         <NutritionProposalCard
           proposal={flow.proposal}
+          disabled={!flow.plan || flow.generating}
           applying={flow.applying}
           validating={flow.validating}
           onValidate={() => void flow.validate()}
@@ -103,61 +138,15 @@ export function NutritionScreen() {
           onDismiss={flow.dismissProposal}
         />
       ) : null}
-      {!flow.loading && flow.profile ? (
-        <NutritionGenerationCard
-          generating={flow.generating}
-          status={flow.generationStatus}
-          hasPlan={flow.plan?.status === "ACTIVE"}
-          hasDraft={!!flow.proposal}
-          disabled={!flow.plan || flow.applying || flow.validating}
-          onGenerate={() => void flow.generate()}
-          cancellation={flow.cancellation}
-        />
-      ) : null}
       {!flow.loading && flow.plan?.dailyTarget ? (
-        <Card className="p-4">
-          <View className="flex-row items-center justify-between">
-            <AppText variant="card">今日营养目标</AppText>
-            <Badge
-              variant={
-                flow.plan.dailyTarget.confidence === "HIGH"
-                  ? "positive"
-                  : "warning"
-              }
-            >
-              {flow.plan.dailyTarget.confidence === "HIGH"
-                ? "高置信度"
-                : "估算"}
-            </Badge>
-          </View>
-          <View className="mt-4 flex-row gap-2">
-            <Metric
-              label="能量"
-              value={flow.plan.dailyTarget.energyKcal}
-              unit="kcal"
-            />
-            <Metric
-              label="碳水"
-              value={flow.plan.dailyTarget.carbohydrateG}
-              unit="g"
-            />
-            <Metric
-              label="蛋白质"
-              value={flow.plan.dailyTarget.proteinG}
-              unit="g"
-            />
-          </View>
-          <AppText variant="caption" muted className="mt-3">
-            目标来自
-            {flow.plan.dailyTarget.basis === "ESTIMATE"
-              ? "当前训练与个人信息的估算"
-              : "已记录数据"}
-          </AppText>
-        </Card>
+        <NutritionDailyTarget
+          target={flow.plan.dailyTarget}
+          dayLabel={dayLabel}
+        />
       ) : null}
       {!flow.loading && flow.plan?.status === "NOT_GENERATED" ? (
         <EmptyState
-          title="今天还没有饮食计划"
+          title={isToday ? "今天还没有饮食计划" : `${dayLabel}还没有饮食计划`}
           description="根据你的饮食档案和训练安排生成一份可预览的建议草稿。"
         />
       ) : null}
@@ -165,14 +154,27 @@ export function NutritionScreen() {
       flow.plan?.status === "ACTIVE" &&
       flow.items.length === 0 ? (
         <EmptyState
-          title="今天暂无餐次"
-          description="可以重新生成今天的餐食与训练补给安排。"
+          title={isToday ? "今天暂无餐次" : `${dayLabel}暂无餐次`}
+          description={`可以为${dayLabel}生成餐食与训练补给草稿，确认后生效。`}
+        />
+      ) : null}
+      {!flow.loading &&
+      flow.plan &&
+      flow.items.length === 0 &&
+      isToday &&
+      flow.today ? (
+        <NutritionUpcomingLink
+          token={flow.token}
+          today={flow.today}
+          revision={flow.revision}
+          disabled={flow.busy}
+          onSelect={flow.selectDate}
         />
       ) : null}
       {!flow.loading && flow.items.length > 0 ? (
         <View className="gap-3">
           <View className="flex-row items-center justify-between">
-            <AppText variant="section">今日正式安排</AppText>
+            <AppText variant="section">{dayLabel}正式安排</AppText>
             <AppText variant="caption" muted>
               {flow.items.length} 个餐次
             </AppText>
@@ -188,7 +190,19 @@ export function NutritionScreen() {
           ) : null}
         </View>
       ) : null}
-      {!flow.loading && flow.date ? (
+      {!flow.loading && flow.profile ? (
+        <NutritionGenerationCard
+          dayLabel={dayLabel}
+          generating={flow.generating}
+          status={flow.generationStatus}
+          hasPlan={flow.items.length > 0}
+          hasDraft={!!flow.proposal}
+          disabled={!flow.plan || flow.busy}
+          onGenerate={() => void flow.generate()}
+          cancellation={flow.cancellation}
+        />
+      ) : null}
+      {!flow.loading && flow.date && flow.plan ? (
         <TrainingNutritionLinkCard
           dates={[flow.date, addDays(flow.date, 6)]}
           checkStatus
@@ -221,29 +235,5 @@ export function NutritionScreen() {
         onSubmit={flow.swap}
       />
     </Screen>
-  );
-}
-
-function Metric({
-  label,
-  value,
-  unit,
-}: {
-  label: string;
-  value: number | null;
-  unit: string;
-}) {
-  return (
-    <View className="min-w-[80px] flex-1 gap-1">
-      <AppText variant="label" muted>
-        {label}
-      </AppText>
-      <AppText variant="card" className="mt-1">
-        {value === null ? "—" : Math.round(value)}
-      </AppText>
-      <AppText variant="label" muted>
-        {unit}
-      </AppText>
-    </View>
   );
 }

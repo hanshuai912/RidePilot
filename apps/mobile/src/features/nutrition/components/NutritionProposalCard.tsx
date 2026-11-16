@@ -14,6 +14,7 @@ import { NutritionDraftReview } from "./NutritionDraftReview";
 
 export function NutritionProposalCard({
   proposal,
+  disabled = false,
   applying,
   validating,
   onValidate,
@@ -22,6 +23,7 @@ export function NutritionProposalCard({
   onEdit,
 }: {
   proposal: NutritionProposalResponse;
+  disabled?: boolean;
   applying: boolean;
   validating: boolean;
   onValidate: () => void;
@@ -116,12 +118,21 @@ export function NutritionProposalCard({
       ) : null}
       <View className="mt-4 gap-2">
         {!canApply && !applied ? (
-          <Button variant="secondary" loading={validating} onPress={onValidate}>
+          <Button
+            variant="secondary"
+            loading={validating}
+            disabled={disabled || applying}
+            onPress={onValidate}
+          >
             重新校验草稿
           </Button>
         ) : null}
         {canApply ? (
-          <Button loading={applying} disabled={validating} onPress={onApply}>
+          <Button
+            loading={applying}
+            disabled={disabled || validating}
+            onPress={onApply}
+          >
             确认应用到正式计划
           </Button>
         ) : null}

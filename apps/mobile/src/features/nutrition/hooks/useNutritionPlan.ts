@@ -1,16 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useFocusEffect } from "expo-router";
 import type {
   NutritionPlanResponse,
   NutritionProfileInput,
   NutritionProposalResponse,
 } from "@ridepilot/contracts";
 import { useAuth } from "../../auth/hooks/AuthProvider";
-import { getProfile } from "../../profile/services/profile.api";
 import { useGenerationCancellation } from "../../coach/hooks/useGenerationCancellation";
-import { localDateInTimezone } from "../../coach/model/plan-dates";
 import { waitForNutritionProposal } from "../services/generation-task";
-import { NutritionApiError, nutritionApi } from "../services/nutrition.api";
+import { nutritionApi } from "../services/nutrition.api";
+
+import { useNutritionOverview } from "./useNutritionOverview";
 
 type NutritionItem = NutritionPlanResponse["items"][number];
 type SwapReason =
@@ -27,16 +26,11 @@ export function useNutritionPlan() {
   const { session } = useAuth();
   const token = session?.accessToken;
   const cancellation = useGenerationCancellation(token, true);
-  const [date, setDate] = useState<string | null>(null);
-  const [profile, setProfile] = useState<Awaited<
-    ReturnType<typeof nutritionApi.getProfile>
-  > | null>(null);
-  const [plan, setPlan] = useState<NutritionPlanResponse | null>(null);
+  const overview = useNutritionOverview(token);
+  const { date, profile, setProfile, plan } = overview;
   const [proposal, setProposal] = useState<NutritionProposalResponse | null>(
     null,
   );
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [generationStatus, setGenerationStatus] = useState<
@@ -57,7 +51,6 @@ export function useNutritionPlan() {
     setFeedbackTone("error");
     setFeedback(message);
   }, []);
-  const [attempt, setAttempt] = useState(0);
   const operation = useRef(0);
 
   useEffect(
@@ -65,47 +58,6 @@ export function useNutritionPlan() {
       operation.current += 1;
     },
     [],
-  );
-
-  const load = useCallback(async () => {
-    if (!token) return;
-    void attempt;
-    const account = await getProfile(token);
-    const today = localDateInTimezone(new Date(), account.timezone);
-    setDate(today);
-    const [profileResult, planResult] = await Promise.allSettled([
-      nutritionApi.getProfile(token),
-      nutritionApi.getPlan(token, today),
-    ]);
-    if (profileResult.status === "fulfilled") {
-      setProfile(profileResult.value);
-    } else if (
-      profileResult.reason instanceof NutritionApiError &&
-      profileResult.reason.status === 404
-    ) {
-      setProfile(null);
-    } else {
-      throw profileResult.reason;
-    }
-    if (planResult.status === "fulfilled") setPlan(planResult.value);
-    else throw planResult.reason;
-  }, [token, attempt]);
-
-  useFocusEffect(
-    useCallback(() => {
-      let active = true;
-      setLoading(true);
-      void load()
-        .catch((error: unknown) => {
-          if (active) reportError(errorMessage(error, "饮食计划暂时无法加载"));
-        })
-        .finally(() => {
-          if (active) setLoading(false);
-        });
-      return () => {
-        active = false;
-      };
-    }, [load, reportError]),
   );
 
   const saveProfile = async (input: NutritionProfileInput) => {
@@ -188,7 +140,7 @@ export function useNutritionPlan() {
       setFeedback(
         `饮食计划已应用，更新了 ${result.affectedDates.length} 天安排`,
       );
-      setAttempt((value) => value + 1);
+      await overview.reload();
     } catch (error) {
       reportError(errorMessage(error, "应用失败，正式饮食计划没有变化"));
     } finally {
@@ -251,25 +203,18 @@ export function useNutritionPlan() {
     }
   };
 
-  const refresh = async () => {
-    setRefreshing(true);
+  const busy = generating || applying || validating || swapping;
+  const selectDate = (next: string) => {
+    if (busy) return;
     setFeedback(null);
-    try {
-      await load();
-    } catch (error) {
-      reportError(errorMessage(error, "饮食计划暂时无法加载"));
-    } finally {
-      setRefreshing(false);
-    }
+    overview.selectDate(next);
   };
   return {
     token,
-    date,
-    profile,
-    plan,
+    ...overview,
+    selectDate,
+    busy,
     proposal,
-    loading,
-    refreshing,
     savingProfile,
     generating,
     generationStatus,
@@ -289,7 +234,10 @@ export function useNutritionPlan() {
     validate,
     apply,
     swap,
-    refresh,
+    refresh: async () => {
+      setFeedback(null);
+      await overview.refresh();
+    },
     reportError,
     acceptProposal: setProposal,
     dismissProposal: () => setProposal(null),
