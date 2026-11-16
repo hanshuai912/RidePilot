@@ -11,6 +11,7 @@ import request from "supertest";
 import { AppModule } from "../src/app.module";
 import { configureApp } from "../src/configure-app";
 import { PrismaService } from "../src/infra/prisma/prisma.service";
+import { NutritionGenerationContextService } from "../src/modules/nutrition/nutrition-generation-context.service";
 
 const describeWithDatabase = process.env.TEST_DATABASE_URL
   ? describe
@@ -21,6 +22,7 @@ describeWithDatabase("nutrition API", () => {
   let prisma: PrismaService;
   let userId: string;
   let accessToken: string;
+  let otherUserId: string | undefined;
 
   beforeAll(async () => {
     const module = await Test.createTestingModule({
@@ -47,6 +49,7 @@ describeWithDatabase("nutrition API", () => {
   });
 
   afterAll(async () => {
+    if (otherUserId) await prisma.user.delete({ where: { id: otherUserId } });
     if (userId) await prisma.user.delete({ where: { id: userId } });
     await app.close();
   });
@@ -173,5 +176,110 @@ describeWithDatabase("nutrition API", () => {
         },
       })
       .expect(409);
+  });
+
+  it("persists the shared dietary profile and rejects stale or invalid updates", async () => {
+    const read = await request(app.getHttpServer())
+      .get("/api/v1/nutrition/profile")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .expect(200);
+    const {
+      id: _id,
+      version,
+      ...current
+    } = nutritionProfileResponseSchema.parse(read.body);
+    const input = {
+      ...current,
+      dietStyle: "VEGAN",
+      habits: ["EATING_OUT", "LIMITED_PREP_TIME"],
+      allergens: ["PEANUT", "MILK"],
+      restrictions: ["NO_PORK", "OTHER"],
+      restrictionNote: "避免辛辣食物",
+      expectedVersion: version,
+    };
+    const saved = await request(app.getHttpServer())
+      .put("/api/v1/nutrition/profile")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .send(input)
+      .expect(200);
+    expect(saved.body).toMatchObject({
+      version: version + 1,
+      commonFoods: current.commonFoods,
+      mealSchedule: current.mealSchedule,
+      restrictions: input.restrictions,
+      allergens: input.allergens,
+    });
+    const again = await request(app.getHttpServer())
+      .get("/api/v1/nutrition/profile")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .expect(200);
+    expect(nutritionProfileResponseSchema.parse(again.body)).toEqual(
+      nutritionProfileResponseSchema.parse(saved.body),
+    );
+    const context = await app
+      .get(NutritionGenerationContextService)
+      .read(userId, {
+        mode: "REGENERATE",
+        startDate: "2030-01-01",
+        endDate: "2030-01-01",
+        expectedNutritionVersion: 1,
+      });
+    expect(context.nutritionProfile).toMatchObject({
+      dietStyle: "VEGAN",
+      version: version + 1,
+      allergens: ["PEANUT", "MILK"],
+      restrictions: ["NO_PORK", "OTHER"],
+      restrictionNote: "避免辛辣食物",
+    });
+    await request(app.getHttpServer())
+      .put("/api/v1/nutrition/profile")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .send(input)
+      .expect(409);
+    await request(app.getHttpServer())
+      .put("/api/v1/nutrition/profile")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .send({ ...input, expectedVersion: version + 1, restrictionNote: "" })
+      .expect(400);
+  });
+
+  it("authenticates profile access and keeps another account's preferences separate", async () => {
+    await request(app.getHttpServer())
+      .get("/api/v1/nutrition/profile")
+      .expect(401);
+    const registered = await request(app.getHttpServer())
+      .post("/api/v1/auth/register")
+      .send({
+        phone: `19${randomInt(100_000_000, 999_999_999)}`,
+        verificationCode: "123456",
+        password: "Ab!123",
+        confirmPassword: "Ab!123",
+      })
+      .expect(201);
+    const auth = authResponseSchema.parse(registered.body);
+    otherUserId = auth.user.id;
+    const otherToken = auth.tokens.accessToken;
+    await request(app.getHttpServer())
+      .get("/api/v1/nutrition/profile")
+      .set("Authorization", `Bearer ${otherToken}`)
+      .expect(404);
+    await request(app.getHttpServer())
+      .put("/api/v1/nutrition/profile")
+      .set("Authorization", `Bearer ${otherToken}`)
+      .send({
+        dietStyle: "OMNIVORE",
+        habits: [],
+        allergens: [],
+        restrictions: [],
+        commonFoods: ["燕麦"],
+        mealSchedule: [{ mealType: "BREAKFAST", localTime: "08:30" }],
+      })
+      .expect(200);
+    const original = await request(app.getHttpServer())
+      .get("/api/v1/nutrition/profile")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .expect(200);
+    expect(original.body.allergens).toEqual(["PEANUT", "MILK"]);
+    expect(original.body.dietStyle).toBe("VEGAN");
   });
 });

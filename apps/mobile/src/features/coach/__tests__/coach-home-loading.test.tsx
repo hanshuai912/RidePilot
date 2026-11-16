@@ -54,6 +54,7 @@ const flow = {
   loading: false,
   busy: false,
   error: null,
+  nutrition: { load: jest.fn() },
   beginTask: jest.fn(),
   resources: {
     profile: { timezone: "Asia/Shanghai" },
@@ -95,6 +96,7 @@ it("keeps the homepage when opening a goal after a previous adjustment task", as
     goal: { id: "goal-id", title: "提升耐力" },
   });
   const ui = await render(<CoachScreen />);
+  expect(flow.nutrition.load).not.toHaveBeenCalled();
   await ui.findByText("今日耐力训练");
   await fireEvent.press(ui.getByRole("button", { name: "查看目标与阶段" }));
   expect(mockPush).toHaveBeenCalledTimes(1);

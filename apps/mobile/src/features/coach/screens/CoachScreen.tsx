@@ -1,6 +1,7 @@
 import { GenerationCancelButton } from "../components/GenerationCancelButton";
 import { goalTypeLabels } from "../../goals/model/goal-lifecycle";
 import { TrainingNutritionLinkCard } from "../../nutrition/components/TrainingNutritionLinkCard";
+import { nutritionProfileSummary } from "../../nutrition/model/nutrition";
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "expo-router";
 import { Modal, View } from "react-native";
@@ -88,6 +89,10 @@ export function CoachScreen() {
   if (routeStage !== null && routeStage !== lastRouteStage)
     setLastRouteStage(routeStage);
   const stage = routeStage ?? lastRouteStage;
+  const { load: loadNutrition } = flow.nutrition;
+  useEffect(() => {
+    if (stage === "nutrition") void loadNutrition();
+  }, [stage, loadNutrition]);
   const dashboard = useCoachDashboard({
     token: flow.token,
     enabled: stage === "entry" && !!resources,
@@ -99,14 +104,18 @@ export function CoachScreen() {
     previousFlowStage.current = flowStage;
     if (!stageChanged) return;
     if (
-      (routeStage === "planning" || routeStage === "entry") &&
+      (routeStage === "planning" ||
+        routeStage === "entry" ||
+        routeStage === "nutrition") &&
       flowStage === "loading"
     ) {
       router.push(coachRoute("loading"));
       return;
     }
     if (
-      (routeStage === "planning" || routeStage === "loading") &&
+      (routeStage === "planning" ||
+        routeStage === "loading" ||
+        routeStage === "nutrition") &&
       ["basics", "goal", "schedule", "nutrition"].includes(flowStage)
     ) {
       router.replace(coachRoute(flowStage));
@@ -500,37 +509,27 @@ export function CoachScreen() {
       <CoachPage
         eyebrow="新用户引导 · 第 4 步"
         title="饮食与禁忌"
-        description="记录饮食偏好与禁忌，仅在本次引导中保留。"
+        description="确认饮食偏好，餐食与训练补给会使用同一份档案。"
         primary="生成"
         primaryPlacement="header"
-        primaryHint="生成训练计划草稿，随后预览确认"
+        primaryHint="保存饮食档案并生成训练计划草稿，随后预览确认"
+        primaryDisabled={
+          !flow.nutrition.loaded ||
+          flow.nutrition.loading ||
+          flow.nutrition.conflict
+        }
         contentClassName="mt-6 gap-6"
-        onPrimary={() => {
-          if (flow.restriction === "其他限制" && !flow.restrictionNote.trim()) {
-            void flow.generate("initial");
-            return;
-          }
-          void flow.generate("initial");
-          router.push(coachRoute("loading"));
-        }}
+        onPrimary={() => void flow.startInitialGeneration()}
         onBack={() => {
           flow.goTo("schedule");
           router.replace(coachRoute("schedule"));
         }}
         progressStep={4}
         progressLabel="最后确认饮食相关的关键限制"
-        busy={busy}
-        error={error}
+        busy={busy || flow.nutrition.saving}
+        error={flow.nutrition.error || error}
       >
-        <NutritionStep
-          disabled={busy}
-          restriction={flow.restriction}
-          setRestriction={flow.setRestriction}
-          restrictionNote={flow.restrictionNote}
-          setRestrictionNote={flow.setRestrictionNote}
-          meal={flow.meal}
-          setMeal={flow.setMeal}
-        />
+        <NutritionStep nutrition={flow.nutrition} disabled={busy} />
       </CoachPage>
     );
 
@@ -637,7 +636,11 @@ export function CoachScreen() {
           <PlanPreview
             proposal={flow.proposal}
             ftpWatts={resources.ftpWatts}
-            nutritionSummary={flow.restriction}
+            nutritionSummary={
+              flow.nutrition.profile
+                ? nutritionProfileSummary(flow.nutrition.profile)
+                : undefined
+            }
           />
         ) : (
           <Spinner accessibilityLabel="读取计划草稿" />
@@ -665,7 +668,7 @@ export function CoachScreen() {
                 : hasActivePlan
                   ? "已有课程将保留。"
                   : ""}
-              饮食与禁忌只保存在本次引导，不会提交后端。
+              餐食与训练补给会使用饮食档案，单独生成并确认。
             </AppText>
             <View className="mt-4 rounded-xl bg-surface-2 px-3">
               <View className="flex-row justify-between border-b border-divider py-3">
@@ -689,7 +692,11 @@ export function CoachScreen() {
                 <AppText variant="caption" muted>
                   饮食信息
                 </AppText>
-                <AppText variant="caption">已记录 · 暂不提交</AppText>
+                <AppText variant="caption">
+                  {flow.nutrition.profile
+                    ? "已保存至饮食档案"
+                    : "使用饮食页档案"}
+                </AppText>
               </View>
             </View>
             {error ? (

@@ -31,6 +31,7 @@ export function CoachPage({
   headerAction,
   primaryPlacement = "bottom",
   primaryHint = "保存当前填写内容并继续",
+  primaryDisabled = false,
 }: {
   eyebrow: string;
   title: string;
@@ -52,6 +53,7 @@ export function CoachPage({
   headerAction?: ReactNode;
   primaryPlacement?: "bottom" | "header";
   primaryHint?: string;
+  primaryDisabled?: boolean;
 }) {
   const progressWidth = progressStep
     ? (`${Math.min(progressStep / progressTotal, 1) * 100}%` as `${number}%`)
@@ -69,6 +71,7 @@ export function CoachPage({
         label={primary}
         onPress={onPrimary}
         loading={busy}
+        disabled={primaryDisabled}
         width={72}
         hint={primaryHint}
       />

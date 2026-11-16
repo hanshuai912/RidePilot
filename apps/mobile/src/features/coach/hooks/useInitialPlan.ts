@@ -1,5 +1,6 @@
 import { GenerationCancelledError } from "../../../lib/generation-cancelled";
 import { useGenerationCancellation } from "./useGenerationCancellation";
+import { useInitialPlanNutrition } from "./useInitialPlanNutrition";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useFocusEffect } from "expo-router";
 import {
@@ -87,9 +88,8 @@ export function useInitialPlan() {
   const [symptomFlags, setSymptomFlags] = useState<
     ("CHEST_PAIN" | "FAINTING" | "SEVERE_ILLNESS")[]
   >([]);
-  const [restriction, setRestriction] = useState("无特殊限制");
-  const [restrictionNote, setRestrictionNote] = useState("");
-  const [meal, setMeal] = useState("家常饮食");
+  const nutrition = useInitialPlanNutrition(token);
+  const initialGenerationPending = useRef(false);
   const [jobStatus, setJobStatus] = useState<
     "QUEUED" | "RUNNING" | "FAILED" | "CANCELLED"
   >("QUEUED");
@@ -332,11 +332,6 @@ export function useInitialPlan() {
     if (symptomFlags.length) {
       setError("检测到明显不适，请先暂停训练并进行适当的医疗评估");
       setStage("basics");
-      return;
-    }
-    if (restriction === "其他限制" && !restrictionNote.trim()) {
-      setError("请补充其他饮食限制的具体食物或成分");
-      setStage("nutrition");
       return;
     }
     generationRequest.current = { mode, weekStartDate, ...scope };
@@ -619,12 +614,7 @@ export function useInitialPlan() {
     setBodyNote,
     symptomFlags,
     setSymptomFlags,
-    restriction,
-    setRestriction,
-    restrictionNote,
-    setRestrictionNote,
-    meal,
-    setMeal,
+    nutrition,
     jobStatus,
     proposal,
     appliedDates,
@@ -635,6 +625,21 @@ export function useInitialPlan() {
     nextFromGoal,
     nextFromSchedule,
     generate,
+    startInitialGeneration: async () => {
+      if (initialGenerationPending.current || busy) return;
+      if (symptomFlags.length) {
+        setError("检测到明显不适，请先暂停训练并进行适当的医疗评估");
+        setStage("basics");
+        return;
+      }
+      initialGenerationPending.current = true;
+      setError(null);
+      try {
+        if (await nutrition.save()) await generate("initial");
+      } finally {
+        initialGenerationPending.current = false;
+      }
+    },
     generateActiveWeek,
     retryGeneration,
     upcomingWorkoutDate,

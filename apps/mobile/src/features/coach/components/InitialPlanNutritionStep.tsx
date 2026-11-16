@@ -1,135 +1,84 @@
-import { Pressable, View } from "react-native";
-import { Check, NotebookPen } from "lucide-react-native";
-import { AppText, Badge, Card, Input } from "../../../components/ui";
+import { View } from "react-native";
+import { NotebookPen } from "lucide-react-native";
+import { AppText, Badge, Button, Card, Spinner } from "../../../components/ui";
 import { colors } from "../../../theme/colors";
-import { SetupChoiceRow } from "./SetupChoiceRow";
-import { SetupSection } from "./SetupSection";
-
-const restrictions = [
-  "无特殊限制",
-  "素食",
-  "乳糖不耐受",
-  "需要避开坚果",
-  "其他限制",
-];
+import { NutritionProfileForm } from "../../nutrition/components/NutritionProfileForm";
+import type { useInitialPlanNutrition } from "../hooks/useInitialPlanNutrition";
 
 export function NutritionStep({
-  restriction,
-  setRestriction,
-  restrictionNote,
-  setRestrictionNote,
-  meal,
-  setMeal,
+  nutrition,
   disabled = false,
 }: {
-  restriction: string;
-  setRestriction: (value: string) => void;
-  restrictionNote: string;
-  setRestrictionNote: (value: string) => void;
-  meal: string;
-  setMeal: (value: string) => void;
+  nutrition: ReturnType<typeof useInitialPlanNutrition>;
   disabled?: boolean;
 }) {
-  const requiresNote = restriction === "其他限制";
+  const unavailable =
+    disabled || nutrition.saving || nutrition.loading || nutrition.conflict;
+  if (!nutrition.loaded)
+    return (
+      <Card className="gap-3 p-5">
+        {nutrition.loading ? (
+          <Spinner accessibilityLabel="读取饮食档案" />
+        ) : (
+          <>
+            <AppText variant="card">暂时无法读取饮食档案</AppText>
+            <AppText variant="caption" className="text-secondary">
+              重新读取后再继续，避免覆盖已保存的偏好与禁忌。
+            </AppText>
+            <Button variant="secondary" onPress={() => void nutrition.load()}>
+              重新读取饮食档案
+            </Button>
+          </>
+        )}
+      </Card>
+    );
   return (
     <>
       <Card className="gap-3 p-5">
         <View className="flex-row flex-wrap items-center justify-between gap-2">
           <View className="flex-row items-center gap-2">
-            <NotebookPen size={18} color={colors.brand} />
-            <AppText variant="card">饮食偏好记录</AppText>
+            <NotebookPen size={18} color={colors.brand} accessible={false} />
+            <AppText variant="card">你的饮食档案</AppText>
           </View>
-          <Badge variant="neutral">仅本次引导</Badge>
+          <Badge variant="neutral">
+            {nutrition.saving
+              ? "正在保存"
+              : nutrition.loading
+                ? "正在读取"
+                : nutrition.profile
+                  ? nutrition.dirty
+                    ? "有未保存修改"
+                    : "已同步"
+                  : "首次建立"}
+          </Badge>
         </View>
         <AppText variant="caption" className="text-secondary">
-          这里的信息暂不提交服务器，也不会自动应用到饮食方案。
+          点击右上角“生成”时保存，与饮食页共享，可随时修改。
         </AppText>
       </Card>
-      <SetupSection
-        title="有什么需要避开的？"
-        description="选择最符合的一项，其他限制可在下方补充。"
-      >
-        <View className="flex-row flex-wrap gap-2">
-          {restrictions.map((value) => {
-            const selected = restriction === value;
-            return (
-              <Pressable
-                key={value}
-                accessibilityRole="radio"
-                accessibilityLabel={value}
-                accessibilityState={{ selected, checked: selected, disabled }}
-                disabled={disabled}
-                onPress={() => setRestriction(value)}
-                style={{
-                  flexBasis: value === "其他限制" ? "100%" : "46%",
-                  flexGrow: 1,
-                }}
-                className={`min-h-16 min-w-0 flex-row items-center gap-3 rounded-xl border p-4 ${selected ? "border-brand bg-brand-subtle" : "border-border bg-surface"} ${disabled ? "opacity-50" : "active:opacity-70"}`}
-              >
-                <AppText
-                  variant="card"
-                  className={`min-w-0 flex-1 ${selected ? "text-brand" : "text-primary"}`}
-                >
-                  {value}
-                </AppText>
-                <View
-                  accessible={false}
-                  className={`h-5 w-5 items-center justify-center rounded-full border ${selected ? "border-brand bg-brand" : "border-neutral"}`}
-                >
-                  {selected ? <Check size={14} color={colors.brandOn} /> : null}
-                </View>
-              </Pressable>
-            );
-          })}
-        </View>
-        <View className="mt-1 gap-2">
-          <AppText variant="caption" className="text-secondary">
-            {requiresNote ? "其他限制（必填）" : "补充说明（选填）"}
-          </AppText>
-          <Input
-            accessibilityLabel="其他饮食限制"
-            accessibilityHint={
-              requiresNote
-                ? "请写明具体食物或成分后再生成草稿"
-                : "可补充其他需要避开的食物或成分"
-            }
-            value={restrictionNote}
-            onChangeText={setRestrictionNote}
-            editable={!disabled}
-            maxLength={200}
-            multiline
-            textAlignVertical="top"
-            className="min-h-24 py-3"
-            placeholder="例如：对虾类过敏；不吃猪肉"
-          />
-          <AppText variant="caption" className="text-secondary">
-            {requiresNote
-              ? "请写明具体食物或成分，最多 200 字。"
-              : "选填，最多 200 字。"}
-          </AppText>
-        </View>
-      </SetupSection>
-      <SetupSection title="平时更接近哪种饮食？">
+      {nutrition.conflict ? (
         <View className="gap-2">
-          {[
-            ["家常饮食", "以家里准备的餐食为主"],
-            ["外食较多", "更多在餐厅或通过外卖用餐"],
-          ].map(([value, description]) => (
-            <SetupChoiceRow
-              key={value}
-              label={value}
-              description={description}
-              selected={meal === value}
-              onPress={() => setMeal(value)}
-              disabled={disabled}
-            />
-          ))}
+          <Button
+            variant="secondary"
+            disabled={nutrition.loading}
+            onPress={() => void nutrition.load(true)}
+          >
+            重新读取饮食档案
+          </Button>
+          <AppText variant="caption" className="text-secondary">
+            重新读取会替换本页未保存的修改，请先核对上方提示。
+          </AppText>
         </View>
-      </SetupSection>
+      ) : null}
+      <NutritionProfileForm
+        value={nutrition.form}
+        onChange={nutrition.setForm}
+        disabled={unavailable}
+      />
       <View className="gap-1 border-t border-divider pt-4">
         <AppText variant="card">接下来：预览训练草稿</AppText>
         <AppText variant="caption" className="text-secondary">
-          点击右上角“生成”后创建训练草稿，查看安排并确认后才会生效。饮食信息仅保留在本次引导中。
+          先保存饮食档案，再生成训练草稿；确认训练后，可按新的训练安排生成餐食与补给，并单独确认。
         </AppText>
       </View>
     </>

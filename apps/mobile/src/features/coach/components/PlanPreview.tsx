@@ -15,7 +15,7 @@ import { ProposalWorkoutCard } from "./ProposalWorkoutCard";
 export function PlanPreview({
   proposal,
   ftpWatts,
-  nutritionSummary = "无特殊限制",
+  nutritionSummary = "可在饮食页查看",
 }: {
   proposal: AiProposalResponse;
   ftpWatts: number | null;
@@ -89,7 +89,7 @@ export function PlanPreview({
         </AppText>
       </View>
       <AppText variant="caption" muted>
-        饮食限制：{nutritionSummary} · 本次不修改饮食计划
+        饮食档案：{nutritionSummary}。餐食与补给需单独生成并确认。
       </AppText>
       <PlanningGoalsCard
         goals={proposal.planningGoals}

@@ -11,6 +11,11 @@ import type { AiProposalResponse, ProfileResponse } from "@ridepilot/contracts";
 import { useAuth } from "../../auth/hooks/AuthProvider";
 import { getProfile, patchProfile } from "../../profile/services/profile.api";
 import { trainingApi } from "../../training/services/training.api";
+import { defaultNutritionProfile } from "../../nutrition/model/nutrition";
+import {
+  NutritionApiError,
+  nutritionApi,
+} from "../../nutrition/services/nutrition.api";
 import { CoachFlowProvider } from "../hooks/CoachFlowContext";
 import { useInitialPlan } from "../hooks/useInitialPlan";
 import { CoachScreen } from "../screens/CoachScreen";
@@ -83,6 +88,11 @@ jest.mock("../services/coach.api", () => ({
 }));
 
 const api = jest.mocked(coachApi);
+jest.mock("../../nutrition/services/nutrition.api", () => ({
+  ...jest.requireActual("../../nutrition/services/nutrition.api"),
+  nutritionApi: { getProfile: jest.fn(), saveProfile: jest.fn() },
+}));
+const food = jest.mocked(nutritionApi);
 const calendarApi = jest.mocked(trainingApi);
 const profile: ProfileResponse = {
   userId: "00000000-0000-4000-8000-000000000001",
@@ -162,6 +172,20 @@ beforeEach(() => {
   });
   jest.mocked(getProfile).mockResolvedValue(profile);
   jest.mocked(patchProfile).mockResolvedValue(profile);
+  food.getProfile.mockRejectedValue(
+    new NutritionApiError(
+      "尚未建立饮食档案",
+      404,
+      "NUTRITION_PROFILE_NOT_FOUND",
+    ),
+  );
+  food.saveProfile.mockImplementation(
+    async (_token, { expectedVersion, ...input }) => ({
+      ...input,
+      id: "00000000-0000-4000-8000-000000000099",
+      version: (expectedVersion ?? 0) + 1,
+    }),
+  );
   api.planStatus.mockResolvedValue({ hasActivePlan: false, planVersion: 0 });
   api.readiness.mockResolvedValue({
     ready: true,
@@ -337,7 +361,7 @@ test("schedule retains custom duration and saves selected days through the heade
   );
 });
 
-test("nutrition explains local-only preferences and validates other restrictions before generation", async () => {
+test("nutrition saves shared preferences before generating a training draft", async () => {
   mockPathname = "/coach/nutrition";
   api.goals.mockResolvedValue([goal]);
   const view = await render(
@@ -348,18 +372,35 @@ test("nutrition explains local-only preferences and validates other restrictions
   await waitFor(() =>
     expect(view.getByRole("header", { name: "饮食与禁忌" })).toBeTruthy(),
   );
+  await waitFor(() =>
+    expect(view.getByRole("checkbox", { name: "其他限制" })).toBeTruthy(),
+  );
   expect(
-    view.getByText("这里的信息暂不提交服务器，也不会自动应用到饮食方案。"),
+    view.getByText("点击右上角“生成”时保存，与饮食页共享，可随时修改。"),
   ).toBeTruthy();
-  await fireEvent.press(view.getByRole("radio", { name: "其他限制" }));
+  await fireEvent.press(view.getByRole("checkbox", { name: "其他限制" }));
   await fireEvent.press(view.getByRole("button", { name: "生成" }));
   expect(view.getByText("请补充其他饮食限制的具体食物或成分")).toBeTruthy();
   expect(mockNavigate).not.toHaveBeenCalled();
   expect(api.generate).not.toHaveBeenCalled();
   await fireEvent.changeText(view.getByLabelText("其他饮食限制"), "虾类过敏");
-  await fireEvent.press(view.getByRole("radio", { name: /外食较多/ }));
+  await fireEvent.press(view.getByRole("checkbox", { name: "经常外食" }));
+  await fireEvent.press(view.getByRole("checkbox", { name: "花生" }));
+  await fireEvent.press(view.getByRole("checkbox", { name: "乳制品" }));
   await fireEvent.press(view.getByRole("button", { name: "生成" }));
   await waitFor(() => expect(api.generate).toHaveBeenCalledTimes(1));
+  expect(food.saveProfile).toHaveBeenCalledWith(
+    "token",
+    expect.objectContaining({
+      habits: ["HOME_COOKING", "EATING_OUT"],
+      allergens: ["PEANUT", "MILK"],
+      restrictions: ["OTHER"],
+      restrictionNote: "虾类过敏",
+    }),
+  );
+  expect(food.saveProfile.mock.invocationCallOrder[0]).toBeLessThan(
+    api.generate.mock.invocationCallOrder[0],
+  );
   expect(api.apply).not.toHaveBeenCalled();
   expect(JSON.stringify(api.generate.mock.calls[0][1])).not.toContain(
     "虾类过敏",
@@ -375,6 +416,90 @@ test("missing FTP blocks the wizard and points to personal data", async () => {
   });
   expect(result.current.error).toContain("设置 FTP");
   expect(api.generate).not.toHaveBeenCalled();
+});
+
+test("nutrition read failure disables generation until a successful retry", async () => {
+  mockPathname = "/coach/nutrition";
+  food.getProfile.mockRejectedValueOnce(
+    new NutritionApiError("饮食服务暂不可用", 503),
+  );
+  const view = await render(
+    <CoachFlowProvider>
+      <CoachScreen />
+    </CoachFlowProvider>,
+  );
+  await waitFor(() => expect(view.getByText("饮食服务暂不可用")).toBeTruthy());
+  expect(view.getByRole("button", { name: "生成" })).toBeDisabled();
+  expect(food.saveProfile).not.toHaveBeenCalled();
+  await fireEvent.press(view.getByRole("button", { name: "重新读取饮食档案" }));
+  await waitFor(() =>
+    expect(view.getByRole("button", { name: "生成" })).toBeEnabled(),
+  );
+  expect(api.generate).not.toHaveBeenCalled();
+});
+
+test("nutrition save failure stays on the form and preserves selected allergens", async () => {
+  mockPathname = "/coach/nutrition";
+  food.saveProfile.mockRejectedValueOnce(
+    new NutritionApiError("保存失败，请重试", 503),
+  );
+  const view = await render(
+    <CoachFlowProvider>
+      <CoachScreen />
+    </CoachFlowProvider>,
+  );
+  await waitFor(() =>
+    expect(view.getByRole("checkbox", { name: "花生" })).toBeTruthy(),
+  );
+  await fireEvent.press(view.getByRole("checkbox", { name: "花生" }));
+  await fireEvent.press(view.getByRole("button", { name: "生成" }));
+  await waitFor(() => expect(view.getByText("保存失败，请重试")).toBeTruthy());
+  expect(view.getByRole("checkbox", { name: "花生" })).toBeChecked();
+  expect(mockNavigate).not.toHaveBeenCalled();
+  expect(api.generate).not.toHaveBeenCalled();
+});
+
+test("nutrition awaits a single save before navigating and prevents repeat submissions", async () => {
+  mockPathname = "/coach/nutrition";
+  api.goals.mockResolvedValue([goal]);
+  let finish!: (
+    value: Awaited<ReturnType<typeof nutritionApi.saveProfile>>,
+  ) => void;
+  food.saveProfile.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  const view = await render(
+    <CoachFlowProvider>
+      <CoachScreen />
+    </CoachFlowProvider>,
+  );
+  await waitFor(() =>
+    expect(view.getByRole("checkbox", { name: "花生" })).toBeTruthy(),
+  );
+  await fireEvent.press(view.getByRole("checkbox", { name: "花生" }));
+  await fireEvent.press(view.getByRole("button", { name: "生成" }));
+  await waitFor(() =>
+    expect(view.getByRole("button", { name: "生成" })).toBeDisabled(),
+  );
+  expect(view.getByRole("button", { name: "返回上一页" })).toBeDisabled();
+  expect(view.getByRole("checkbox", { name: "花生" })).toBeDisabled();
+  await fireEvent.press(view.getByRole("button", { name: "生成" }));
+  expect(food.saveProfile).toHaveBeenCalledTimes(1);
+  expect(api.generate).not.toHaveBeenCalled();
+  expect(mockNavigate).not.toHaveBeenCalled();
+  await act(async () =>
+    finish({
+      ...defaultNutritionProfile,
+      allergens: ["PEANUT"],
+      id: "00000000-0000-4000-8000-000000000099",
+      version: 1,
+    }),
+  );
+  await waitFor(() => expect(api.generate).toHaveBeenCalledTimes(1));
+  expect(mockNavigate).toHaveBeenCalledWith("/(tabs)/coach/loading");
 });
 
 test("generates one draft and applies it only after validation and confirmation", async () => {
@@ -404,8 +529,6 @@ test("generates one draft and applies it only after validation and confirmation"
     result.current.setBodyStatus("TIRED");
     result.current.setBodyNote("最近睡眠不足");
     result.current.setCycleWeeks(4);
-    result.current.setRestriction("其他限制");
-    result.current.setRestrictionNote("对虾过敏");
   });
   await act(async () => {
     await result.current.generate();
@@ -695,7 +818,7 @@ test("an empty current week guides missing training data and resumes the same ta
   expect(result.current.stage).toBe("proposals");
 });
 
-test("nutrition preferences stay local and validate other restrictions before generation", async () => {
+test("nutrition validation blocks saving and generation until the note is complete", async () => {
   api.goals.mockResolvedValueOnce([]).mockResolvedValue([goal]);
   const { result } = await renderHook(() => useInitialPlan());
   await waitFor(() => expect(result.current.loading).toBe(false));
@@ -703,13 +826,26 @@ test("nutrition preferences stay local and validate other restrictions before ge
   await act(async () => result.current.nextFromGoal());
   await act(async () => result.current.nextFromSchedule());
   expect(result.current.stage).toBe("nutrition");
-  await act(async () => result.current.setRestriction("其他限制"));
-  await act(async () => result.current.generate());
-  expect(result.current.error).toContain("补充其他饮食限制");
+  await act(async () => result.current.nutrition.load());
+  await act(async () =>
+    result.current.nutrition.setForm({
+      ...defaultNutritionProfile,
+      restrictions: ["OTHER"],
+    }),
+  );
+  await act(async () => result.current.startInitialGeneration());
+  expect(result.current.nutrition.error).toContain("补充其他饮食限制");
   expect(api.generate).not.toHaveBeenCalled();
-  await act(async () => result.current.setRestrictionNote("对虾过敏"));
-  await act(async () => result.current.generate());
+  expect(food.saveProfile).not.toHaveBeenCalled();
+  await act(async () =>
+    result.current.nutrition.setForm((current) => ({
+      ...current,
+      restrictionNote: "对虾过敏",
+    })),
+  );
+  await act(async () => result.current.startInitialGeneration());
   expect(api.generate).toHaveBeenCalled();
+  expect(result.current.nutrition.profile?.restrictionNote).toBe("对虾过敏");
   expect(api.generate.mock.calls[0]?.[1]).not.toHaveProperty("restriction");
   expect(api.generate.mock.calls[0]?.[1]).not.toHaveProperty("restrictionNote");
 });

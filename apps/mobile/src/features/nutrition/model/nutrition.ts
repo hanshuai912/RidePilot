@@ -16,21 +16,30 @@ export const mealTypeLabels: Record<NutritionItem["mealType"], string> = {
   POST_WORKOUT: "训练后",
 };
 
-export const dietStyleLabels: Record<NutritionProfileInput["dietStyle"], string> = {
+export const dietStyleLabels: Record<
+  NutritionProfileInput["dietStyle"],
+  string
+> = {
   OMNIVORE: "均衡饮食",
   VEGETARIAN: "素食",
   VEGAN: "纯植物",
   PESCATARIAN: "鱼素",
 };
 
-export const habitLabels: Record<NutritionProfileInput["habits"][number], string> = {
+export const habitLabels: Record<
+  NutritionProfileInput["habits"][number],
+  string
+> = {
   EATING_OUT: "经常外食",
   HOME_COOKING: "主要下厨",
   IRREGULAR_MEALS: "用餐不规律",
   LIMITED_PREP_TIME: "准备时间少",
 };
 
-export const allergenLabels: Record<NutritionProfileInput["allergens"][number], string> = {
+export const allergenLabels: Record<
+  NutritionProfileInput["allergens"][number],
+  string
+> = {
   MILK: "乳制品",
   EGG: "蛋类",
   PEANUT: "花生",
@@ -94,4 +103,14 @@ export function profileInputFromResponse(
     mealSchedule: profile.mealSchedule,
     expectedVersion: profile.version,
   };
+}
+
+export function nutritionProfileSummary(profile: NutritionProfileResponse) {
+  return [
+    dietStyleLabels[profile.dietStyle],
+    profile.allergens.length
+      ? `避开${profile.allergens.map((value) => allergenLabels[value]).join("、")}`
+      : "无已知过敏",
+    ...profile.restrictions.map((value) => restrictionLabels[value]),
+  ].join(" · ");
 }
